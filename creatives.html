@@ -1,36 +1,116 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Creatives · Avonent OS</title><link rel="stylesheet" href="static/pages.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#000000">
+  <title>Creative Library · Avonent</title>
+  <link rel="stylesheet" href="static/site.css?v=1">
 </head>
-<body data-page="creatives">
+<body data-page="library">
 <header class="topbar">
-  <a class="logo" href="index.html">AVONENT OS</a>
-  <nav><a href="index.html">Home</a><a href="brands.html">Brands</a><a href="products.html">Products</a><a href="plans.html">Plans</a><a class="active" href="creatives.html">Creatives</a></nav>
+  <a class="logo" href="index.html">AVONENT</a>
+  <nav class="nav">
+    <a href="index.html">Dashboard</a>
+    <a href="chat.html">Creative Chat</a>
+    <a class="active" href="creatives.html">Library</a>
+  </nav>
+  <div class="auth-nav">
+    <a id="login-link" class="text-button" href="auth.html?mode=login">Log in</a>
+    <a id="signup-link" class="button small-button" href="auth.html?mode=signup">Sign up</a>
+    <span id="account-email" class="account-email hidden"></span>
+    <button id="signout-button" class="text-button hidden" type="button">Sign out</button>
+  </div>
 </header>
+
 <main>
-  <section class="page-title"><p class="eyebrow">CREATIVE LIBRARY</p><h1>Hooks & Scripts</h1><p class="sub">Store your hooks, scripts, primary texts, headlines and production status.</p></section>
-  <section class="panel">
-    <h2>Add creative</h2>
-    <form id="creative-form" class="form-grid">
-      <label>Product<select id="creative-product"></select></label>
-      <label>Format<select id="creative-format"><option>Video</option><option>Static</option><option>UGC</option><option>Carousel</option><option>Script only</option></select></label>
-      <label class="span-2">Title<input id="creative-title" required></label>
-      <label class="span-2">Angle<input id="creative-angle"></label>
-      <label class="span-2">Hook<textarea id="creative-hook"></textarea></label>
-      <label class="span-2">Script<textarea id="creative-script" class="tall"></textarea></label>
-      <label>Primary text<textarea id="creative-primary"></textarea></label>
-      <label>Headline<input id="creative-headline"></label>
-      <label>Status<select id="creative-status"><option>Idea</option><option>Research</option><option>Brief</option><option>Editing</option><option>Review</option><option>Approved</option><option>Launched</option><option>Winner</option><option>Loser</option><option>Retest</option></select></label>
-      <button type="submit">Save creative</button>
+  <section class="page-title">
+    <p class="eyebrow">CREATIVE LIBRARY</p>
+    <h1>Everything worth saving.</h1>
+    <p class="sub">Hooks, scripts, ideas, briefs, primary text, headlines and concepts in one searchable library.</p>
+  </section>
+
+  <div id="library-signed-out" class="notice">
+    <div>
+      <strong>Your private library appears after login.</strong>
+      <p>The page stays viewable while signed out, but private creative data is never exposed.</p>
+    </div>
+    <a class="button secondary" href="auth.html?mode=login">Log in</a>
+  </div>
+
+  <section id="new-item-panel" class="panel hidden">
+    <div class="section-head">
+      <div><p class="eyebrow">QUICK SAVE</p><h2>Add to library</h2></div>
+      <button id="close-new-item" class="text-button" type="button">Close</button>
+    </div>
+    <form id="item-form" class="form-grid">
+      <label>Type
+        <select id="item-kind">
+          <option value="idea">Idea</option>
+          <option value="hook">Hook</option>
+          <option value="script">Script</option>
+          <option value="brief">Brief</option>
+          <option value="primary_text">Primary text</option>
+          <option value="headline">Headline</option>
+          <option value="concept">Concept</option>
+          <option value="note">Note</option>
+        </select>
+      </label>
+      <label>Status
+        <select id="item-status">
+          <option>Idea</option><option>Research</option><option>Brief</option><option>Editing</option>
+          <option>Review</option><option>Approved</option><option>Launched</option><option>Winner</option>
+          <option>Loser</option><option>Retest</option>
+        </select>
+      </label>
+      <label class="span-2">Title
+        <input id="item-title" required placeholder="Give it a useful name">
+      </label>
+      <label>Angle
+        <input id="item-angle" placeholder="Trust, curiosity, problem-aware...">
+      </label>
+      <label>Format
+        <input id="item-format" placeholder="UGC, static, founder, demo...">
+      </label>
+      <label class="span-2">Content
+        <textarea id="item-content" class="tall" required placeholder="Paste the hook, script, brief, headline, notes..."></textarea>
+      </label>
+      <button type="submit">Save to library</button>
     </form>
   </section>
-  <section class="panel">
-    <input id="creative-search" class="search" type="search" placeholder="Search title, hook, script, angle or headline">
-    <div id="creative-list" class="stack"></div>
+
+  <section class="library-toolbar">
+    <div class="search-wrap">
+      <input id="library-search" type="search" placeholder="Search hooks, scripts, angles, briefs...">
+    </div>
+    <select id="kind-filter">
+      <option value="">All types</option>
+      <option value="idea">Ideas</option>
+      <option value="hook">Hooks</option>
+      <option value="script">Scripts</option>
+      <option value="brief">Briefs</option>
+      <option value="primary_text">Primary text</option>
+      <option value="headline">Headlines</option>
+      <option value="concept">Concepts</option>
+      <option value="note">Notes</option>
+    </select>
+    <select id="status-filter">
+      <option value="">All statuses</option>
+      <option>Idea</option><option>Research</option><option>Brief</option><option>Editing</option>
+      <option>Review</option><option>Approved</option><option>Launched</option><option>Winner</option>
+      <option>Loser</option><option>Retest</option>
+    </select>
+    <button id="add-item" class="button" type="button">+ Add</button>
+  </section>
+
+  <section id="library-grid" class="library-grid">
+    <div class="empty wide">Log in to load your library.</div>
   </section>
 </main>
-<script src="static/pages.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="static/config.js?v=1"></script>
+<script src="static/app.js?v=1"></script>
 </body>
 </html>
