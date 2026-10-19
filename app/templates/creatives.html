@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Creatives · Avonent OS{% endblock %}
+{% block body %}
+<main>
+  <section class="page-header"><div><p class="eyebrow">CREATIVE LIBRARY</p><h1>Creatives</h1><p>Search hooks, scripts, angles and ad concepts.</p></div></section>
+  <section class="toolbar card">
+    <form method="get" action="/creatives" class="search-form">
+      <input type="search" name="q" value="{{ q }}" placeholder="Search title, hook, angle or script">
+      <button type="submit">Search</button>
+    </form>
+  </section>
+  {% if can_edit and products %}
+  <section class="card">
+    <h2>Create creative</h2>
+    <form method="post" action="/creatives/manual" class="form-grid">
+      <input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}">
+      <label>Product<select name="product_id">{% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></label>
+      <label>Format<select name="format"><option>video</option><option>static</option><option>UGC</option><option>carousel</option><option>script-only</option></select></label>
+      <label class="span-2">Title<input name="title" required></label>
+      <label class="span-2">Angle<input name="angle"></label>
+      <label class="span-2">Hook<textarea name="hook"></textarea></label>
+      <label class="span-2">Script<textarea name="script" class="tall"></textarea></label>
+      <label>Primary text<textarea name="primary_text"></textarea></label>
+      <label>Headline<input name="headline"></label>
+      <button type="submit">Save creative</button>
+    </form>
+  </section>
+  {% endif %}
+  <section class="card">
+    {% for c in creatives %}
+    <article class="creative">
+      <div class="creative-head"><div><span class="badge">{{ c.status }}</span><h3>{{ c.title }}</h3></div><span class="muted">{{ c.product.name }} · {{ c.format }}</span></div>
+      <p><strong>Angle:</strong> {{ c.angle or '—' }}</p>
+      <blockquote>{{ c.hook or 'No hook yet.' }}</blockquote>
+      <details><summary>Open script and copy</summary><p class="preline">{{ c.script }}</p><p><strong>Primary text:</strong> {{ c.primary_text }}</p><p><strong>Headline:</strong> {{ c.headline }}</p></details>
+      {% if can_edit %}
+      <form method="post" action="/creatives/{{ c.id }}/status" class="status-form">
+        <input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}">
+        <select name="status">{% for s in ['idea','research','brief','editing','review','approved','launched','winner','loser','retest'] %}<option value="{{ s }}" {% if s == c.status %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+        <button class="secondary" type="submit">Update status</button>
+      </form>
+      {% endif %}
+    </article>
+    {% else %}<p class="muted">No matching creatives.</p>{% endfor %}
+  </section>
+</main>
+{% endblock %}
