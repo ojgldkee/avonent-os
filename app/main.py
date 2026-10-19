@@ -294,7 +294,7 @@ def products_page(request: Request, q: str = "", db: Session = Depends(get_db)):
     )
     if q.strip():
         term = f"%{q.strip()}%"
-        stmt = stmt.where(or_(Product.name.ilike(term), Product.category.ilike(term), Product.notes.ilike(term)))
+        stmt = stmt.where(or_(Product.name.ilike(term), Product.category.ilike(term), Product.notes.ilike(term), Product.brand.has(Brand.name.ilike(term))))
     products = db.scalars(stmt).all()
     brands = db.scalars(select(Brand).order_by(Brand.name.asc())).all()
     return render(request, "products.html", {
