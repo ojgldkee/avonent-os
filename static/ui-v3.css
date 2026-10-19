@@ -14,6 +14,8 @@ body{background:var(--bg)}
   background:var(--panel);
   border-color:var(--line);
 }
+.nav{font-size:0}
+.nav a{font-size:13px}
 .topbar{
   min-height:64px;
   background:rgba(0,0,0,.96);
