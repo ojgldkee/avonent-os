@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: avonent
+      POSTGRES_USER: avonent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U avonent -d avonent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg://avonent:${POSTGRES_PASSWORD}@db:5432/avonent
+      STORAGE_PATH: /data/storage
+      SESSION_DAYS: ${SESSION_DAYS:-14}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      HSTS_ENABLED: ${HSTS_ENABLED:-false}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-100}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      RESEARCH_INTERVAL_MINUTES: ${RESEARCH_INTERVAL_MINUTES:-180}
+    volumes:
+      - creative_storage:/data/storage
+    ports:
+      - "127.0.0.1:8000:8000"
+
+volumes:
+  postgres_data:
+  creative_storage:
