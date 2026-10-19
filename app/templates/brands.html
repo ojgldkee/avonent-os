@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Brands · Avonent OS{% endblock %}
+{% block body %}
+<main>
+  <section class="page-header"><div><p class="eyebrow">LIBRARY</p><h1>Brands</h1><p>Search and manage every brand inside Avonent OS.</p></div></section>
+  <section class="toolbar card">
+    <form method="get" action="/brands" class="search-form">
+      <input type="search" name="q" value="{{ q }}" placeholder="Search brands">
+      <button type="submit">Search</button>
+    </form>
+  </section>
+  {% if can_admin %}
+  <section class="card">
+    <h2>Add brand</h2>
+    <form method="post" action="/brands" class="inline-create">
+      <input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}">
+      <input name="name" placeholder="Brand name" required>
+      <button type="submit">Add brand</button>
+    </form>
+  </section>
+  {% endif %}
+  <section class="card">
+    {% for brand in brands %}
+      <div class="list-card">
+        <div><h3>{{ brand.name }}</h3><p class="muted">{{ brand.products|length }} products</p></div>
+        <a href="/products?q={{ brand.name }}">View products</a>
+      </div>
+    {% else %}<p class="muted">No matching brands.</p>{% endfor %}
+  </section>
+</main>
+{% endblock %}
