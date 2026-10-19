@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Automations · Avonent OS{% endblock %}
+{% block body %}
+<main>
+  <section class="page-header"><div><p class="eyebrow">24/7 WORKER</p><h1>Automations</h1><p>See what is scheduled, what ran, and whether anything failed.</p></div></section>
+  <section class="stats-grid">
+    <div class="stat-card"><span>Creative research interval</span><strong>{{ research_interval_minutes }}m</strong></div>
+    <div class="stat-card"><span>AI provider</span><strong>{% if ai_configured %}Connected{% else %}Starter mode{% endif %}</strong></div>
+  </section>
+  <section class="card">
+    <h2>Recent automation jobs</h2>
+    {% for j in jobs %}
+      <div class="row"><div><strong>{{ j.product.name }}</strong><p>{{ j.kind }} · {{ j.created_at }}</p></div><span class="status">{{ j.status }}</span></div>
+    {% else %}<p class="muted">No jobs yet.</p>{% endfor %}
+  </section>
+</main>
+{% endblock %}
