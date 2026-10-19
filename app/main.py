@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Upload
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from .auth import (
@@ -241,18 +241,144 @@ def join_team(
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
     auth = require_auth(request, db)
-    brands = db.scalars(select(Brand).options(selectinload(Brand.products).selectinload(Product.assets))).all()
-    jobs = db.scalars(select(ResearchJob).order_by(ResearchJob.created_at.desc()).limit(10)).all()
-    creatives = db.scalars(select(Creative).options(selectinload(Creative.product)).order_by(Creative.created_at.desc()).limit(20)).all()
-    products = db.scalars(select(Product).order_by(Product.created_at.desc())).all()
+    jobs = db.scalars(
+        select(ResearchJob)
+        .options(selectinload(ResearchJob.product))
+        .order_by(ResearchJob.created_at.desc())
+        .limit(8)
+    ).all()
+    creatives = db.scalars(
+        select(Creative)
+        .options(selectinload(Creative.product))
+        .order_by(Creative.created_at.desc())
+        .limit(8)
+    ).all()
+    stats = {
+        "brands": db.scalar(select(func.count(Brand.id))) or 0,
+        "products": db.scalar(select(func.count(Product.id))) or 0,
+        "creatives": db.scalar(select(func.count(Creative.id))) or 0,
+        "jobs": db.scalar(select(func.count(ResearchJob.id))) or 0,
+    }
     return render(request, "dashboard.html", {
         "auth": auth,
-        "brands": brands,
-        "products": products,
         "jobs": jobs,
         "creatives": creatives,
+        "stats": stats,
         "can_edit": auth.user.role in EDIT_ROLES,
         "can_admin": auth.user.role in ADMIN_ROLES,
+    })
+
+
+@app.get("/brands", response_class=HTMLResponse)
+def brands_page(request: Request, q: str = "", db: Session = Depends(get_db)):
+    auth = require_auth(request, db)
+    stmt = select(Brand).options(selectinload(Brand.products)).order_by(Brand.name.asc())
+    if q.strip():
+        stmt = stmt.where(Brand.name.ilike(f"%{q.strip()}%"))
+    brands = db.scalars(stmt).all()
+    return render(request, "brands.html", {
+        "auth": auth,
+        "brands": brands,
+        "q": q,
+        "can_admin": auth.user.role in ADMIN_ROLES,
+    })
+
+
+@app.get("/products", response_class=HTMLResponse)
+def products_page(request: Request, q: str = "", db: Session = Depends(get_db)):
+    auth = require_auth(request, db)
+    stmt = (
+        select(Product)
+        .options(selectinload(Product.brand), selectinload(Product.assets))
+        .order_by(Product.created_at.desc())
+    )
+    if q.strip():
+        term = f"%{q.strip()}%"
+        stmt = stmt.where(or_(Product.name.ilike(term), Product.category.ilike(term), Product.notes.ilike(term)))
+    products = db.scalars(stmt).all()
+    brands = db.scalars(select(Brand).order_by(Brand.name.asc())).all()
+    return render(request, "products.html", {
+        "auth": auth,
+        "products": products,
+        "brands": brands,
+        "q": q,
+        "can_edit": auth.user.role in EDIT_ROLES,
+        "can_admin": auth.user.role in ADMIN_ROLES,
+    })
+
+
+@app.get("/creatives", response_class=HTMLResponse)
+def creatives_page(request: Request, q: str = "", db: Session = Depends(get_db)):
+    auth = require_auth(request, db)
+    stmt = (
+        select(Creative)
+        .options(selectinload(Creative.product))
+        .order_by(Creative.updated_at.desc())
+    )
+    if q.strip():
+        term = f"%{q.strip()}%"
+        stmt = stmt.where(or_(
+            Creative.title.ilike(term),
+            Creative.angle.ilike(term),
+            Creative.hook.ilike(term),
+            Creative.script.ilike(term),
+        ))
+    creatives = db.scalars(stmt).all()
+    products = db.scalars(select(Product).order_by(Product.name.asc())).all()
+    return render(request, "creatives.html", {
+        "auth": auth,
+        "creatives": creatives,
+        "products": products,
+        "q": q,
+        "can_edit": auth.user.role in EDIT_ROLES,
+    })
+
+
+@app.get("/research", response_class=HTMLResponse)
+def research_page(request: Request, db: Session = Depends(get_db)):
+    auth = require_auth(request, db)
+    jobs = db.scalars(
+        select(ResearchJob)
+        .options(selectinload(ResearchJob.product))
+        .order_by(ResearchJob.created_at.desc())
+        .limit(100)
+    ).all()
+    products = db.scalars(select(Product).order_by(Product.name.asc())).all()
+    return render(request, "research.html", {
+        "auth": auth,
+        "jobs": jobs,
+        "products": products,
+        "can_edit": auth.user.role in EDIT_ROLES,
+    })
+
+
+@app.get("/automations", response_class=HTMLResponse)
+def automations_page(request: Request, db: Session = Depends(get_db)):
+    auth = require_auth(request, db)
+    jobs = db.scalars(
+        select(ResearchJob)
+        .options(selectinload(ResearchJob.product))
+        .order_by(ResearchJob.created_at.desc())
+        .limit(30)
+    ).all()
+    return render(request, "automations.html", {
+        "auth": auth,
+        "jobs": jobs,
+        "research_interval_minutes": max(15, settings.research_interval_minutes),
+        "ai_configured": bool(settings.ai_base_url and settings.ai_model),
+    })
+
+
+@app.get("/settings", response_class=HTMLResponse)
+def settings_page(request: Request, db: Session = Depends(get_db)):
+    auth = require_auth(request, db)
+    return render(request, "settings.html", {
+        "auth": auth,
+        "environment": settings.environment,
+        "ai_configured": bool(settings.ai_base_url and settings.ai_model),
+        "cookie_secure": settings.cookie_secure,
+        "hsts_enabled": settings.hsts_enabled,
+        "max_upload_mb": settings.max_upload_mb,
     })
 
 
@@ -311,7 +437,7 @@ def create_brand(request: Request, name: str = Form(...), csrf_token: str = Form
         db.flush()
         audit(db, request, "brand_created", auth.user.id, "brand", brand.id)
         db.commit()
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/brands", status_code=303)
 
 
 @app.post("/products")
@@ -335,7 +461,7 @@ def create_product(
     db.flush()
     audit(db, request, "product_created", auth.user.id, "product", product.id)
     db.commit()
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/products", status_code=303)
 
 
 @app.post("/creatives/manual")
@@ -373,7 +499,7 @@ def create_manual_creative(
     db.flush()
     audit(db, request, "creative_created", auth.user.id, "creative", creative.id)
     db.commit()
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/creatives", status_code=303)
 
 
 @app.post("/products/{product_id}/research")
@@ -390,7 +516,7 @@ def start_research(product_id: int, request: Request, csrf_token: str = Form(...
     run_creative_research(db, job, created_by_user_id=auth.user.id)
     audit(db, request, "creative_research_run", auth.user.id, "research_job", job.id)
     db.commit()
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/research", status_code=303)
 
 
 @app.post("/creatives/{creative_id}/status")
@@ -407,7 +533,7 @@ def update_creative_status(creative_id: int, request: Request, status: str = For
     creative.status = status
     audit(db, request, "creative_status_changed", auth.user.id, "creative", creative.id, details=f"status={status}")
     db.commit()
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/creatives", status_code=303)
 
 
 @app.post("/products/{product_id}/assets")
@@ -442,7 +568,7 @@ async def upload_asset(product_id: int, request: Request, csrf_token: str = Form
     db.flush()
     audit(db, request, "asset_uploaded", auth.user.id, "asset", asset.id, details=original_name)
     db.commit()
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/products", status_code=303)
 
 
 @app.get("/assets/{asset_id}")
