@@ -11,15 +11,23 @@
 {% if auth %}
 <header class="topbar">
   <a class="brandmark" href="/">AVONENT OS</a>
-  <nav>
-    <a href="/">Dashboard</a>
+  <nav class="main-nav">
+    <a href="/">Home</a>
+    <a href="/brands">Brands</a>
+    <a href="/products">Products</a>
+    <a href="/creatives">Creatives</a>
+    <a href="/research">Research</a>
+    <a href="/automations">Automations</a>
     {% if auth.user.role in ['owner','admin'] %}<a href="/team">Team</a>{% endif %}
+    <a href="/settings">Settings</a>
+  </nav>
+  <div class="account-actions">
     <span class="user-chip">{{ auth.user.display_name }} · {{ auth.user.role }}</span>
     <form method="post" action="/logout" class="inline-form">
       <input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}">
       <button class="link-button" type="submit">Log out</button>
     </form>
-  </nav>
+  </div>
 </header>
 {% endif %}
 {% block body %}{% endblock %}
