@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Research · Avonent OS{% endblock %}
+{% block body %}
+<main>
+  <section class="page-header"><div><p class="eyebrow">AI RESEARCH</p><h1>Research</h1><p>Run product research jobs and review what the strategist produced.</p></div></section>
+  {% if can_edit and products %}
+  <section class="card">
+    <h2>Start research</h2>
+    <div class="product-grid">
+      {% for p in products %}
+      <div class="product"><strong>{{ p.name }}</strong><p class="muted">{{ p.category }}</p>
+        <form method="post" action="/products/{{ p.id }}/research">
+          <input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}">
+          <button type="submit">Run strategist</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  <section class="card">
+    <h2>Research history</h2>
+    {% for j in jobs %}
+      <div class="job-card">
+        <div class="creative-head"><div><strong>{{ j.product.name }}</strong><p class="muted">{{ j.kind }} · {{ j.created_at }}</p></div><span class="status">{{ j.status }}</span></div>
+        {% if j.summary %}<p>{{ j.summary }}</p>{% endif %}
+        {% if j.source_notes %}<p class="muted">{{ j.source_notes }}</p>{% endif %}
+      </div>
+    {% else %}<p class="muted">No research jobs yet.</p>{% endfor %}
+  </section>
+</main>
+{% endblock %}
