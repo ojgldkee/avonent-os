@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>{% block title %}Avonent OS{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+{% if auth %}
+<header class="topbar">
+  <a class="brandmark" href="/">AVONENT OS</a>
+  <nav>
+    <a href="/">Dashboard</a>
+    {% if auth.user.role in ['owner','admin'] %}<a href="/team">Team</a>{% endif %}
+    <span class="user-chip">{{ auth.user.display_name }} · {{ auth.user.role }}</span>
+    <form method="post" action="/logout" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}">
+      <button class="link-button" type="submit">Log out</button>
+    </form>
+  </nav>
+</header>
+{% endif %}
+{% block body %}{% endblock %}
+</body>
+</html>
