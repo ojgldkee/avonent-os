@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Create owner · Avonent OS{% endblock %}
+{% block body %}
+<main class="auth-shell">
+  <section class="auth-card">
+    <p class="eyebrow">FIRST-RUN SETUP</p>
+    <h1>Create the owner account</h1>
+    <p class="muted">This page turns off after the first account is created. Team members join later through expiring invite links.</p>
+    {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+    <form method="post" action="/setup">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>Name<input name="display_name" autocomplete="name" required></label>
+      <label>Email<input type="email" name="email" autocomplete="email" required></label>
+      <label>Password<input type="password" name="password" autocomplete="new-password" minlength="12" required></label>
+      <label>Confirm password<input type="password" name="password_confirm" autocomplete="new-password" minlength="12" required></label>
+      <p class="hint">Use at least 12 characters with uppercase, lowercase and a number.</p>
+      <button type="submit">Create private owner account</button>
+    </form>
+  </section>
+</main>
+{% endblock %}
