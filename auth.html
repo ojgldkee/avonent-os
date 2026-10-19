@@ -7,14 +7,18 @@
   <meta name="theme-color" content="#000000">
   <title>Account · Avonent Creative</title>
   <link rel="stylesheet" href="static/site.css?v=1">
-  <link rel="stylesheet" href="static/ui-v3.css?v=3">\n</head>
+  <link rel="stylesheet" href="static/ui-v3.css?v=3">
+</head>
 <body data-page="auth">
 <header class="topbar">
   <a class="logo" href="index.html">AVONENT</a>
   <nav class="nav">
     <a href="index.html">Dashboard</a>
     <a href="chat.html">Creative Chat</a>
-    <a href="creatives.html">Library</a>\n    <a href="pipeline.html">Pipeline</a>\n    <a href="ads.html">Ad Library</a>\n    <a href="assets.html">Assets</a>
+    <a href="creatives.html">Library</a>
+    <a href="pipeline.html">Pipeline</a>
+    <a href="ads.html">Ad Library</a>
+    <a href="assets.html">Assets</a>
   </nav>
 </header>
 
@@ -30,7 +34,7 @@
       <label id="display-name-label" class="hidden">Name
         <input id="display-name" autocomplete="name" placeholder="Your name">
       </label>
-      <label>Email
+      <label id="email-label">Email
         <input id="auth-email" type="email" autocomplete="email" required placeholder="you@example.com">
       </label>
       <label>Password
@@ -39,15 +43,18 @@
       <button id="auth-submit" type="submit">Log in</button>
     </form>
 
-    <p class="auth-switch">
+    <p id="auth-switch-row" class="auth-switch">
       <span id="auth-switch-text">Need an account?</span>
       <a id="auth-switch-link" href="auth.html?mode=signup">Sign up</a>
     </p>
+    <button id="forgot-password" class="text-button" type="button">Forgot password?</button>
+    <p class="helper">Use your own email and password. Signup creates your real private Avonent account.</p>
   </section>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="static/config.js?v=1"></script>
-<script src="static/app-v2.js?v=2"></script>
-<script src="static/ui-v3.js?v=3"></script>\n</body>
+<script src="static/auth-v3.js?v=3"></script>
+<script src="static/ui-v3.js?v=3"></script>
+</body>
 </html>
