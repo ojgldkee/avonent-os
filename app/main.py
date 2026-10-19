@@ -108,10 +108,15 @@ def setup_owner(
     email: str = Form(...),
     password: str = Form(...),
     password_confirm: str = Form(...),
+    setup_code: str = Form(""),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
 ):
     verify_double_submit_csrf(request, csrf_token)
+    if settings.environment == "production" and not settings.owner_setup_token:
+        raise HTTPException(503, "OWNER_SETUP_TOKEN must be configured before first-run setup.")
+    if settings.owner_setup_token and token_hash(setup_code) != token_hash(settings.owner_setup_token):
+        return double_submit_csrf_response(request, "setup.html", {"error": "Setup code is incorrect."})
     if db.scalar(select(func.count(User.id))) > 0:
         raise HTTPException(409, "Owner account already exists.")
     if password != password_confirm:
