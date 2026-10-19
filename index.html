@@ -2,59 +2,108 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow">
-  <title>Avonent OS</title>
-  <link rel="stylesheet" href="static/pages.css">
+  <meta name="theme-color" content="#000000">
+  <title>Avonent Creative</title>
+  <link rel="stylesheet" href="static/site.css?v=1">
 </head>
 <body data-page="dashboard">
-  <header class="topbar">
-    <a class="logo" href="index.html">AVONENT OS</a>
-    <nav>
-      <a href="index.html">Home</a>
-      <a href="brands.html">Brands</a>
-      <a href="products.html">Products</a>
-      <a href="plans.html">Plans</a>
-      <a href="creatives.html">Creatives</a>
-    </nav>
-  </header>
+<header class="topbar">
+  <a class="logo" href="index.html">AVONENT</a>
+  <nav class="nav">
+    <a class="active" href="index.html">Dashboard</a>
+    <a href="chat.html">Creative Chat</a>
+    <a href="creatives.html">Library</a>
+  </nav>
+  <div class="auth-nav">
+    <a id="login-link" class="text-button" href="auth.html?mode=login">Log in</a>
+    <a id="signup-link" class="button small-button" href="auth.html?mode=signup">Sign up</a>
+    <span id="account-email" class="account-email hidden"></span>
+    <button id="signout-button" class="text-button hidden" type="button">Sign out</button>
+  </div>
+</header>
 
-  <main>
-    <section class="hero">
-      <p class="eyebrow">LOCAL TEST MODE</p>
-      <h1>Your e-commerce operating system.</h1>
-      <p class="sub">This temporary GitHub Pages version saves data in this browser so you can test the workflow before we move it to the private server.</p>
-    </section>
+<main>
+  <section class="hero">
+    <p class="eyebrow">CREATIVE COMMAND CENTER</p>
+    <h1>Turn ideas into ads.</h1>
+    <p class="sub">One focused workspace for creative chats, hooks, scripts, briefs, headlines and winning iterations.</p>
+    <div class="hero-actions">
+      <a class="button" href="chat.html">Start creative chat</a>
+      <a class="button secondary" href="creatives.html">Open creative library</a>
+    </div>
+  </section>
 
-    <section class="stats">
-      <a href="brands.html" class="stat"><span>Brands</span><strong id="stat-brands">0</strong></a>
-      <a href="products.html" class="stat"><span>Products</span><strong id="stat-products">0</strong></a>
-      <a href="plans.html" class="stat"><span>Plans</span><strong id="stat-plans">0</strong></a>
-      <a href="creatives.html" class="stat"><span>Creatives</span><strong id="stat-creatives">0</strong></a>
-    </section>
+  <div id="signed-out-banner" class="notice">
+    <div>
+      <strong>Preview mode</strong>
+      <p>You can view the dashboard without logging in. Sign in to load your private creative workspace and sync it across devices.</p>
+    </div>
+    <a class="button secondary" href="auth.html?mode=login">Log in</a>
+  </div>
 
-    <section class="grid two">
-      <div class="panel">
-        <div class="section-head"><h2>Recent plans</h2><a href="plans.html">Open plans</a></div>
-        <div id="recent-plans" class="stack"></div>
+  <section class="stats">
+    <a class="stat" href="chat.html"><span>Creative chats</span><strong id="stat-chats">—</strong></a>
+    <a class="stat" href="creatives.html?kind=idea"><span>Ideas</span><strong id="stat-ideas">—</strong></a>
+    <a class="stat" href="creatives.html?kind=hook"><span>Hooks</span><strong id="stat-hooks">—</strong></a>
+    <a class="stat" href="creatives.html?kind=script"><span>Scripts</span><strong id="stat-scripts">—</strong></a>
+    <a class="stat" href="creatives.html?kind=brief"><span>Briefs</span><strong id="stat-briefs">—</strong></a>
+  </section>
+
+  <section class="grid two">
+    <div class="panel">
+      <div class="section-head">
+        <div><p class="eyebrow">CONTINUE</p><h2>Recent chats</h2></div>
+        <a href="chat.html">View all</a>
       </div>
-      <div class="panel">
-        <div class="section-head"><h2>Recent creatives</h2><a href="creatives.html">Open creatives</a></div>
-        <div id="recent-creatives" class="stack"></div>
+      <div id="recent-chats" class="stack">
+        <div class="empty">Log in to load your chats.</div>
       </div>
-    </section>
+    </div>
 
-    <section class="panel">
-      <h2>Local backup</h2>
-      <p class="muted">Export your test data before clearing Safari/browser storage or switching devices.</p>
-      <div class="actions">
-        <button id="export-data">Export JSON</button>
-        <label class="button secondary">Import JSON<input id="import-data" type="file" accept="application/json" hidden></label>
-        <button id="clear-data" class="danger">Clear test data</button>
+    <div class="panel">
+      <div class="section-head">
+        <div><p class="eyebrow">LIBRARY</p><h2>Recent saves</h2></div>
+        <a href="creatives.html">View all</a>
       </div>
-      <p id="storage-status" class="muted small"></p>
-    </section>
-  </main>
-  <script src="static/pages.js"></script>
+      <div id="recent-items" class="stack">
+        <div class="empty">Log in to load your creative library.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="section-head">
+      <div><p class="eyebrow">TODAY</p><h2>Creative workflow</h2></div>
+    </div>
+    <div class="workflow">
+      <a href="creatives.html?status=Idea"><span>Ideas</span><strong id="flow-idea">—</strong></a>
+      <a href="creatives.html?status=Brief"><span>Brief</span><strong id="flow-brief">—</strong></a>
+      <a href="creatives.html?status=Editing"><span>Editing</span><strong id="flow-editing">—</strong></a>
+      <a href="creatives.html?status=Review"><span>Review</span><strong id="flow-review">—</strong></a>
+      <a href="creatives.html?status=Approved"><span>Approved</span><strong id="flow-approved">—</strong></a>
+      <a href="creatives.html?status=Launched"><span>Launched</span><strong id="flow-launched">—</strong></a>
+      <a href="creatives.html?status=Winner"><span>Winner</span><strong id="flow-winner">—</strong></a>
+    </div>
+  </section>
+
+  <section class="panel quick-panel">
+    <div>
+      <p class="eyebrow">QUICK START</p>
+      <h2>What do you want to make?</h2>
+    </div>
+    <div class="quick-grid">
+      <a href="chat.html?prompt=Give%20me%20new%20creative%20angles" class="quick-card"><strong>Find angles</strong><span>Start a strategy chat</span></a>
+      <a href="chat.html?prompt=Write%20strong%20hooks" class="quick-card"><strong>Write hooks</strong><span>Build hook variations</span></a>
+      <a href="chat.html?prompt=Write%20a%20UGC%20video%20script" class="quick-card"><strong>Write script</strong><span>Build a video concept</span></a>
+      <a href="creatives.html?new=brief" class="quick-card"><strong>Create brief</strong><span>Save production instructions</span></a>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="static/config.js?v=1"></script>
+<script src="static/app.js?v=1"></script>
 </body>
 </html>
