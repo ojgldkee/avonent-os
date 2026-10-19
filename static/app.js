@@ -69,18 +69,27 @@
   }
 
   async function initDashboard(session) {
+    const globalSearch = $("global-search");
+    if (globalSearch) {
+      globalSearch.onsubmit = function (event) {
+        event.preventDefault();
+        const value = $("global-search-input").value.trim();
+        window.location.href = "creatives.html?q=" + encodeURIComponent(value);
+      };
+    }
+
     if (!session) return;
     hide($("signed-out-banner"));
 
     const [chatsResult, itemsResult] = await Promise.all([
       db.from("creative_chats")
-        .select("id,title,product_name,updated_at")
+        .select("id,title,product_name,updated_at", { count: "exact" })
         .order("updated_at", { ascending: false })
         .limit(8),
       db.from("creative_items")
         .select("id,kind,title,content,status,favorite,updated_at")
         .order("updated_at", { ascending: false })
-        .limit(250)
+        .limit(1000)
     ]);
 
     if (chatsResult.error) console.error(chatsResult.error);
@@ -92,7 +101,7 @@
     const countKind = function (kind) { return items.filter(function (x) { return x.kind === kind; }).length; };
     const countStatus = function (status) { return items.filter(function (x) { return x.status === status; }).length; };
 
-    setText("stat-chats", chats.length);
+    setText("stat-chats", chatsResult.count == null ? chats.length : chatsResult.count);
     setText("stat-ideas", countKind("idea"));
     setText("stat-hooks", countKind("hook"));
     setText("stat-scripts", countKind("script"));
@@ -123,14 +132,6 @@
       }).join("") : '<div class="empty">Nothing saved yet. Save an idea, hook, script or brief.</div>';
     }
 
-    const globalSearch = $("global-search");
-    if (globalSearch) {
-      globalSearch.onsubmit = function (event) {
-        event.preventDefault();
-        const value = $("global-search-input").value.trim();
-        window.location.href = "creatives.html?q=" + encodeURIComponent(value);
-      };
-    }
   }
 
   async function initAuth(session) {
