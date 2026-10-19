@@ -29,7 +29,7 @@ from .auth import (
 )
 from .config import settings
 from .db import Base, engine, get_db
-from .models import Asset, Brand, Creative, Invite, ResearchJob, User
+from .models import Asset, Brand, Creative, Invite, Product, ResearchJob, User
 from .research import run_creative_research
 from .scheduler import start_scheduler
 
