@@ -25,29 +25,25 @@
     <button id="signout-button" class="text-button hidden" type="button">Sign out</button>
   </div>
 </header>
-
 <main>
   <section class="page-title">
     <p class="eyebrow">CREATIVE ASSETS</p>
     <h1>Files for production.</h1>
     <p class="sub">Privately store ad images, videos, UGC clips, references, scripts and briefs.</p>
   </section>
-
   <div id="assets-signed-out" class="notice">
     <div><strong>Private files stay hidden while signed out.</strong><p>Log in to access your storage.</p></div>
     <a class="button secondary" href="auth.html?mode=login">Log in</a>
   </div>
-
   <section id="upload-panel" class="panel hidden">
     <p class="eyebrow">UPLOAD</p>
     <h2>Add creative assets</h2>
     <form id="asset-form" class="asset-form">
-      <input id="asset-files" type="file" multiple required accept="image/*,video/*,.pdf,.txt,.md,.doc,.docx">
+      <input id="asset-files" type="file" multiple required>
       <button type="submit">Upload files</button>
     </form>
     <div id="upload-status" class="meta"></div>
   </section>
-
   <section class="panel">
     <div class="section-head">
       <div><p class="eyebrow">LIBRARY</p><h2>Stored assets</h2></div>
@@ -58,7 +54,6 @@
     </div>
   </section>
 </main>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="static/config.js?v=1"></script>
 <script src="static/app.js?v=1"></script>
