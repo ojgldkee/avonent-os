@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     storage_path: str = str(BASE_DIR / "data" / "storage")
 
     session_cookie_name: str = "avonent_session"
+    owner_setup_token: str = ""
     session_days: int = 14
     cookie_secure: bool = False
     hsts_enabled: bool = False
