@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Settings · Avonent OS{% endblock %}
+{% block body %}
+<main>
+  <section class="page-header"><div><p class="eyebrow">SYSTEM</p><h1>Settings</h1><p>Current server and security configuration.</p></div></section>
+  <section class="card">
+    <div class="settings-row"><span>Environment</span><strong>{{ environment }}</strong></div>
+    <div class="settings-row"><span>AI provider configured</span><strong>{% if ai_configured %}Yes{% else %}No{% endif %}</strong></div>
+    <div class="settings-row"><span>Secure cookies</span><strong>{% if cookie_secure %}On{% else %}Off{% endif %}</strong></div>
+    <div class="settings-row"><span>HSTS</span><strong>{% if hsts_enabled %}On{% else %}Off{% endif %}</strong></div>
+    <div class="settings-row"><span>Maximum upload size</span><strong>{{ max_upload_mb }} MB</strong></div>
+  </section>
+  <section class="card">
+    <h2>Coming next</h2>
+    <p class="muted">Knowledge base, Meta analytics, Shopify reporting, configurable schedules and approval gates will each live on their own pages.</p>
+  </section>
+</main>
+{% endblock %}
