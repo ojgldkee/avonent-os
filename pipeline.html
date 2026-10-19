@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#000000">
+  <title>Creative Pipeline · Avonent</title>
+  <link rel="stylesheet" href="static/site.css?v=1">
+</head>
+<body data-page="pipeline">
+<header class="topbar">
+  <a class="logo" href="index.html">AVONENT</a>
+  <nav class="nav">
+    <a href="index.html">Dashboard</a>
+    <a href="chat.html">Creative Chat</a>
+    <a href="creatives.html">Library</a>
+    <a class="active" href="pipeline.html">Pipeline</a>
+  </nav>
+  <div class="auth-nav">
+    <a id="login-link" class="text-button" href="auth.html?mode=login">Log in</a>
+    <a id="signup-link" class="button small-button" href="auth.html?mode=signup">Sign up</a>
+    <span id="account-email" class="account-email hidden"></span>
+    <button id="signout-button" class="text-button hidden" type="button">Sign out</button>
+  </div>
+</header>
+
+<main class="pipeline-main">
+  <section class="page-title">
+    <p class="eyebrow">PRODUCTION</p>
+    <h1>Creative pipeline.</h1>
+    <p class="sub">Move concepts from raw idea to launched creative and keep winners visible.</p>
+  </section>
+
+  <div id="pipeline-signed-out" class="notice">
+    <div><strong>Log in to load your private pipeline.</strong><p>The board is intentionally empty while signed out.</p></div>
+    <a class="button secondary" href="auth.html?mode=login">Log in</a>
+  </div>
+
+  <section id="pipeline-board" class="pipeline-board"></section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="static/config.js?v=1"></script>
+<script src="static/app.js?v=1"></script>
+</body>
+</html>
