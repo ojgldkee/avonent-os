@@ -4,7 +4,7 @@ Private, self-hosted e-commerce AI automation platform. The current MVP is desig
 
 ## Included now
 - Mobile-friendly private web dashboard
-- First-run owner setup, then login/logout
+- First-run owner setup protected by a server-only one-time setup code, then login/logout
 - Passwords hashed with Argon2
 - Random server-side sessions stored by SHA-256 token hash
 - HttpOnly SameSite session cookie, configurable Secure/HSTS for HTTPS deployment
@@ -44,7 +44,7 @@ Open `http://127.0.0.1:8000`. On a fresh database, `/login` redirects to `/setup
 ## Docker run
 ```bash
 cp .env.example .env
-# Edit POSTGRES_PASSWORD first.
+# Edit POSTGRES_PASSWORD and OWNER_SETUP_TOKEN first.
 docker compose up -d --build
 ```
 
