@@ -5,26 +5,56 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Avonent OS</title>
-  <style>
-    *{box-sizing:border-box}
-    body{margin:0;background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif}
-    main{max-width:720px;margin:0 auto;padding:64px 22px}
-    h1{font-size:48px;line-height:1;margin:0 0 24px}
-    p{font-size:18px;line-height:1.6;color:#d0d0d0}
-    .box{border:1px solid #333;border-radius:14px;padding:22px;margin-top:28px}
-    strong{color:#fff}
-    code{background:#111;border:1px solid #333;border-radius:6px;padding:2px 6px;color:#fff}
-  </style>
+  <link rel="stylesheet" href="static/pages.css">
 </head>
-<body>
+<body data-page="dashboard">
+  <header class="topbar">
+    <a class="logo" href="index.html">AVONENT OS</a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="brands.html">Brands</a>
+      <a href="products.html">Products</a>
+      <a href="plans.html">Plans</a>
+      <a href="creatives.html">Creatives</a>
+    </nav>
+  </header>
+
   <main>
-    <h1>Avonent OS</h1>
-    <p>This GitHub Pages URL is only the source-code preview.</p>
-    <div class="box">
-      <p><strong>The private Avonent OS application is not hosted on GitHub Pages.</strong></p>
-      <p>The real app uses a Python/FastAPI backend, PostgreSQL, login sessions, private file storage, team accounts, and background jobs. GitHub Pages cannot run those server-side features.</p>
-      <p>The application will be available from its own private server URL after deployment.</p>
-    </div>
+    <section class="hero">
+      <p class="eyebrow">LOCAL TEST MODE</p>
+      <h1>Your e-commerce operating system.</h1>
+      <p class="sub">This temporary GitHub Pages version saves data in this browser so you can test the workflow before we move it to the private server.</p>
+    </section>
+
+    <section class="stats">
+      <a href="brands.html" class="stat"><span>Brands</span><strong id="stat-brands">0</strong></a>
+      <a href="products.html" class="stat"><span>Products</span><strong id="stat-products">0</strong></a>
+      <a href="plans.html" class="stat"><span>Plans</span><strong id="stat-plans">0</strong></a>
+      <a href="creatives.html" class="stat"><span>Creatives</span><strong id="stat-creatives">0</strong></a>
+    </section>
+
+    <section class="grid two">
+      <div class="panel">
+        <div class="section-head"><h2>Recent plans</h2><a href="plans.html">Open plans</a></div>
+        <div id="recent-plans" class="stack"></div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><h2>Recent creatives</h2><a href="creatives.html">Open creatives</a></div>
+        <div id="recent-creatives" class="stack"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Local backup</h2>
+      <p class="muted">Export your test data before clearing Safari/browser storage or switching devices.</p>
+      <div class="actions">
+        <button id="export-data">Export JSON</button>
+        <label class="button secondary">Import JSON<input id="import-data" type="file" accept="application/json" hidden></label>
+        <button id="clear-data" class="danger">Clear test data</button>
+      </div>
+      <p id="storage-status" class="muted small"></p>
+    </section>
   </main>
+  <script src="static/pages.js"></script>
 </body>
 </html>
