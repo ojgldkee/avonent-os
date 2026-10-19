@@ -24,6 +24,7 @@ services:
       ENVIRONMENT: production
       DATABASE_URL: postgresql+psycopg://avonent:${POSTGRES_PASSWORD}@db:5432/avonent
       STORAGE_PATH: /data/storage
+      OWNER_SETUP_TOKEN: ${OWNER_SETUP_TOKEN}
       SESSION_DAYS: ${SESSION_DAYS:-14}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       HSTS_ENABLED: ${HSTS_ENABLED:-false}
