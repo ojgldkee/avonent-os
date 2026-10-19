@@ -1,78 +1,52 @@
-# Avonent OS
+# Avonent Creative
 
-Private, self-hosted e-commerce AI automation platform. The current MVP is designed as the secure foundation for the Creative Strategist and future automation agents.
+Avonent Creative is a focused private creative workspace for e-commerce advertising.
 
-## Included now
-- Mobile-friendly private web dashboard
-- First-run owner setup protected by a server-only one-time setup code, then login/logout
-- Passwords hashed with Argon2
-- Random server-side sessions stored by SHA-256 token hash
-- HttpOnly SameSite session cookie, configurable Secure/HSTS for HTTPS deployment
-- CSRF protection on state-changing forms
-- Login lockout after repeated failures
-- Invite-only team signup with expiring, one-use links
-- Roles: owner, admin, editor, viewer
-- Audit log table for important actions
-- Multiple brands and products
-- Manual creative workspace for hooks, scripts, primary text and headlines
-- Creative strategist generator
-- Creative production status pipeline
-- Private asset uploads with extension/size checks and authenticated preview route
-- Background scheduled strategist runs with duplicate prevention
-- PostgreSQL in Docker, SQLite fallback for local development
-- OpenAI-compatible AI adapter
-- No credentials or customer data committed to Git
+## Live MVP
 
-## Role model
-- **Owner**: full access.
-- **Admin**: business setup, team invites, creative work.
-- **Editor**: creative creation/status, product asset uploads and strategist runs.
-- **Viewer**: read-only dashboard.
+The current MVP runs as a static frontend on GitHub Pages with Supabase providing the real backend.
 
-Public self-signup is intentionally **disabled**. The first account is created at `/setup`; after that, owner/admin users create expiring invite links from `/team`.
+### Core product
+- Public dashboard shell with private data hidden until login
+- Email/password login and signup through Supabase Auth
+- Private per-user PostgreSQL data protected with Row Level Security
+- Creative Chat with persistent conversation history
+- Creative Library for ideas, hooks, scripts, briefs, primary text, headlines, concepts and notes
+- Creative production statuses:
+  `Idea → Research → Brief → Editing → Review → Approved → Launched → Winner / Loser / Retest`
+- Pipeline board for moving saved creatives through production
+- Favorites, filters, search, editing and deletion
+- Private Supabase Storage bucket prepared for creative files
+- Mobile-first black-and-white interface
 
-## Local run
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
+## AI status
 
-Open `http://127.0.0.1:8000`. On a fresh database, `/login` redirects to `/setup` so you can create the owner account.
+The chat/data layer is live. The AI generation layer is intentionally not faked: an AI provider still needs to be connected through a secure server-side function before Creative Chat generates strategy, hooks or scripts automatically.
 
-## Docker run
-```bash
-cp .env.example .env
-# Edit POSTGRES_PASSWORD and OWNER_SETUP_TOKEN first.
-docker compose up -d --build
-```
+Never place an AI provider secret key in GitHub Pages JavaScript.
 
-The app binds to `127.0.0.1:8000`, and PostgreSQL is never published to the host. Put the app behind Tailscale/Coolify/reverse proxy. Once HTTPS is configured, set:
+## Supabase
 
-```env
-COOKIE_SECURE=true
-HSTS_ENABLED=true
-```
+The app uses a browser-safe Supabase publishable key. Sensitive authorization is enforced in Postgres with RLS. The Supabase service-role secret is not committed to this repository.
 
-## AI configuration
-If AI settings are blank, Avonent OS uses a deterministic starter concept generator so the app works without API spend. For an OpenAI-compatible provider, fill `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` in `.env` on the server. Never commit `.env`.
+Primary tables:
+- `profiles`
+- `creative_chats`
+- `chat_messages`
+- `creative_items`
+- `creative_assets`
 
-## Competitor research safety
-This MVP does **not** scrape Meta Ad Library. Automated competitor research will be added through permitted/authorized sources. Research records should keep source URLs and observation dates, and the app must never treat an active competitor ad as proof of profitability.
+Private storage bucket:
+- `creative-assets`
 
-## Security notes
-- Do not hardcode a "secret" password in source code. Real accounts are safer and auditable.
-- Keep this repository private because the product roadmap and internal logic are business-sensitive, even though secrets are excluded.
-- Store API keys only in server environment variables / secret storage.
-- Keep database/admin ports private; use Tailscale or an HTTPS reverse proxy for access.
-- Back up the PostgreSQL volume and creative storage separately with encrypted off-site backups.
+## Security
 
-## Next build milestones
-1. Make GitHub repository private and deploy the authenticated MVP.
-2. Add knowledge-base upload, chunking, citations and searchable RAG.
-3. Add authorized competitor research adapters and evidence storage.
-4. Add Meta Ads read-only analytics and creative performance linkage.
-5. Add Shopify read-only revenue/margin reporting.
-6. Add approval-gated automation actions.
-7. Add encrypted backup/restore commands and an admin audit-log UI.
+- Private creative rows require an authenticated Supabase user.
+- RLS isolates each user's records.
+- Signed-out visitors can see the application shell but cannot query private creative data.
+- Do not commit API secrets, service-role keys or customer information.
+- AI provider keys should be stored only as server-side/Edge Function secrets.
+
+## Direction
+
+Keep Avonent focused on creative strategy and production. Do not add inventory, finance, product-research, Shopify operations or general business-OS modules unless the product direction changes intentionally.
