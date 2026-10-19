@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Creatives · Avonent OS</title><link rel="stylesheet" href="static/pages.css">
+</head>
+<body data-page="creatives">
+<header class="topbar">
+  <a class="logo" href="index.html">AVONENT OS</a>
+  <nav><a href="index.html">Home</a><a href="brands.html">Brands</a><a href="products.html">Products</a><a href="plans.html">Plans</a><a class="active" href="creatives.html">Creatives</a></nav>
+</header>
+<main>
+  <section class="page-title"><p class="eyebrow">CREATIVE LIBRARY</p><h1>Hooks & Scripts</h1><p class="sub">Store your hooks, scripts, primary texts, headlines and production status.</p></section>
+  <section class="panel">
+    <h2>Add creative</h2>
+    <form id="creative-form" class="form-grid">
+      <label>Product<select id="creative-product"></select></label>
+      <label>Format<select id="creative-format"><option>Video</option><option>Static</option><option>UGC</option><option>Carousel</option><option>Script only</option></select></label>
+      <label class="span-2">Title<input id="creative-title" required></label>
+      <label class="span-2">Angle<input id="creative-angle"></label>
+      <label class="span-2">Hook<textarea id="creative-hook"></textarea></label>
+      <label class="span-2">Script<textarea id="creative-script" class="tall"></textarea></label>
+      <label>Primary text<textarea id="creative-primary"></textarea></label>
+      <label>Headline<input id="creative-headline"></label>
+      <label>Status<select id="creative-status"><option>Idea</option><option>Research</option><option>Brief</option><option>Editing</option><option>Review</option><option>Approved</option><option>Launched</option><option>Winner</option><option>Loser</option><option>Retest</option></select></label>
+      <button type="submit">Save creative</button>
+    </form>
+  </section>
+  <section class="panel">
+    <input id="creative-search" class="search" type="search" placeholder="Search title, hook, script, angle or headline">
+    <div id="creative-list" class="stack"></div>
+  </section>
+</main>
+<script src="static/pages.js"></script>
+</body>
+</html>
