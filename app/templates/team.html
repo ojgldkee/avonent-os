@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Team · Avonent OS{% endblock %}
+{% block body %}
+<main>
+  <section class="hero card compact-hero">
+    <div><p class="eyebrow">ACCESS CONTROL</p><h1>Team</h1><p>Invite editors without giving them owner access.</p></div>
+  </section>
+
+  <section class="grid two">
+    <div class="card">
+      <h2>Invite a teammate</h2>
+      <form method="post" action="/team/invites">
+        <input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}">
+        <label>Email<input type="email" name="email" required></label>
+        <label>Role
+          <select name="role">
+            <option value="editor">Editor — creatives, uploads, research</option>
+            <option value="viewer">Viewer — read only</option>
+            <option value="admin">Admin — team + business setup</option>
+          </select>
+        </label>
+        <button type="submit">Create 7-day invite</button>
+      </form>
+      {% if invite_link %}
+      <div class="invite-box"><strong>Invite link</strong><p class="break-all">{{ invite_link }}</p><p class="hint">Send this privately. It works once and expires in 7 days.</p></div>
+      {% endif %}
+    </div>
+    <div class="card">
+      <h2>Role rules</h2>
+      <div class="role-list">
+        <p><strong>Owner</strong> — everything.</p>
+        <p><strong>Admin</strong> — business setup, team invites, creatives.</p>
+        <p><strong>Editor</strong> — create/update creatives, upload assets, run research.</p>
+        <p><strong>Viewer</strong> — dashboard access only.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">ACCOUNTS</p><h2>Active users</h2>
+    <div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Last login</th></tr></thead><tbody>
+    {% for u in users %}<tr><td>{{ u.display_name }}</td><td>{{ u.email }}</td><td><span class="badge">{{ u.role }}</span></td><td>{{ u.last_login_at or 'Never' }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">INVITES</p><h2>Recent invites</h2>
+    {% for i in invites %}<div class="row"><div><strong>{{ i.email }}</strong><p>{{ i.role }} · expires {{ i.expires_at }}</p></div><span class="status">{% if i.used_at %}used{% else %}open{% endif %}</span></div>{% else %}<p class="muted">No invites yet.</p>{% endfor %}
+  </section>
+</main>
+{% endblock %}
