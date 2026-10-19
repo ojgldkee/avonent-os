@@ -1,0 +1,12 @@
+/* Avonent v3 mobile UI */
+:root{--bg:#000;--panel:#080808;--line:#292929;--text:#fff;--muted:#999}
+.mobile-tabs{display:none}
+@media(max-width:760px){
+  body{padding-bottom:78px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px}
+  .topbar .nav{display:none!important}
+  .mobile-tabs{display:grid;position:fixed;left:0;right:0;bottom:0;z-index:100;grid-template-columns:repeat(5,1fr);background:#000;border-top:1px solid #2b2b2b;padding:8px 4px calc(8px + env(safe-area-inset-bottom))}
+  .mobile-tabs a{display:flex;flex-direction:column;align-items:center;gap:4px;color:#777;font-size:10px;font-weight:700}
+  .mobile-tabs a.active{color:#fff}
+  .mobile-tabs .ico{font-size:18px;line-height:1}
+}
