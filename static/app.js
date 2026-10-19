@@ -626,6 +626,149 @@
     await renderBoard();
   }
 
+  async function initAssets(session) {
+    const signedOut = $("assets-signed-out");
+    const uploadPanel = $("upload-panel");
+    const form = $("asset-form");
+    const fileInput = $("asset-files");
+    const uploadStatus = $("upload-status");
+    const search = $("asset-search");
+    const grid = $("asset-grid");
+    let assets = [];
+
+    if (!session) {
+      grid.innerHTML = '<div class="empty">Log in to load assets.</div>';
+      return;
+    }
+
+    hide(signedOut);
+    show(uploadPanel);
+
+    async function fetchAssets() {
+      const result = await db.from("creative_assets")
+        .select("id,storage_path,original_name,mime_type,size_bytes,created_at")
+        .order("created_at", { ascending: false })
+        .limit(500);
+
+      if (result.error) throw result.error;
+      assets = result.data || [];
+
+      await Promise.all(assets.map(async function (asset) {
+        const signed = await db.storage.from("creative-assets").createSignedUrl(asset.storage_path, 3600);
+        asset.signedUrl = signed.data ? signed.data.signedUrl : "";
+      }));
+
+      render();
+    }
+
+    function formatBytes(bytes) {
+      const n = Number(bytes || 0);
+      if (n < 1024) return n + " B";
+      if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+      return (n / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+    function preview(asset) {
+      const url = escapeHtml(asset.signedUrl || "");
+      const mime = String(asset.mime_type || "");
+      if (!url) return '<div class="asset-placeholder">Preview unavailable</div>';
+      if (mime.startsWith("image/")) {
+        return '<a href="' + url + '" target="_blank" rel="noopener"><img src="' + url + '" alt=""></a>';
+      }
+      if (mime.startsWith("video/")) {
+        return '<video src="' + url + '" controls preload="metadata"></video>';
+      }
+      return '<a class="asset-file-link" href="' + url + '" target="_blank" rel="noopener">Open file</a>';
+    }
+
+    function render() {
+      const q = (search.value || "").trim().toLowerCase();
+      const rows = assets.filter(function (asset) {
+        return [asset.original_name, asset.mime_type].join(" ").toLowerCase().includes(q);
+      });
+
+      grid.innerHTML = rows.length ? rows.map(function (asset) {
+        return '<article class="asset-card">' +
+          '<div class="asset-preview">' + preview(asset) + '</div>' +
+          '<h3>' + escapeHtml(asset.original_name) + '</h3>' +
+          '<div class="meta">' + escapeHtml(asset.mime_type || "file") + ' · ' + formatBytes(asset.size_bytes) + '</div>' +
+          '<div class="card-actions"><button class="button secondary mini" data-delete-asset="' + asset.id + '">Delete</button></div>' +
+          '</article>';
+      }).join("") : '<div class="empty wide">No matching assets.</div>';
+    }
+
+    search.oninput = render;
+
+    form.onsubmit = async function (event) {
+      event.preventDefault();
+      const files = Array.from(fileInput.files || []);
+      if (!files.length) return;
+
+      uploadStatus.textContent = "Uploading…";
+      const maxBytes = 100 * 1024 * 1024;
+
+      try {
+        for (let i = 0; i < files.length; i += 1) {
+          const file = files[i];
+          if (file.size > maxBytes) throw new Error(file.name + " is larger than 100 MB.");
+
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-140) || "asset";
+          const randomPart = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + "-" + i;
+          const path = session.user.id + "/" + randomPart + "-" + safeName;
+
+          uploadStatus.textContent = "Uploading " + (i + 1) + " of " + files.length + ": " + file.name;
+
+          const uploaded = await db.storage.from("creative-assets").upload(path, file, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: file.type || "application/octet-stream"
+          });
+          if (uploaded.error) throw uploaded.error;
+
+          const inserted = await db.from("creative_assets").insert({
+            user_id: session.user.id,
+            storage_path: path,
+            original_name: file.name,
+            mime_type: file.type || "application/octet-stream",
+            size_bytes: file.size
+          });
+
+          if (inserted.error) {
+            await db.storage.from("creative-assets").remove([path]);
+            throw inserted.error;
+          }
+        }
+
+        fileInput.value = "";
+        uploadStatus.textContent = "Upload complete.";
+        await fetchAssets();
+      } catch (error) {
+        uploadStatus.textContent = "Upload failed: " + (error.message || String(error));
+      }
+    };
+
+    grid.addEventListener("click", async function (event) {
+      const id = event.target.getAttribute("data-delete-asset");
+      if (!id) return;
+      const asset = assets.find(function (x) { return x.id === id; });
+      if (!asset || !confirm("Delete " + asset.original_name + "?")) return;
+
+      const removed = await db.storage.from("creative-assets").remove([asset.storage_path]);
+      if (removed.error) return alert(removed.error.message);
+
+      const deleted = await db.from("creative_assets").delete().eq("id", id);
+      if (deleted.error) return alert(deleted.error.message);
+
+      await fetchAssets();
+    });
+
+    try {
+      await fetchAssets();
+    } catch (error) {
+      grid.innerHTML = '<div class="empty">' + escapeHtml(error.message || String(error)) + '</div>';
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", async function () {
     let session = null;
     try {
@@ -642,7 +785,7 @@
       if (page === "auth") await initAuth(session);
       if (page === "chat") await initChat(session);
       if (page === "library") await initLibrary(session);
-      if (page === "pipeline") await initPipeline(session);
+      if (page === "pipeline") await initPipeline(session);\n      if (page === "assets") await initAssets(session);
     } catch (error) {
       console.error(error);
       alert(error.message || String(error));
