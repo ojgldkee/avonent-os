@@ -1,1 +1,35 @@
-{% extends "base.html" %}{% block body %}<main><section class="hero card"><div><p class="eyebrow">CREATIVE STRATEGIST</p><h1>Research, write, organize, repeat.</h1><p>Add any brand and product. Avonent OS stores ideas, hooks, scripts, primary texts, headlines, assets and production status behind your login.</p></div><span class="badge">{{ auth.user.role }}</span></section>{% if can_admin %}<section class="grid two"><div class="card"><h2>Add brand</h2><form method="post" action="/brands"><input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}"><input name="name" placeholder="Brand name" required><button>Add brand</button></form></div><div class="card"><h2>Add product</h2>{% if brands %}<form method="post" action="/products"><input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}"><select name="brand_id" required>{% for b in brands %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}</select><input name="name" placeholder="Product name" required><input name="category" placeholder="Category"><input name="price" type="number" step="0.01" placeholder="Price (optional)"><textarea name="notes" placeholder="Positioning, ingredients, offer, customer, compliance notes..."></textarea><button>Add product</button></form>{% else %}<p class="muted">Create your first brand first.</p>{% endif %}</div></section>{% endif %}{% if can_edit and products %}<section class="card"><div class="section-head"><div><p class="eyebrow">CREATE</p><h2>New hook / script / ad concept</h2></div></div><form method="post" action="/creatives/manual" class="creative-form"><input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}"><div class="grid two"><label>Product<select name="product_id">{% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></label><label>Format<select name="format"><option>video</option><option>static</option><option>UGC</option><option>carousel</option><option>script-only</option></select></label></div><label>Title<input name="title" placeholder="Concept name" required></label><label>Angle<input name="angle" placeholder="Problem-aware, education, trust, comparison..."></label><label>Hook<textarea name="hook" placeholder="Opening hook"></textarea></label><label>Script<textarea name="script" class="tall" placeholder="Full script"></textarea></label><div class="grid two"><label>Primary text<textarea name="primary_text"></textarea></label><label>Headline<input name="headline"></label></div><button type="submit">Save creative</button></form></section>{% endif %}<section class="card"><div class="section-head"><div><p class="eyebrow">PRODUCTS</p><h2>Research queue & assets</h2></div></div>{% for brand in brands %}<h3>{{ brand.name }}</h3><div class="product-grid">{% for p in brand.products %}<article class="product"><div><strong>{{ p.name }}</strong><p class="muted">{{ p.category or 'Uncategorized' }}{% if p.price %} · ${{ '%.2f'|format(p.price) }}{% endif %}</p></div>{% if can_edit %}<form method="post" action="/products/{{ p.id }}/research"><input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}"><button>Run strategist</button></form>{% endif %}{% if can_edit %}<form method="post" action="/products/{{ p.id }}/assets" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}"><input type="file" name="file" required><button class="secondary">Upload private asset</button></form>{% endif %}{% if p.assets %}<div class="asset-list">{% for a in p.assets[-4:] %}<a href="/assets/{{ a.id }}" target="_blank" rel="noopener">{{ a.original_name }}</a>{% endfor %}</div>{% endif %}</article>{% else %}<p class="muted">No products yet.</p>{% endfor %}</div>{% endfor %}</section><section class="grid two"><div class="card"><p class="eyebrow">RECENT JOBS</p><h2>Automation activity</h2>{% for j in jobs %}<div class="row"><div><strong>#{{ j.id }} {{ j.kind }}</strong><p>{{ j.summary or 'Waiting to run' }}</p></div><span class="status {{ j.status }}">{{ j.status }}</span></div>{% else %}<p class="muted">No jobs yet.</p>{% endfor %}</div><div class="card"><p class="eyebrow">CREATIVES</p><h2>Hooks & scripts</h2>{% for c in creatives %}<article class="creative"><div class="creative-head"><span class="badge">{{ c.status }}</span><span class="muted">{{ c.product.name }} · v{{ c.version }} · {{ c.format }}</span></div><h3>{{ c.title }}</h3><p><b>Angle:</b> {{ c.angle }}</p><blockquote>{{ c.hook }}</blockquote><details><summary>Open script & copy</summary><p class="preline">{{ c.script }}</p><p><b>Primary text:</b> {{ c.primary_text }}</p><p><b>Headline:</b> {{ c.headline }}</p></details>{% if can_edit %}<form method="post" action="/creatives/{{ c.id }}/status"><input type="hidden" name="csrf_token" value="{{ auth.session.csrf_token }}"><select name="status"><option value="{{ c.status }}">{{ c.status }}</option>{% for s in ['idea','research','brief','editing','review','approved','launched','winner','loser','retest'] %}{% if s != c.status %}<option value="{{ s }}">{{ s }}</option>{% endif %}{% endfor %}</select><button class="secondary">Update status</button></form>{% endif %}</article>{% else %}<p class="muted">Run the strategist or create a manual concept.</p>{% endfor %}</div></section></main>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Home · Avonent OS{% endblock %}
+{% bock body %}
+<main>
+  <section class="hero card">
+    <div>
+      <p class="eyebrow">AVONENT OS</p>
+      <h1>Your private e-commerce operating system.</h1>
+      <p>Manage brands, products, creatives, research jobs and automation from one place.</p>
+    </div>
+  </section>
+
+  <section class="stats-grid">
+    <a class="stat-card" href="/brands"><span>Brands</span><strong>{{ stats.brands }}</strong></a>
+    <a class="stat-card" href="/products"><span>Products</span><strong>{{ stats.products }}</strong></a>
+    <a class="stat-card" href="/creatives"><span>Creatives</span><strong>{{ stats.creatives }}</strong></a>
+    <a class="stat-card" href="/research"><span>Research jobs</span><strong>{{ stats.jobs }}</strong></a>
+  </section>
+
+  <section class="grid two">
+    <div class="card">
+      <div class="section-head"><div><p class="eyebrow">RECENT</p><h2>Creative work</h2></div><a href="/creatives">View all</a></div>
+      {% for c in creatives %}
+        <div class="row"><div><strong>{{ c.title }}</strong><p>{{ c.product.name }} · {{ c.status }}</p></div><a href="/creatives?q={{ c.title }}">Open</a></div>
+      {% else %}<p class="muted">No creative concepts yet.</p>{% endfor %}
+    </div>
+    <div class="card">
+      <div class="section-head"><div><p class="eyebrow">AUTOMATION</p><h2>Recent jobs</h2></div><a href="/automations">View all</a></div>
+      {% for j in jobs %}
+        <div class="row"><div><strong>{{ j.kind }}</strong><p>{{ j.product.name }} · {{ j.status }}</p></div><span class="status">{{ j.status }}</span></div>
+      {% else %}<p class="muted">No automation jobs yet.</p>{% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}
