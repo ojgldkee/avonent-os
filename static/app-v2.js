@@ -36,13 +36,6 @@
     const p = item.metadata && item.metadata.package;
     if (!p) return "";
 
-    function panel(name,label,html,active) {
-      return '<section class="package-tab-panel' + (active ? ' active' : '') + '" data-package-panel="' + name + '">' +
-        '<div class="package-panel-head"><span class="package-label">' + escapeHtml(label) + '</span></div>' +
-        html +
-      '</section>';
-    }
-
     function copyBlock(label,value,field) {
       return '<div class="package-copy-block">' +
         '<div class="package-copy-head"><span>' + escapeHtml(label) + '</span>' +
@@ -50,43 +43,46 @@
         '<p>' + escapeHtml(value || "") + '</p></div>';
     }
 
+    const ai = p.ai_script || null;
+    const ideaText = [
+      p.angle ? "Angle: " + p.angle : "",
+      p.format ? "Format: " + p.format : "",
+      p.video_idea ? "Execution: " + p.video_idea : "",
+      p.why ? "Why test it: " + p.why : ""
+    ].filter(Boolean).join("\n\n");
+
     const tabs = [
       ["hook","Hook"],
-      ["primary","Primary"],
-      ["headlines","Headlines"],
-      ["video","Video"],
-      ["script","Script"]
+      ["idea","Idea"],
+      ["ai-script","AI Script"]
     ].map(function (entry,index) {
       return '<button class="package-tab' + (index === 0 ? ' active' : '') + '" type="button" data-package-tab="' +
         entry[0] + '" data-package-id="' + item.id + '">' + escapeHtml(entry[1]) + '</button>';
     }).join("");
 
+    const aiPanel = ai
+      ? '<div class="ai-script-box"><div class="ai-script-model"><span>Generated with</span><strong>' + escapeHtml(ai.model || "AI") + '</strong></div>' +
+        '<pre>' + escapeHtml(ai.text || "") + '</pre>' +
+        '<div class="ai-script-actions"><button class="button secondary mini" data-copy-ai-script="' + item.id + '" type="button">Copy script</button>' +
+        '<button class="button secondary mini" data-generate-ai-script="' + item.id + '" type="button">Regenerate</button></div></div>'
+      : '<div class="ai-script-empty"><div><span class="package-label">Recommended model</span><strong>GPT-6.1 Sol</strong><p>Generate the final production script only after the hook and idea are worth testing.</p></div>' +
+        '<button class="button" data-generate-ai-script="' + item.id + '" type="button">Generate AI Script</button></div>';
+
     return '<article class="library-card package-card" data-package-card="' + item.id + '">' +
-      '<div class="card-top"><div><span class="pill">' + escapeHtml(item.metadata.brand_name || "Daily package") + '</span>' +
-      '<h3>' + escapeHtml(item.title || "Creative package") + '</h3>' +
-      '<div class="meta">' +
-        escapeHtml(p.inspiration_pattern ? "Pattern: " + p.inspiration_pattern : (p.angle || item.angle || "")) +
-        (p.format ? " · " + escapeHtml(p.format) : "") +
-      '</div></div>' +
+      '<div class="card-top"><div><span class="pill">' + escapeHtml(item.metadata.brand_name || "Product idea") + '</span>' +
+      '<h3>' + escapeHtml(item.title || "Ad idea") + '</h3>' +
+      '<div class="meta">' + escapeHtml(p.inspiration_pattern ? "Pattern: " + p.inspiration_pattern : (p.angle || item.angle || "")) +
+      (p.format ? " · " + escapeHtml(p.format) : "") + '</div></div>' +
       '<button class="text-button mini" data-favorite="' + item.id + '">' + (item.favorite ? "★" : "☆") + '</button></div>' +
       '<div class="package-tabs" role="tablist">' + tabs + '</div>' +
       '<div class="package-tab-body">' +
-        panel("hook","Hook",copyBlock("Hook",p.hook,"hook"),true) +
-        panel("primary","Primary text",
-          copyBlock("Primary A",p.primary_texts && p.primary_texts[0],"primary0") +
-          copyBlock("Primary B",p.primary_texts && p.primary_texts[1],"primary1"),false) +
-        panel("headlines","Headlines",
-          copyBlock("Headline A",p.headlines && p.headlines[0],"headline0") +
-          copyBlock("Headline B",p.headlines && p.headlines[1],"headline1"),false) +
-        panel("video","Video idea",copyBlock("Video concept",p.video_idea,"video"),false) +
-        panel("script","30-second script",copyBlock("Script",p.script,"script"),false) +
+        '<section class="package-tab-panel active" data-package-panel="hook">' + copyBlock("Hook",p.hook,"hook") + '</section>' +
+        '<section class="package-tab-panel" data-package-panel="idea">' + copyBlock("Ad idea",ideaText,"idea") + '</section>' +
+        '<section class="package-tab-panel" data-package-panel="ai-script">' + aiPanel + '</section>' +
       '</div>' +
-      '<div class="package-footer">' +
-        '<label>Status<select data-item-status="' + item.id + '">' +
-          STATUS_FLOW.map(function (status) { return '<option' + (status === item.status ? " selected" : "") + '>' + escapeHtml(status) + '</option>'; }).join("") +
-        '</select></label>' +
-        '<button class="button secondary mini" data-delete="' + item.id + '">Delete</button>' +
-      '</div></article>';
+      '<div class="package-footer"><label>Status<select data-item-status="' + item.id + '">' +
+        STATUS_FLOW.map(function (status) { return '<option' + (status === item.status ? " selected" : "") + '>' + escapeHtml(status) + '</option>'; }).join("") +
+      '</select></label><button class="button secondary mini" data-delete="' + item.id + '">Delete</button></div></article>';
   }
 
   function packageCopyValue(item, field) {
@@ -98,8 +94,67 @@
     if (field === "headline0") return (p.headlines && p.headlines[0]) || "";
     if (field === "headline1") return (p.headlines && p.headlines[1]) || "";
     if (field === "video") return p.video_idea || "";
-    if (field === "script") return p.script || "";
+    if (field === "idea") {
+      return [
+        p.angle ? "Angle: " + p.angle : "",
+        p.format ? "Format: " + p.format : "",
+        p.video_idea ? "Execution: " + p.video_idea : "",
+        p.why ? "Why test it: " + p.why : ""
+      ].filter(Boolean).join("\n\n");
+    }
     return item.content || "";
+  }
+
+  async function generateAiScriptForItem(item) {
+    const p = item && item.metadata && item.metadata.package;
+    if (!p) throw new Error("This idea does not have a creative package.");
+
+    const brandId = item.metadata && item.metadata.brand_id;
+    const brandsResult = await db.from("brands").select("*").order("updated_at", { ascending:false });
+    const brands = brandsResult.data || [];
+    const product = brands.find(function (b) { return b.id === brandId; }) || brands[0] || {};
+
+    const adsResult = await db.from("ad_references").select("*").order("created_at", { ascending:false }).limit(30);
+    const competitorAds = adsResult.data || [];
+
+    const response = await fetch("https://rycaylyhgjgovyxwhgjg.supabase.co/functions/v1/creative-ai", {
+      method:"POST",
+      headers:{ "content-type":"application/json" },
+      body:JSON.stringify({
+        task:"script",
+        product:product,
+        competitor_ads:competitorAds,
+        idea:{
+          title:item.title || "",
+          hook:p.hook || "",
+          angle:p.angle || "",
+          format:p.format || "",
+          execution:p.video_idea || "",
+          why:p.why || "",
+          inspiration_pattern:p.inspiration_pattern || ""
+        }
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.ok) {
+      const error = new Error(data.error || "AI script generation failed.");
+      error.setup_required = !!data.setup_required;
+      error.recommended_model = data.recommended_model || "gpt-6.1-sol";
+      throw error;
+    }
+
+    const nextPackage = Object.assign({}, p, {
+      ai_script:{
+        model:data.model || "gpt-6.1-sol",
+        text:data.text || "",
+        generated_at:new Date().toISOString()
+      }
+    });
+    const nextMetadata = Object.assign({}, item.metadata || {}, { package:nextPackage });
+    const updated = await db.from("creative_items").update({ metadata:nextMetadata }).eq("id", item.id);
+    if (updated.error) throw updated.error;
+    return nextPackage.ai_script;
   }
 
   async function getSession() {
@@ -640,6 +695,41 @@
     };
 
     grid.addEventListener("click", async function (event) {
+      const generateScriptId = event.target.getAttribute("data-generate-ai-script");
+      if (generateScriptId) {
+        const item = items.find(function (x) { return x.id === generateScriptId; });
+        if (!item) return;
+        const button = event.target;
+        const old = button.textContent;
+        button.disabled = true;
+        button.textContent = "Generating with GPT-6.1 Sol…";
+        try {
+          await generateAiScriptForItem(item);
+          button.textContent = "Generated";
+          setTimeout(function () { location.reload(); }, 350);
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = old;
+          if (error.setup_required) {
+            alert("AI Script is ready, but the OpenAI API key still needs to be added to Supabase. Recommended script model: " + (error.recommended_model || "gpt-6.1-sol"));
+          } else {
+            alert(error.message || String(error));
+          }
+        }
+        return;
+      }
+
+      const copyScriptId = event.target.getAttribute("data-copy-ai-script");
+      if (copyScriptId) {
+        const item = items.find(function (x) { return x.id === copyScriptId; });
+        const ai = item && item.metadata && item.metadata.package && item.metadata.package.ai_script;
+        if (ai && ai.text) {
+          await navigator.clipboard.writeText(ai.text);
+          event.target.textContent = "Copied";
+        }
+        return;
+      }
+
       const packageTab = event.target.getAttribute("data-package-tab");
       if (packageTab) {
         const card = event.target.closest("[data-package-card]");
