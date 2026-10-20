@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="static/ui-v3.css?v=28">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="static/config.js?v=2"></script>
+  <link rel="stylesheet" href="static/strategist.css?v=1">
 </head>
 <body data-page="research">
 <header class="topbar">
@@ -28,20 +29,21 @@
 </header>
 
 <main class="research-main">
+  <div class="strategy-tabs" aria-label="Research workspace"><a class="active" href="ads.html">Brands</a><a href="#research-ads">Ad library</a><a href="#research-insights">Insights</a><a href="creatives.html">Ideas</a></div>
   <section class="page-title compact-hero">
     <p class="eyebrow">COMPETITOR INTELLIGENCE</p>
-    <h1>Find ads that keep running.</h1>
-    <p class="sub">Avonent watches competitors, stores public Meta Ad Library creatives, and prioritizes active ads that have crossed your long-running threshold.</p>
+    <h1>Your competitor intelligence desk.</h1>
+    <p class="sub">Build a focused watchlist of brands. Study their creative patterns and turn research into stronger ad concepts for your products.</p>
   </section>
 
-  <section class="research-controlbar panel">
+  <section class="research-controlbar panel" id="research-insights">
     <div class="research-product-picker">
       <label>Product
         <select id="research-product"></select>
       </label>
     </div>
     <div class="research-actions">
-      <button id="scan-now" class="button" type="button">Scan competitors</button>
+      <button id="scan-now" class="button" type="button">Refresh tracked brands</button>
       <button id="analyze-ads" class="button secondary" type="button">Analyze research</button>
       <button id="generate-ideas" class="button secondary" type="button">Generate ideas</button>
     </div>
@@ -76,13 +78,13 @@
       <div class="section-head">
         <div>
           <p class="eyebrow">WATCHLIST</p>
-          <h2>Competitors</h2>
+          <h2>Brands you track</h2>
         </div>
       </div>
 
       <form id="competitor-form" class="competitor-form">
         <label>Competitor
-          <input id="competitor-name" required placeholder="Resilia">
+          <input id="competitor-name" required placeholder="Brand name or Meta page">
         </label>
         <label>Long-running threshold
           <div class="number-field">
@@ -93,7 +95,7 @@
         <button class="button" type="submit">Add competitor</button>
       </form>
 
-      <div id="watchlist-list" class="watchlist-list">
+      <p class="strategy-helper">Add 10–15 brands you want to study. Each one becomes part of your research watchlist.</p><div class="strategy-notice">Brand tracking saves your watchlist. Automated ad retrieval requires a working backend collector; a zero-ad scan does not mean a brand has no ads.</div><div id="watchlist-list" class="watchlist-list">
         <div class="empty">Loading competitors…</div>
       </div>
     </aside>
@@ -128,7 +130,7 @@
     </div>
     <div class="automation-flow">
       <div><span>1</span><strong>Watch</strong><p>Track competitor names and page searches.</p></div>
-      <div><span>2</span><strong>Scan</strong><p>Your self-hosted browser reads public Meta Ad Library pages.</p></div>
+      <div><span>2</span><strong>Scan</strong><p>A configured backend collector checks supported public ad sources.</p></div>
       <div><span>3</span><strong>Filter</strong><p>Active ads crossing the configured threshold become long-running source ads.</p></div>
       <div><span>4</span><strong>Generate</strong><p>AI studies the patterns and creates original product-specific ideas.</p></div>
     </div>
