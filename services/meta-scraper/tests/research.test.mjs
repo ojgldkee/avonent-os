@@ -148,3 +148,13 @@ test("ideas have dedicated concepts hooks and scripts workspaces", () => {
   assert.match(ideasUi, /renderScriptsWorkspace/);
   assert.match(ideasUi, /data-copy-library-hook/);
 });
+
+
+test("ad library supports highest-score sorting and transparent score breakdown", () => {
+  const adsHtml = readFileSync(new URL("ads.html", root), "utf8");
+  const strategistCss = readFileSync(new URL("static/strategist.css", root), "utf8");
+  assert.match(adsHtml, /option value="score">Highest research score/);
+  assert.match(frontend, /function adScoreBreakdown/);
+  assert.match(frontend, /Why ' \+ researchScore \+ '\/100\?/);
+  assert.match(strategistCss, /\.score-breakdown/);
+});
