@@ -78,3 +78,30 @@ body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
 .brand-description{margin:13px 0 0;color:#aeb9c7;font-size:12px;line-height:1.55}
 .brand-site-link{display:inline-block;margin-top:8px;color:#c4d4e6;font-size:11px;text-decoration:underline;text-underline-offset:3px}
 .brand-card[data-scan-error="true"]{border-color:#5a3540!important}
+
+
+/* Store-first competitor onboarding + compact research filters */
+.competitor-optional{border:1px solid #2e3947;border-radius:14px;padding:0 12px;background:#0c1118}
+.competitor-optional summary{cursor:pointer;padding:12px 0;font-size:12px;font-weight:800;color:#aab7c7}
+.competitor-optional[open]{padding-bottom:12px}
+.competitor-optional label{margin-top:10px}
+.store-summary{display:grid;gap:4px;margin-top:10px;padding:10px 12px;border:1px solid #293543;border-radius:12px;background:#0a0f15;color:#93a1b2;font-size:11px;line-height:1.45}
+.advertiser-candidates{display:grid;gap:8px;margin-top:12px;padding:12px;border:1px solid #4d4630;border-radius:14px;background:#17150f}
+.advertiser-candidates>strong{font-size:12px;color:#e6dcc0}
+.advertiser-candidate{appearance:none;width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;border:1px solid #3a4350;border-radius:12px;background:#0d131b;color:#e7edf5;padding:11px;font:inherit;cursor:pointer}
+.advertiser-candidate span{min-width:0;display:grid;gap:4px}
+.advertiser-candidate b{font-size:12px;overflow-wrap:anywhere}
+.advertiser-candidate small{font-size:10px;color:#8f9cac;overflow-wrap:anywhere}
+.advertiser-candidate em{font-style:normal;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#b9c8d8;white-space:nowrap}
+.advertiser-candidate:disabled{opacity:.55;cursor:wait}
+.research-filters .research-search{min-width:220px;flex:1 1 260px}
+.research-filters .button{min-height:42px}
+.media-unknown{position:relative}
+.media-unknown>span{position:absolute;left:10px;bottom:10px;padding:6px 8px;border-radius:999px;background:rgba(8,11,16,.88);border:1px solid #3a4655;color:#c8d2de;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+@media(max-width:760px){
+  .research-filters{grid-template-columns:1fr 1fr}
+  .research-filters .research-search{grid-column:1/-1;min-width:0;width:100%}
+  .research-filters #clear-filters{grid-column:1/-1}
+  .competitor-optional{width:100%}
+  .advertiser-candidate{align-items:flex-start}
+}
