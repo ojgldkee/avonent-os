@@ -39,6 +39,35 @@
     const t = Date.parse(value || "");
     return Number.isFinite(t) ? t : null;
   }
+  function creativeFingerprint(ad) {
+    const media = String(ad.media_url || ad.media_thumbnail_url || "").split("?")[0].trim();
+    if (media) return "m:" + media;
+    const copy = String(ad.primary_text || "").toLowerCase().replace(/\s+/g," ").trim();
+    return copy ? "c:" + copy.slice(0,240) : "id:" + String(ad.ad_archive_id || ad.id || "");
+  }
+  function adResearchScore(ad, brandAds) {
+    const age = adAge(ad);
+    const peers = brandAds.filter(x => x.is_active);
+    const fingerprint = creativeFingerprint(ad);
+    const recurrence = peers.filter(x => creativeFingerprint(x) === fingerprint).length;
+    const longevity = age === null ? 0 : Math.min(35, Math.round(Math.min(age, 90) / 90 * 35));
+    const repeated = recurrence <= 1 ? 0 : Math.min(20, 8 + (recurrence - 2) * 4);
+    const copy = ad.primary_text ? 10 : 0;
+    const headline = ad.headline ? 4 : 0;
+    const destination = ad.landing_url ? 4 : 0;
+    const cta = ad.cta_text ? 2 : 0;
+    const media = mediaKind(ad) === "unknown" ? 0 : 10;
+    const active = ad.is_active ? 5 : 0;
+    const analyzed = ad.analyzed_at ? 5 : 0;
+    return Math.max(0, Math.min(100, longevity + repeated + copy + headline + destination + cta + media + active + analyzed));
+  }
+  function adRank(ad, brandAds) {
+    const ranked = brandAds.filter(x => x.is_active)
+      .map(x => ({id:String(x.id), score:adResearchScore(x, brandAds), started:sortTime(x.started_at) || 0}))
+      .sort((a,b) => b.score - a.score || b.started - a.started);
+    const index = ranked.findIndex(x => x.id === String(ad.id));
+    return {rank:index >= 0 ? index + 1 : null,total:ranked.length};
+  }
   function copyExcerpt(text) {
     return text.length > 200 ? text.slice(0,200).trimEnd() + "…" : text;
   }
@@ -210,7 +239,8 @@
           '</div>' +
           '<label class="watch-toggle"><input type="checkbox" data-watch-active="' + esc(w.id) + '" ' + (w.active ? 'checked' : '') + '><span>' + (w.active ? 'On' : 'Off') + '</span></label>' +
         '</div>' +
-        (w.last_scan_message ? '<p class="helper">' + esc(w.last_scan_message) + '</p>' : '') +
+        (w.last_scan_message && !/No scraper is configured/i.test(w.last_scan_message) ? '<p class="helper">' + esc(w.last_scan_message) + '</p>' : '') +
+        (/No scraper is configured/i.test(w.last_scan_message || "") ? '<p class="helper">Built-in collector ready. Tap Research brand to queue a fresh scan.</p>' : '') +
         (w.brand_description ? '<p class="brand-description">' + esc(w.brand_description) + '</p>' : '') +
         (w.website_url ? '<a class="brand-site-link" target="_blank" rel="noopener" href="' + esc(w.website_url) + '">' + esc((()=>{try{return new URL(w.website_url).hostname.replace(/^www\./,"")}catch{return "Brand website"}})()) + '</a>' : '') +
         storeSummary(w) + candidateMarkup(w) +
@@ -289,6 +319,9 @@
       const adKind = mediaKind(a);
       const ageDays = adAge(a);
       const brandRow = watchlist.find(w => w.id === a.competitor_id) || {};
+      const brandAds = ads.filter(x => x.competitor_id === a.competitor_id);
+      const researchScore = adResearchScore(a, brandAds);
+      const researchRank = adRank(a, brandAds);
       const avatar = brandAvatar({competitor_name:a.advertiser_name, logo_url:safeUrl(a.advertiser_logo_url || brandRow.logo_url), website_url:brandRow.website_url});
       const mediaUrl = safeUrl(a.media_url), poster = safeUrl(a.media_thumbnail_url);
       let mediaHtml = '<div class="ad-media-empty"><span>Creative preview</span><p>Media was not captured by this source yet.</p></div>';
@@ -301,10 +334,10 @@
       }
 
       const primary = a.primary_text
-        ? '<div class="source-copy"><div class="source-copy-head"><span>Primary text</span><button class="copy-inline" type="button" data-copy-text="' + esc(a.id) + '">Copy</button></div><p id="copy-' + esc(a.id) + '" style="white-space:pre-wrap;overflow-wrap:anywhere">' + esc(expanded ? a.primary_text : copyExcerpt(a.primary_text)) + '</p>' +
-          (a.primary_text.length > 200 ? '<button type="button" class="copy-inline" data-expand-ad="' + esc(a.id) + '" aria-controls="copy-' + esc(a.id) + '" aria-expanded="' + expanded + '">' + (expanded ? 'Show less' : 'Show more') + '</button>' : '') +
-          (a.raw?.primary_text_complete === false ? '<small>Source text may be incomplete.</small>' : '') + '</div>'
-        : '<div class="source-copy muted-copy"><p>Primary text not captured yet.</p></div>';
+        ? '<div class="source-copy"><div class="source-copy-head"><span>Primary text</span><button class="copy-inline" type="button" data-copy-text="' + esc(a.id) + '">Copy</button></div><div class="source-copy-body"><p id="copy-' + esc(a.id) + '" style="white-space:pre-wrap;overflow-wrap:anywhere">' + esc(expanded ? a.primary_text : copyExcerpt(a.primary_text)) + '</p></div>' +
+          (a.primary_text.length > 200 ? '<div class="source-copy-footer"><button type="button" class="copy-inline" data-expand-ad="' + esc(a.id) + '" aria-controls="copy-' + esc(a.id) + '" aria-expanded="' + expanded + '">' + (expanded ? 'Show less' : 'Show more') + '</button></div>' : '') +
+          (a.raw?.primary_text_complete === false ? '<small class="source-copy-note">Source text may be incomplete.</small>' : '') + '</div>'
+        : '<div class="source-copy muted-copy"><div class="source-copy-body"><p>Primary text not captured yet.</p></div></div>';
 
       const headline = a.headline
         ? '<div class="ad-headline-block"><span>Headline</span><strong>' + esc(a.headline) + '</strong></div>'
@@ -316,7 +349,9 @@
 
       return '<article class="source-ad-card">' +
         '<div class="source-ad-top">' + avatar + '<div><span class="pill">' + esc(a.advertiser_name || "Tracked brand") + '</span><h3>Ad ' + esc(a.ad_archive_id || "") + '</h3></div>' +
-        '<div class="days-badge ' + (qualifies(a) ? 'qualified' : '') + '"><strong>' + (ageDays === null ? '—' : ageDays) + '</strong><span>' + (ageDays === null ? 'unknown' : 'days') + '</span></div></div>' +
+        '<div class="source-score-stack"><div class="research-score" title="Research signal only — not profitability"><strong>' + researchScore + '</strong><span>score</span></div>' +
+        '<div class="days-badge ' + (qualifies(a) ? 'qualified' : '') + '"><strong>' + (ageDays === null ? '—' : ageDays) + '</strong><span>' + (ageDays === null ? 'unknown' : 'days') + '</span></div></div></div>' +
+        '<div class="source-rank-line"><span>Sample rank #' + (researchRank.rank || '—') + ' of ' + researchRank.total + '</span><span>Research score · not profitability</span></div>' +
         mediaHtml + (adKind === "video" && !poster ? '<p class="helper">Preview unavailable · press play to view video.</p>' : '') + headline + primary + '<p class="helper">Impressions: ' + esc(impressionLabel(a)) + '</p>' +
         '<div class="source-meta"><span>' + (a.started_at ? 'Started ' + esc(new Date(a.started_at + 'T00:00:00Z').toLocaleDateString(undefined, {month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})) : 'Start date unavailable') + '</span>' +
           '<span>' + esc(adKind === "unknown" ? "Unknown media" : adKind === "video" ? "Video" : "Image") + '</span>' +
@@ -417,52 +452,31 @@
     if (btn) {
       btn.disabled = true;
       btn.dataset.oldText = btn.textContent;
-      btn.textContent = "Researching…";
+      btn.textContent = "Queuing…";
     }
 
-    const brand = competitorId ? watchlist.find(w => w.id === competitorId) : null;
-    $("research-status").textContent = brand
-      ? "Researching " + brand.competitor_name + "…"
-      : "Researching tracked brands…";
-
     try {
-      const result = await cloud.invoke("scan-competitor-ads", {
-        product_id: productId(),
-        competitor_id: competitorId || undefined
-      });
+      const targets = competitorId ? watchlist.filter(w => w.id === competitorId) : watchlist.filter(w => w.active);
+      if (!targets.length) throw new Error("No active brands to research.");
 
-      if (Array.isArray(result.errors) && result.errors.length) {
-        const useful = result.errors.map(e => e.error || "").filter(Boolean);
-        if (useful.length) throw new Error(useful.some(message => /No scraper is configured/i.test(message)) ? "On-demand scanning is not connected. Open Run collector below, choose Run workflow, then refresh this page. Scheduled scans still run twice daily." : useful.join(" · "));
+      const now = new Date().toISOString();
+      for (const brand of targets) {
+        const result = await db.from("competitor_watchlist").update({
+          scan_requested_at: now,
+          scan_request_status: "queued",
+          last_scan_status: "queued",
+          last_scan_message: "Queued for the built-in collector. GitHub checks for queued research about every 10 minutes.",
+          updated_at: now
+        }).eq("id", brand.id);
+        if (result.error) throw result.error;
       }
 
-      if (competitorId) {
-        try { await cloud.invoke("enrich-competitor-brand", { competitor_id: competitorId }); } catch {}
-      } else {
-        for (const item of watchlist.filter(w => w.active)) {
-          try { await cloud.invoke("enrich-competitor-brand", { competitor_id: item.id }); } catch {}
-        }
-      }
       await loadResearch();
-
-      if (competitorId && $("brand-filter")) $("brand-filter").value = competitorId;
-      if ($("age-filter")) $("age-filter").value = "all";
-      renderAds();
-      activateTab("ads");
-
-      $("research-status").textContent =
-        "Research sample updated: " + Number(result.stored || 0) + " ads saved; " + Number(result.long_running || 0) + " older ads found in this scan. This is not the advertiser’s total.";
+      $("research-status").textContent = competitorId
+        ? "Research queued. Avonent’s built-in Playwright collector will pick this brand up automatically; no Apify or separate scraper server is required."
+        : targets.length + " brands queued. The built-in collector checks the queue about every 10 minutes.";
     } catch (error) {
-      const saved = competitorId ? ads.filter(a => a.competitor_id === competitorId && a.is_active) : ads.filter(a => a.is_active);
-      if (saved.length) {
-        if (competitorId && $("brand-filter")) $("brand-filter").value = competitorId;
-        if ($("age-filter")) $("age-filter").value = "all";
-        renderAds();
-        activateTab("ads");
-        $("research-status").textContent = "Showing " + saved.length + " previously saved ads, not the full advertiser library. Refresh failed: " + (error.message || String(error));
-      } else {
-        $("research-status").textContent = error.message || String(error);
-      }
+      $("research-status").textContent = error.message || String(error);
     } finally {
       if (btn) {
         btn.disabled = false;
