@@ -112,16 +112,25 @@
 
         '<section class="idea-hook-block"><div class="idea-section-head"><span>Hook</span><button class="copy-inline" type="button" data-copy-hook="' + idea.id + '">Copy</button></div><p>' + esc(idea.hook || "") + '</p></section>' +
 
-        '<details class="idea-copy-pack"><summary>Hook variations & ad copy</summary>' +
+        '<details class="idea-copy-pack"><summary>Full creative brief</summary>' +
+        (strategy.audience ? '<h4>Audience</h4><p>' + esc(strategy.audience) + '</p>' : '') +
         (Array.isArray(strategy.hooks) ? strategy.hooks.map((hook,n) => '<p><strong>Hook ' + (n+1) + '</strong><br>' + esc(hook) + '</p>').join("") : '') +
+        (strategy.first_three_seconds ? '<h4>First 3 seconds</h4><div class="timed-beat"><span>SAY</span><p>' + esc(strategy.first_three_seconds.say || "") + '</p><span>SHOW</span><p>' + esc(strategy.first_three_seconds.show || "") + '</p><span>ON-SCREEN</span><p>' + esc(strategy.first_three_seconds.on_screen_text || "") + '</p></div>' : '') +
         (strategy.primary_text ? '<h4>Primary text</h4><p style="white-space:pre-wrap">' + esc(strategy.primary_text) + '</p>' : '') +
         (strategy.headline ? '<h4>Headline</h4><p>' + esc(strategy.headline) + '</p>' : '') +
         (strategy.description ? '<h4>Description</h4><p>' + esc(strategy.description) + '</p>' : '') +
-        (strategy.video_structure ? '<h4>Video plan</h4><p>' + esc(typeof strategy.video_structure === "string" ? strategy.video_structure : JSON.stringify(strategy.video_structure)) + '</p>' : '') +
+        (strategy.video_concept ? '<h4>Video concept</h4><p>' + esc(strategy.video_concept) + '</p>' : '') +
+        (Array.isArray(strategy.shot_directions) && strategy.shot_directions.length ? '<h4>Shot directions</h4><ol class="strategy-list">' + strategy.shot_directions.map(x => '<li>' + esc(typeof x === "string" ? x : JSON.stringify(x)) + '</li>').join("") + '</ol>' : '') +
+        (Array.isArray(strategy.timed_script) && strategy.timed_script.length ? '<h4>Timed script</h4><div class="timed-script">' + strategy.timed_script.map(beat => '<div class="timed-beat"><strong>' + esc(beat.time || "") + '</strong><span>SAY</span><p>' + esc(beat.say || "") + '</p><span>SHOW</span><p>' + esc(beat.show || "") + '</p><span>ON-SCREEN</span><p>' + esc(beat.on_screen_text || "") + '</p></div>').join("") + '</div>' : '') +
+        (Array.isArray(strategy.source_observations) && strategy.source_observations.length ? '<h4>Observed in source ads</h4><ul class="strategy-list evidence-list">' + strategy.source_observations.map(x => '<li><strong>' + esc(x.ad_archive_id || "Source") + '</strong> · ' + esc(x.observation || "") + '</li>').join("") + '</ul>' : '') +
+        (Array.isArray(strategy.ai_inferences) && strategy.ai_inferences.length ? '<h4>AI inferences</h4><ul class="strategy-list inference-list">' + strategy.ai_inferences.map(x => '<li>' + esc(typeof x === "string" ? x : JSON.stringify(x)) + '</li>').join("") + '</ul>' : '') +
+        (Array.isArray(strategy.product_fact_checks) && strategy.product_fact_checks.length ? '<h4>Product-fact checks</h4><ul class="strategy-list claim-list">' + strategy.product_fact_checks.map(x => '<li><strong>' + esc(x.status || "needs_review") + '</strong> · ' + esc(x.claim || "") + (x.support ? '<br><small>' + esc(x.support) + '</small>' : '') + '</li>').join("") + '</ul>' : '') +
+        (Array.isArray(strategy.unsupported_claim_checks) && strategy.unsupported_claim_checks.length ? '<div class="claim-warning"><strong>Unsupported / revise</strong><ul class="strategy-list">' + strategy.unsupported_claim_checks.map(x => '<li>' + esc(typeof x === "string" ? x : JSON.stringify(x)) + '</li>').join("") + '</ul></div>' : '<p class="claim-clear">No unsupported claims flagged in this draft.</p>') +
         '<button type="button" class="button secondary mini" data-copy-pack="' + idea.id + '">Copy creative brief</button></details>' +
         '<div class="idea-execution-grid">' +
-          '<section><span>First frame</span><p>' + esc(idea.first_frame || "Not specified") + '</p></section>' +
+          '<section><span>Audience</span><p>' + esc(strategy.audience || "Not specified") + '</p></section>' +
           '<section><span>Angle</span><p>' + esc(idea.angle || "Not specified") + '</p></section>' +
+          '<section class="wide"><span>First frame</span><p>' + esc(idea.first_frame || "Not specified") + '</p></section>' +
           '<section class="wide"><span>Execution</span><p>' + esc(idea.execution || "") + '</p></section>' +
           '<section><span>Proof to show</span><p>' + esc(idea.proof_to_show || "Use documented product proof") + '</p></section>' +
           '<section><span>CTA</span><p>' + esc(idea.cta || "") + '</p></section>' +
@@ -255,7 +264,7 @@
 
     $("source-drawer-content").innerHTML = rows.length
       ? rows.map(a => '<article class="drawer-source-ad">' +
-          '<div class="drawer-source-top"><span class="pill">' + esc(a.advertiser_name || "Competitor") + '</span><div class="days-badge qualified"><strong>' + Number(a.days_running || 0) + '</strong><span>days</span></div></div>' +
+          '<div class="drawer-source-top"><span class="pill">' + esc(a.advertiser_name || "Competitor") + '</span><div class="days-badge ' + (a.started_at ? 'qualified' : '') + '"><strong>' + (a.started_at ? Number(a.days_running || 0) : '—') + '</strong><span>' + (a.started_at ? 'days' : 'unknown') + '</span></div></div>' +
           (a.headline ? '<h3>' + esc(a.headline) + '</h3>' : '') +
           (a.primary_text ? '<p>' + esc(a.primary_text) + '</p>' : '') +
           (a.ai_analysis && a.ai_analysis.reusable_pattern ? '<div class="drawer-analysis"><span>AI pattern</span><p>' + esc(a.ai_analysis.reusable_pattern) + '</p></div>' : '') +
@@ -299,22 +308,36 @@
         execution: idea.execution,
         proof_to_show: idea.proof_to_show,
         cta: idea.cta,
-        why_test: idea.why_test
+        why_test: idea.why_test,
+        audience: idea.strategy?.audience || "",
+        first_three_seconds: idea.strategy?.first_three_seconds || {},
+        video_concept: idea.strategy?.video_concept || "",
+        shot_directions: idea.strategy?.shot_directions || [],
+        timed_script: idea.strategy?.timed_script || [],
+        source_observations: idea.strategy?.source_observations || [],
+        ai_inferences: idea.strategy?.ai_inferences || [],
+        product_fact_checks: idea.strategy?.product_fact_checks || [],
+        unsupported_claim_checks: idea.strategy?.unsupported_claim_checks || []
       }
     });
 
     const script = result.result?.script;
     const scriptText = result.text || (script ? [
       script.title, "Duration: " + (script.recommended_duration_seconds || "—") + " seconds",
-      ...(Array.isArray(script.beats) ? script.beats.map(b => [b.time, "SAY: " + (b.spoken || ""), "SHOW: " + (b.shot || ""), "ON SCREEN: " + (b.on_screen_text || "")].join("\n")) : []),
+      ...(Array.isArray(script.beats) ? script.beats.map(b => [b.time, "SAY: " + (b.say || ""), "SHOW: " + (b.show || ""), "ON SCREEN: " + (b.on_screen_text || "")].join("\n")) : []),
       "CTA: " + (script.cta || ""), "Alternative openings: " + JSON.stringify(script.three_alt_openings || []),
-      "Editor notes: " + JSON.stringify(script.editor_notes || ""), "Claims check: " + JSON.stringify(script.compliance_notes || "")
+      "Observed evidence: " + JSON.stringify(script.source_observations || []),
+      "AI inferences: " + JSON.stringify(script.ai_inferences || []),
+      "Product fact checks: " + JSON.stringify(script.product_fact_checks || []),
+      "Unsupported claims: " + JSON.stringify(script.unsupported_claim_checks || []),
+      "Editor notes: " + JSON.stringify(script.editor_notes || ""), "Compliance notes: " + JSON.stringify(script.compliance_notes || "")
     ].join("\n\n") : result.result ? JSON.stringify(result.result,null,2) : "");
     if (!scriptText) throw new Error("AI returned no script.");
 
     const r = await db.from("ai_ideas").update({
       ai_script: scriptText,
       script_model: result.model || "",
+      strategy: {...(idea.strategy || {}), final_script: script || null},
       status: idea.approved ? "Approved" : "Scripted",
       updated_at: new Date().toISOString()
     }).eq("id", idea.id);
@@ -340,7 +363,24 @@
         const packId = event.target.getAttribute("data-copy-pack");
         if (packId) {
           const idea = ideas.find(i => i.id === packId), pack = idea?.strategy || {};
-          try { await navigator.clipboard.writeText([idea?.title, "Hooks", ...(pack.hooks || [idea?.hook]), "Primary text", pack.primary_text, "Headline", pack.headline, "Description",pack.description,"Video plan",typeof pack.video_structure === "string" ? pack.video_structure : JSON.stringify(pack.video_structure || "")].filter(Boolean).join("\n\n")); event.target.textContent = "Copied"; }
+          try { await navigator.clipboard.writeText([
+            idea?.title,
+            "Audience", pack.audience,
+            "Angle", idea?.angle,
+            "Hooks", ...(pack.hooks || [idea?.hook]),
+            "First 3 seconds", JSON.stringify(pack.first_three_seconds || {}),
+            "Primary text", pack.primary_text,
+            "Headline", pack.headline,
+            "Description", pack.description,
+            "CTA", idea?.cta,
+            "Video concept", pack.video_concept,
+            "Shot directions", JSON.stringify(pack.shot_directions || []),
+            "Timed script", JSON.stringify(pack.timed_script || []),
+            "Observed evidence", JSON.stringify(pack.source_observations || []),
+            "AI inferences", JSON.stringify(pack.ai_inferences || []),
+            "Product fact checks", JSON.stringify(pack.product_fact_checks || []),
+            "Unsupported claims", JSON.stringify(pack.unsupported_claim_checks || [])
+          ].filter(Boolean).join("\n\n")); event.target.textContent = "Copied"; }
           catch { $("ideas-status").textContent = "Copy unavailable. Select the text to copy it."; }
           return;
         }
