@@ -191,7 +191,9 @@ async function collectBrand(brand) {
           resolution_status:"unresolved",
           last_scan_status:"completed",
           last_scan_message:"The previously selected advertiser was not found in this sample. Review advertiser candidates.",
-          last_scan_complete:false
+          last_scan_complete:false,
+          scan_request_status:"",
+          scan_requested_at:null
         });
         return;
       }
@@ -232,7 +234,9 @@ async function collectBrand(brand) {
           last_scan_message:candidates.length
             ? "Advertiser match needs confirmation before ads are imported."
             : "No trustworthy Facebook advertiser match was found in this sample.",
-          last_scan_complete:Boolean(result.sample_complete)
+          last_scan_complete:Boolean(result.sample_complete),
+          scan_request_status:"",
+          scan_requested_at:null
         });
         console.log("[" + brand.competitor_name + "] advertiser unresolved; " + candidates.length + " candidate(s)");
         return;
