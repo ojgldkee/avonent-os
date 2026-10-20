@@ -90,6 +90,29 @@
     renderAds();
   }
 
+  function initials(name) {
+    const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    return (parts.slice(0,2).map(x => x[0]).join("") || "?").toUpperCase();
+  }
+
+  function faviconFor(url) {
+    try { return new URL("/favicon.ico", url).toString(); } catch { return ""; }
+  }
+
+  function brandAvatar(w) {
+    const src = w.logo_url || (w.website_url ? faviconFor(w.website_url) : "");
+    return '<div class="brand-avatar">' +
+      (src ? '<img src="' + esc(src) + '" alt="' + esc(w.competitor_name) + ' logo" loading="lazy" data-brand-avatar-img>' : '') +
+      '<span>' + esc(initials(w.competitor_name)) + '</span>' +
+    '</div>';
+  }
+
+  function scanState(w) {
+    if (w.last_scan_status === "error") return "Research error";
+    if (w.last_scan_status === "completed") return w.last_scan_complete ? "Research complete" : "Research sampled";
+    return "Not researched";
+  }
+
   function renderBrands() {
     const box = $("watchlist-list");
     if (!box) return;
@@ -104,12 +127,16 @@
       const longCount = brandAds.filter(a => a.qualifies_long_running).length;
       return '<article class="watch-item brand-card" data-brand-card="' + esc(w.id) + '">' +
         '<div class="brand-card-head">' +
-          '<div class="brand-card-name"><span class="eyebrow">TRACKED BRAND</span><h3>' + esc(w.competitor_name) + '</h3></div>' +
+          '<div class="brand-identity">' + brandAvatar(w) +
+            '<div class="brand-card-name"><span class="eyebrow">TRACKED BRAND</span><h3>' + esc(w.competitor_name) + '</h3><small class="brand-scan-state">' + esc(scanState(w)) + '</small></div>' +
+          '</div>' +
           '<label class="watch-toggle"><input type="checkbox" data-watch-active="' + esc(w.id) + '" ' + (w.active ? 'checked' : '') + '><span>' + (w.active ? 'On' : 'Off') + '</span></label>' +
         '</div>' +
+        (w.brand_description ? '<p class="brand-description">' + esc(w.brand_description) + '</p>' : '') +
+        (w.website_url ? '<a class="brand-site-link" target="_blank" rel="noopener" href="' + esc(w.website_url) + '">' + esc((()=>{try{return new URL(w.website_url).hostname.replace(/^www\./,"")}catch{return "Brand website"}})()) + '</a>' : '') +
         '<div class="brand-card-stats">' +
-          '<div><span>Ads sampled</span><strong>' + brandAds.length + '</strong></div>' +
-          '<div><span>' + Number(w.min_days_running || 30) + '+ day ads found</span><strong>' + longCount + '</strong></div>' +
+          '<div><span>Ads sampled</span><strong>' + Number(w.last_scan_ads || brandAds.length || 0) + '</strong></div>' +
+          '<div><span>' + Number(w.min_days_running || 30) + '+ day ads found</span><strong>' + Number(w.last_scan_long_running || longCount || 0) + '</strong></div>' +
           '<div><span>Last research</span><strong class="small-value">' + esc(w.last_scanned_at ? niceDate(w.last_scanned_at) : "Never") + '</strong></div>' +
         '</div>' +
         '<div class="brand-card-actions">' +
@@ -122,6 +149,9 @@
         '</details>' +
       '</article>';
     }).join("");
+    box.querySelectorAll("[data-brand-avatar-img]").forEach(img => {
+      img.addEventListener("error", () => img.remove(), { once:true });
+    });
   }
 
   function renderBrandFilter() {
@@ -243,6 +273,13 @@
         if (useful.length) throw new Error(useful.join(" · "));
       }
 
+      if (competitorId) {
+        try { await cloud.invoke("enrich-competitor-brand", { competitor_id: competitorId }); } catch {}
+      } else {
+        for (const item of watchlist.filter(w => w.active)) {
+          try { await cloud.invoke("enrich-competitor-brand", { competitor_id: item.id }); } catch {}
+        }
+      }
       await loadResearch();
 
       if (competitorId && $("brand-filter")) $("brand-filter").value = competitorId;
