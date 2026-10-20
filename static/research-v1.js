@@ -134,7 +134,23 @@
 
   async function addCompetitor(event) {
     event.preventDefault();
-    const name = $("competitor-name").value.trim();
+    let name = $("competitor-name").value.trim();
+    if (/^https?:\/\//i.test(name)) {
+      try {
+        const url = new URL(name);
+        const host = url.hostname.replace(/^www\./,"").toLowerCase();
+        if (!["facebook.com","m.facebook.com","meta.com"].includes(host)) throw Error("Use a Facebook page link or brand name.");
+        const page = url.searchParams.get("view_all_page_id") || url.searchParams.get("page_id");
+        const query = url.searchParams.get("q") || url.searchParams.get("search_query");
+        const segment = url.pathname.split("/").filter(Boolean)[0];
+        name = page ? "Meta page " + page : query ? query : segment && !["ads","pages","business"].includes(segment) ? decodeURIComponent(segment) : "";
+        if (!name) throw Error("This is a general Ad Library link. Enter the brand name or specific Facebook page link.");
+      } catch (error) { $("research-status").textContent = error.message; return; }
+    }
+    name = name.slice(0,120);
+    if (watchlist.some(w => w.competitor_name.toLowerCase() === name.toLowerCase())) {
+      $("research-status").textContent = "Brand already tracked."; return;
+    }
     if (!name || !productId()) return;
     $("research-status").textContent = "Adding competitor…";
 
