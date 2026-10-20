@@ -25,8 +25,31 @@ function responseText(raw:any){
 }
 function parseJson(text:string){
   let t=String(text||"").trim();
-  t=t.replace(/^```json\s*/i,"").replace(/```$/,"").trim();
+  t=t.replace(/^\`\`\`json\s*/i,"").replace(/\`\`\`$/,"").trim();
   return JSON.parse(t);
+}
+function nonEmpty(value:any){return typeof value==="string"&&value.trim().length>0}
+function validateIdeas(result:any){
+  if(!Array.isArray(result?.ideas)||result.ideas.length!==5)throw new Error("AI output validation failed: expected exactly 5 ideas.");
+  for(const [index,idea] of result.ideas.entries()){
+    const required=["title","audience","angle","format","hook","first_frame","primary_text","headline","description","cta","video_concept","execution","why_test","hypothesis","risk"];
+    for(const key of required)if(!nonEmpty(idea?.[key]))throw new Error("AI output validation failed: idea "+(index+1)+" missing "+key+".");
+    if(!Array.isArray(idea.hooks)||idea.hooks.length!==4||idea.hooks.some((x:any)=>!nonEmpty(x)))throw new Error("AI output validation failed: idea "+(index+1)+" needs exactly 4 hooks.");
+    if(!idea.first_three_seconds||!["say","show","on_screen_text"].every(key=>typeof idea.first_three_seconds[key]==="string"))throw new Error("AI output validation failed: idea "+(index+1)+" has an invalid first-three-seconds plan.");
+    if(!Array.isArray(idea.shot_directions)||!idea.shot_directions.length)throw new Error("AI output validation failed: idea "+(index+1)+" needs shot directions.");
+    if(!Array.isArray(idea.timed_script)||!idea.timed_script.length)throw new Error("AI output validation failed: idea "+(index+1)+" needs a timed script.");
+    for(const beat of idea.timed_script)if(!beat||!["time","say","show","on_screen_text"].every(key=>typeof beat[key]==="string"))throw new Error("AI output validation failed: idea "+(index+1)+" contains an invalid timed-script beat.");
+    if(!Array.isArray(idea.source_ad_ids)||!idea.source_ad_ids.length)throw new Error("AI output validation failed: idea "+(index+1)+" needs source references.");
+    for(const key of ["source_observations","ai_inferences","product_fact_checks","unsupported_claim_checks"])if(!Array.isArray(idea[key]))throw new Error("AI output validation failed: idea "+(index+1)+" missing "+key+".");
+  }
+  return result;
+}
+function validateScript(result:any){
+  const script=result?.script;
+  if(!script||!nonEmpty(script.title)||!nonEmpty(script.hook)||!Array.isArray(script.beats)||!script.beats.length)throw new Error("AI output validation failed: script is incomplete.");
+  for(const beat of script.beats)if(!beat||!["time","say","show","on_screen_text"].every(key=>typeof beat[key]==="string"))throw new Error("AI output validation failed: script beat shape is invalid.");
+  for(const key of ["source_observations","ai_inferences","product_fact_checks","unsupported_claim_checks"])if(!Array.isArray(script[key]))throw new Error("AI output validation failed: script missing "+key+".");
+  return result;
 }
 const BASE=`You are Avonent's senior direct-response creative strategist.
 Your job is to produce specific, execution-ready creative decisions from PRODUCT FACTS and COMPETITOR RESEARCH.
@@ -46,42 +69,51 @@ NON-NEGOTIABLES
 `;
 
 const IDEA_PROMPT=BASE+`
-TASK: Generate exactly 5 original creative concepts, then rank them strongest to weakest.
+TASK: Generate exactly 5 original, execution-ready creative concepts, ranked strongest to weakest.
 
-For each idea return:
-title
-hook
-hooks: exactly 4 original alternate hooks for this concept
-primary_text: complete original ad copy with paragraph breaks
-headline: concise ad headline
-description: short supporting line
-video_structure: concrete opening, problem, product, proof and CTA sequence
-angle
-format
-first_frame
-execution
-proof_to_show
-cta
-why_test
-hypothesis: what behavior/belief this test is trying to validate
-inspiration: concise explanation of the transferable competitor pattern
-source_ad_ids: 1-4 supplied ad_archive_id values that most directly support the pattern
-scores: {
-  scroll_stop: 1-10,
-  specificity: 1-10,
-  product_fit: 1-10,
-  source_support: 1-10,
-  producibility: 1-10,
-  compliance_safety: 1-10
-}
-overall_score: integer 1-100, a subjective creative assessment, never a performance forecast
-risk: one concise weakness or reason the idea may fail
+Every idea MUST return all fields below:
+- title
+- audience: the specific buyer segment and context this concept speaks to
+- angle: the persuasion angle
+- format
+- hook: the recommended primary hook
+- hooks: exactly 4 materially different hook variations
+- first_frame: exact opening visual
+- first_three_seconds: {say, show, on_screen_text}
+- primary_text: complete original Meta primary text with paragraph breaks
+- headline
+- description
+- cta
+- video_concept: one concrete shootable concept, not a vague format label
+- shot_directions: ordered array of specific shots
+- timed_script: ordered array of {time, say, show, on_screen_text}; cover the complete ad from hook through CTA
+- proof_to_show
+- execution
+- why_test
+- hypothesis
+- inspiration: the transferable pattern learned from the sources, without copying wording
+- source_ad_ids: 1-4 supplied ad_archive_id values
+- source_observations: array of {ad_archive_id, observation}; ONLY facts directly observable in supplied copy/metadata/analysis evidence
+- ai_inferences: array of clearly labeled strategic interpretations that are not direct source facts
+- product_fact_checks: array of {claim, support, status}; status is "supported", "unsupported", or "needs_review"
+- unsupported_claim_checks: array of generated statements that should be removed/reworded because supplied product facts do not support them; [] when none
+- scores: {scroll_stop, specificity, product_fit, source_support, producibility, compliance_safety}, each integer 1-10
+- overall_score: integer 1-100; subjective creative assessment only, never a performance forecast
+- risk: one concise weakness or reason the idea may fail
+
+EVIDENCE RULES
+- source_observations must never contain guessed spoken hooks, first frames, demographics, profitability, or performance.
+- Competitor ai_analysis is an AI inference unless the underlying source copy independently supports the same statement.
+- Written primary text is a WRITTEN hook. Do not relabel it as a spoken or visual hook.
+- If audio transcription or frame evidence is absent, keep claims about spoken/visual openings out of source observations.
+- Product facts must come only from PRODUCT FACTS/site data supplied in the input.
+- If a proposed claim lacks support, flag it in unsupported_claim_checks and write safer copy.
 
 DIVERSITY REQUIREMENT
-The 5 concepts must test materially different hypotheses. Do not produce five versions of the same angle.
+The 5 concepts must test materially different hypotheses. Do not produce five versions of one angle.
 
 HOOK QUALITY
-Prefer category-specific buyer questions, concrete product details, product demonstrations, objection reversals, useful curiosity gaps, comparisons, or believable stories. Avoid "this changed everything", "I wish I knew this", "you need this", and other generic filler unless made genuinely product-specific.
+Prefer category-specific buyer questions, concrete product details, product demonstrations, objection reversals, useful curiosity gaps, comparisons, or believable stories. Avoid generic filler.
 
 Return JSON only:
 {"ideas":[...]}
@@ -89,27 +121,28 @@ Return JSON only:
 
 const SCRIPT_PROMPT=BASE+`
 TASK: Turn the SELECTED IDEA into one production-ready direct-response script.
-Preserve the selected hook/hypothesis unless changing it is necessary for clarity or compliance.
+Preserve its strategic hypothesis unless clarity, evidence, or compliance requires a change.
 
 Return:
 title
+audience
 recommended_duration_seconds
 format
 hook
-beats: array of {
-  time,
-  spoken,
-  on_screen_text,
-  shot
-}
+first_three_seconds: {say, show, on_screen_text}
+beats: ordered array of {time, say, show, on_screen_text}
 product_reveal
 proof_moment
 cta
 editor_notes
+source_observations: direct evidence only
+ai_inferences: strategic interpretations only
+product_fact_checks: array of {claim, support, status}
+unsupported_claim_checks: array
 compliance_notes
-three_alt_openings: exactly 3 alternate first-3-second executions that preserve the SAME strategic hypothesis
+three_alt_openings: exactly 3 alternate first-3-second executions preserving the SAME hypothesis
 
-The script must be shootable. No vague direction like "show benefits". Specify what the editor/creator actually shows.
+The script must be shootable. No vague direction like "show benefits". Do not invent evidence or turn written copy into a spoken/visual observation.
 Return JSON only:
 {"script":{...}}
 `;
@@ -198,7 +231,8 @@ Deno.serve(async(req)=>{
     });
     const raw=await response.json();
     if(!response.ok)return out(response.status,{error:raw?.error?.message||"AI request failed",model});
-    const result=parseJson(responseText(raw));
+    const parsed=parseJson(responseText(raw));
+    const result=task==="script"?validateScript(parsed):validateIdeas(parsed);
 
     return out(200,{ok:true,task,model,result,usage:raw?.usage||null});
   }catch(e){
