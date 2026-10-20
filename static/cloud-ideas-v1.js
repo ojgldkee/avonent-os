@@ -12,6 +12,7 @@
   let products = [];
   let ideas = [];
   let sourceAds = [];
+  let workspaceMode = "concepts";
 
   function today() {
     return new Date().toISOString().slice(0, 10);
@@ -72,6 +73,38 @@
     return ids.size;
   }
 
+  function renderHooksWorkspace(rows) {
+    $("cloud-ideas-grid").innerHTML = rows.length ? rows.map((idea) => {
+      const strategy = idea.strategy || {};
+      const hooks = [idea.hook, ...(Array.isArray(strategy.hooks) ? strategy.hooks : [])].filter(Boolean)
+        .filter((hook,index,arr) => arr.indexOf(hook) === index);
+      return '<article class="hook-library-card">' +
+        '<div class="hook-library-head"><div><span class="eyebrow">HOOK SET</span><h2>' + esc(idea.title || idea.angle || "Creative idea") + '</h2></div><span class="pill">' + esc(idea.angle || "Angle") + '</span></div>' +
+        (strategy.audience ? '<p class="helper">Audience · ' + esc(strategy.audience) + '</p>' : '') +
+        '<div class="hook-library-list">' + hooks.map((hook,index) =>
+          '<div class="hook-library-row"><span>' + String(index + 1).padStart(2,"0") + '</span><p>' + esc(hook) + '</p><button type="button" class="copy-inline" data-copy-library-hook="' + esc(idea.id) + '" data-hook-index="' + index + '">Copy</button></div>'
+        ).join("") + '</div>' +
+        '<div class="hook-library-meta"><span>' + (Array.isArray(idea.source_ad_ids) ? idea.source_ad_ids.length : 0) + ' source ads</span><span>' + esc(idea.format || "Format TBD") + '</span></div>' +
+      '</article>';
+    }).join("") : '<div class="empty wide">No hook sets in this view yet.</div>';
+  }
+
+  function renderScriptsWorkspace(rows) {
+    const scripted = rows.filter(idea => idea.ai_script || (Array.isArray(idea.strategy?.timed_script) && idea.strategy.timed_script.length));
+    $("cloud-ideas-grid").innerHTML = scripted.length ? scripted.map((idea) => {
+      const strategy = idea.strategy || {};
+      const timed = Array.isArray(strategy.timed_script) ? strategy.timed_script : [];
+      return '<article class="script-workspace-card">' +
+        '<div class="hook-library-head"><div><span class="eyebrow">SCRIPT</span><h2>' + esc(idea.title || idea.angle || "Creative idea") + '</h2></div>' +
+          (idea.ai_script ? '<span class="idea-state approved">Final script</span>' : '<span class="idea-state">Concept script</span>') + '</div>' +
+        (strategy.first_three_seconds ? '<section class="script-opening"><span>First 3 seconds</span><div class="timed-beat"><span>SAY</span><p>' + esc(strategy.first_three_seconds.say || "") + '</p><span>SHOW</span><p>' + esc(strategy.first_three_seconds.show || "") + '</p><span>ON-SCREEN</span><p>' + esc(strategy.first_three_seconds.on_screen_text || "") + '</p></div></section>' : '') +
+        (idea.ai_script
+          ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre><div class="idea-inline-actions"><button class="button secondary mini" type="button" data-copy-script="' + esc(idea.id) + '">Copy script</button><button class="button secondary mini" type="button" data-script="' + esc(idea.id) + '">Regenerate</button></div>'
+          : '<div class="timed-script">' + timed.map(beat => '<div class="timed-beat"><strong>' + esc(beat.time || "") + '</strong><span>SAY</span><p>' + esc(beat.say || "") + '</p><span>SHOW</span><p>' + esc(beat.show || "") + '</p><span>ON-SCREEN</span><p>' + esc(beat.on_screen_text || "") + '</p></div>').join("") + '</div><button class="button" type="button" data-script="' + esc(idea.id) + '">Generate final AI script</button>') +
+      '</article>';
+    }).join("") : '<div class="empty wide">No scripts in this view yet. Generate concepts first, then open Scripts.</div>';
+  }
+
   function render() {
     $("ideas-today-count").textContent = String(ideas.filter(i => i.generated_for_date === today()).length);
     $("ideas-approved-count").textContent = String(ideas.filter(i => i.approved || i.status === "Approved").length);
@@ -79,6 +112,8 @@
     $("ideas-source-count").textContent = String(sourceAds.length);
 
     const rows = filteredIdeas();
+    if (workspaceMode === "hooks") { renderHooksWorkspace(rows); return; }
+    if (workspaceMode === "scripts") { renderScriptsWorkspace(rows); return; }
     if (!rows.length) {
       $("cloud-ideas-grid").innerHTML = '<div class="empty wide">No ideas in this view yet. Research competitors first, then generate ideas.</div>';
       return;
@@ -357,9 +392,32 @@
       $("ideas-filter").onchange = render;
       $("generate-more-ideas").onclick = generateIdeas;
 
+      document.querySelectorAll("[data-ideas-workspace]").forEach(button => {
+        button.onclick = () => {
+          workspaceMode = button.dataset.ideasWorkspace || "concepts";
+          document.querySelectorAll("[data-ideas-workspace]").forEach(item => {
+            const active = item === button;
+            item.classList.toggle("active", active);
+            item.setAttribute("aria-selected", String(active));
+          });
+          render();
+        };
+      });
+
       document.querySelectorAll("[data-close-sources]").forEach(el => el.onclick = closeSources);
 
       $("cloud-ideas-grid").onclick = async event => {
+        const libraryHookId = event.target.getAttribute("data-copy-library-hook");
+        if (libraryHookId) {
+          const idea = ideas.find(i => i.id === libraryHookId);
+          const hooks = [idea?.hook, ...(Array.isArray(idea?.strategy?.hooks) ? idea.strategy.hooks : [])].filter(Boolean)
+            .filter((hook,index,arr) => arr.indexOf(hook) === index);
+          const hook = hooks[Number(event.target.getAttribute("data-hook-index") || 0)] || "";
+          try { await navigator.clipboard.writeText(hook); event.target.textContent = "Copied"; }
+          catch { $("ideas-status").textContent = "Copy unavailable. Select the hook to copy it."; }
+          return;
+        }
+
         const packId = event.target.getAttribute("data-copy-pack");
         if (packId) {
           const idea = ideas.find(i => i.id === packId), pack = idea?.strategy || {};
