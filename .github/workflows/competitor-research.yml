@@ -1,0 +1,65 @@
+name: Avonent competitor research
+
+on:
+  workflow_dispatch:
+    inputs:
+      competitor_id:
+        description: Optional competitor_watchlist UUID; blank scans all active brands
+        required: false
+        type: string
+  schedule:
+    - cron: "17 4,16 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: services/meta-scraper
+
+    env:
+      SUPABASE_URL: https://rycaylyhgjgovyxwhgjg.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SCRAPER_API_KEY: github-actions-local
+      COMPETITOR_ID: ${{ inputs.competitor_id }}
+
+    steps:
+      - name: Checkout Avonent
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: services/meta-scraper/package-lock.json
+
+      - name: Install collector
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start local collector
+        run: |
+          node src/server.js > /tmp/avonent-scraper.log 2>&1 &
+          echo $! > /tmp/avonent-scraper.pid
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8080/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/avonent-scraper.log
+          exit 1
+
+      - name: Research tracked brands
+        run: node src/github-runner.js
+
+      - name: Print collector log on failure
+        if: failure()
+        run: cat /tmp/avonent-scraper.log || true
