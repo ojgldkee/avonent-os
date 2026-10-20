@@ -1,6 +1,147 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Products · Avonent</title><link rel="stylesheet" href="static/site.css?v=1"><link rel="stylesheet" href="static/ui-v3.css?v=24"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="static/config.js?v=2"></script></head>
-<body data-page="products-cloud"><header class="topbar"><a class="logo" href="index.html">AVONENT</a><nav class="nav"><a href="index.html">Home</a><a href="creatives.html">Ideas</a><a href="ads.html">Research</a><a class="active" href="brands.html">Products</a></nav></header>
-<main><section class="page-title compact-hero"><p class="eyebrow">PRODUCT INTELLIGENCE</p><h1>Products</h1><p class="sub">Sync the real Avonent catalog securely through the Shopify Admin API. Your creative strategist will use these product facts.</p></section>
-<section class="panel" style="margin-bottom:16px"><div class="section-head"><div><p class="eyebrow">SHOPIFY CONNECTION</p><h2>avonent.com</h2><p class="helper">Uses your private Shopify Admin API credentials stored only on the server.</p></div></div><button class="button" id="shopify-sync" type="button">Sync Shopify products</button><p id="sync-status" class="helper" role="status"></p></section>
-<section class="panel"><div class="section-head"><div><p class="eyebrow">CLOUD CATALOG</p><h2>Imported products</h2></div><button id="refresh-products" class="button secondary" type="button">Refresh</button></div><div id="product-catalog" class="research-ad-grid"><div class="empty wide">Loading products…</div></div></section></main>
-<script src="static/cloud-v1.js?v=1"></script><script src="static/shopify-products-v1.js?v=1"></script><script src="static/ui-v3.js?v=10"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#000000">
+  <title>Products · Avonent</title>
+  <link rel="stylesheet" href="static/site.css?v=1">
+  <link rel="stylesheet" href="static/ui-v3.css?v=25">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="static/config.js?v=2"></script>
+</head>
+<body data-page="products-cloud">
+<header class="topbar">
+  <a class="logo" href="index.html">AVONENT</a>
+  <nav class="nav">
+    <a href="index.html">Home</a>
+    <a href="creatives.html">Ideas</a>
+    <a href="ads.html">Research</a>
+    <a class="active" href="brands.html">Products</a>
+  </nav>
+  <div class="auth-nav">
+    <a data-cloud-login class="text-button" href="auth.html?mode=login">Log in</a>
+    <span data-cloud-user class="account-email hidden"></span>
+    <button data-cloud-signout class="text-button hidden" type="button">Sign out</button>
+  </div>
+</header>
+
+<main class="products-main">
+  <section class="page-title compact-hero">
+    <p class="eyebrow">PRODUCT INTELLIGENCE</p>
+    <h1>Teach Avonent what you sell.</h1>
+    <p class="sub">Avonent scans your public storefront for product facts, then you add the customer, proof, positioning and claim limits the AI needs to make better ads.</p>
+  </section>
+
+  <section class="product-scan panel">
+    <div>
+      <p class="eyebrow">WEBSITE SCAN</p>
+      <h2>avonent.com</h2>
+      <p class="helper">No Shopify app required. Avonent checks the public product catalog, sitemap and product pages.</p>
+    </div>
+    <div class="product-scan-actions">
+      <button id="scan-website" class="button" type="button">Scan avonent.com</button>
+      <button id="refresh-products" class="button secondary" type="button">Refresh</button>
+    </div>
+    <p id="product-status" class="helper span-2"></p>
+  </section>
+
+  <section class="products-workspace">
+    <aside class="panel products-list-panel">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">CATALOG</p>
+          <h2>Products</h2>
+        </div>
+        <strong id="product-count" class="catalog-count">0</strong>
+      </div>
+      <div id="product-list" class="product-list">
+        <div class="empty">Loading products…</div>
+      </div>
+    </aside>
+
+    <section class="panel product-editor-panel">
+      <div id="product-empty" class="product-editor-empty">
+        <p class="eyebrow">AI CONTEXT</p>
+        <h2>Select a product</h2>
+        <p>The storefront gives Avonent facts. This editor gives the strategist the context a product page cannot know.</p>
+      </div>
+
+      <form id="product-form" class="form-grid hidden">
+        <input id="product-id" type="hidden">
+
+        <div class="span-2 product-editor-heading">
+          <div>
+            <p class="eyebrow">AI CONTEXT</p>
+            <h2 id="product-form-title">Product</h2>
+          </div>
+          <a id="product-source-link" class="button secondary mini hidden" href="#" target="_blank" rel="noopener">Open product page</a>
+        </div>
+
+        <label>Brand
+          <input id="product-brand" required>
+        </label>
+        <label>Product
+          <input id="product-name" required>
+        </label>
+
+        <label>Category
+          <input id="product-category">
+        </label>
+        <label>Status
+          <select id="product-active">
+            <option value="true">Active</option>
+            <option value="false">Paused</option>
+          </select>
+        </label>
+
+        <div id="store-facts" class="store-facts span-2"></div>
+
+        <label class="span-2">Target customer
+          <textarea id="product-audience" placeholder="Who buys this? What do they care about? What do they already believe?"></textarea>
+        </label>
+
+        <label class="span-2">Problems + objections
+          <textarea id="product-pains" placeholder="Real frustrations, failed alternatives, buying objections, skepticism..."></textarea>
+        </label>
+
+        <label class="span-2">Desired outcome / benefits
+          <textarea id="product-benefits" placeholder="What does the customer actually want? Keep it supportable."></textarea>
+        </label>
+
+        <label>Offer
+          <textarea id="product-offer" placeholder="Price, discount, guarantee, subscription, shipping..."></textarea>
+        </label>
+
+        <label>Proof we can show
+          <textarea id="product-proof" placeholder="Documented product facts, testing, demonstrations, real reviews, guarantee..."></textarea>
+        </label>
+
+        <label class="span-2">Exact product facts
+          <textarea id="product-facts" class="tall" placeholder="Ingredients, serving size, format, count, sourcing, documented differentiators..."></textarea>
+        </label>
+
+        <label class="span-2">Claims / wording the AI must avoid
+          <textarea id="product-claims" class="tall" placeholder="Unsupported medical claims, promises, facts the AI must never invent..."></textarea>
+        </label>
+
+        <label class="span-2">Voice
+          <textarea id="product-voice" placeholder="Direct, premium, skeptical of hype, product-detail-first..."></textarea>
+        </label>
+
+        <label class="span-2">Strategist notes
+          <textarea id="product-notes" class="tall" placeholder="Past winners, creative constraints, visual rules, positioning, customer language..."></textarea>
+        </label>
+
+        <button class="button span-2" type="submit">Save product intelligence</button>
+      </form>
+    </section>
+  </section>
+</main>
+
+<script src="static/cloud-v1.js?v=1"></script>
+<script src="static/website-products-v1.js?v=1"></script>
+<script src="static/ui-v3.js?v=10"></script>
+</body>
+</html>
