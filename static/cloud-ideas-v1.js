@@ -85,7 +85,7 @@
           '<div class="hook-library-row"><span>' + String(index + 1).padStart(2,"0") + '</span><p>' + esc(hook) + '</p><button type="button" class="copy-inline" data-copy-library-hook="' + esc(idea.id) + '" data-hook-index="' + index + '">Copy</button></div>'
         ).join("") + '</div>' +
         '<div class="hook-library-meta"><span>' + (Array.isArray(idea.source_ad_ids) ? idea.source_ad_ids.length : 0) + ' source ads</span><span>' + esc(idea.format || "Format TBD") + '</span></div>' +
-        '<details class="idea-copy-pack"><summary>Connected script and video plan</summary><p>Suggested duration: ' + esc($("production-duration")?.value || "60") + ' seconds · ' + esc($("production-style")?.selectedOptions?.[0]?.textContent || "UGC + animation") + '</p>' +
+        '<details class="idea-copy-pack"><summary>Connected script and video plan</summary><p>Suggested duration: ' + esc(strategy.recommended_duration_seconds || "AI to decide") + ' seconds · ' + esc(strategy.production_style || "AI to choose footage mix") + '</p>' +
         (Array.isArray(strategy.timed_script) ? strategy.timed_script.map(beat => '<div class="timed-beat"><strong>' + esc(beat.time) + '</strong><span>SAY</span><p>' + esc(beat.say) + '</p><span>SHOW</span><p>' + esc(beat.show) + '</p><span>ON-SCREEN</span><p>' + esc(beat.on_screen_text) + '</p></div>').join("") : '<p>No timed script yet.</p>') +
         (strategy.video_concept ? '<p>' + esc(strategy.video_concept) + '</p>' : '') +
         '<button class="button secondary mini" type="button" data-script="' + esc(idea.id) + '">Generate production script</button></details>' +
