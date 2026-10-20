@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="static/config.js?v=2"></script>
   <link rel="stylesheet" href="static/strategist.css?v=5">
-<style>.research-switcher{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}.research-switcher button{appearance:none;border:1px solid #34363e;background:#101115;color:#aaaeb8;border-radius:999px;padding:12px 18px;font:inherit;font-weight:700;white-space:nowrap}.research-switcher button.active{background:#f4f4f5;color:#111;border-color:#f4f4f5}[data-research-panel][hidden]{display:none!important}.research-grid:has(>[data-research-panel="brands"]:not([hidden])),.research-grid:has(>[data-research-panel="ads"]:not([hidden])){display:block}.research-grid>[data-research-panel]{width:100%;max-width:none}</style></head>
+<style>.research-switcher{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}.research-switcher button{appearance:none;border:1px solid #34363e;background:#101115;color:#aaaeb8;border-radius:999px;padding:12px 18px;font:inherit;font-weight:700;white-space:nowrap}.research-switcher button.active{background:#f4f4f5;color:#111;border-color:#f4f4f5}[data-research-panel][hidden]{display:none!important}.research-grid:has(>[data-research-panel="brands"]:not([hidden])),.research-grid:has(>[data-research-panel="ads"]:not([hidden])){display:block}.research-grid>[data-research-panel]{width:100%;max-width:none}.research-ad-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.source-ad-card,.source-ad-top>div,.source-copy,.research-filters{min-width:0;max-width:100%;overflow-wrap:anywhere}.source-ad-top{display:flex;gap:10px;align-items:center}.source-ad-top .brand-avatar{width:40px;height:40px;flex:0 0 40px}.source-ad-top .days-badge{margin-left:auto}.source-ad-media{aspect-ratio:4/5;position:relative;background:#080b10;overflow:hidden;border-radius:14px}.source-ad-media video,.source-ad-media img{width:100%;height:100%;max-height:none;object-fit:contain}.source-copy .copy-inline{min-height:44px}.source-copy p{font-size:14px;line-height:1.6}.source-copy small{color:#9ca9b9}.research-main .section-head{flex-wrap:wrap;gap:12px}.research-filters select{font-size:16px}.source-ad-card{padding:16px}.source-ad-top h3{font-size:12px;overflow-wrap:anywhere}@media(max-width:720px){.research-ad-grid{grid-template-columns:minmax(0,1fr)}.research-main .panel{padding:14px!important}.research-switcher button{flex:1;padding:12px 8px}.source-ad-card{padding:12px}.source-ad-top .pill{white-space:normal}} </style></head>
 <body data-page="research">
 <header class="topbar">
   <a class="logo" href="index.html">AVONENT</a>
@@ -116,9 +116,11 @@
         </div>
       </div>
 
+      <p id="ad-sample-count" class="helper" aria-live="polite"></p>
       <div id="research-ads" class="research-ad-grid">
         <div class="empty wide">No ads loaded yet.</div>
       </div>
+      <button id="load-more-ads" class="button secondary" type="button" hidden>Load 24 more</button>
     </section>
   </section>
 
@@ -139,7 +141,7 @@
 </main>
 
 <script src="static/cloud-v1.js?v=1"></script>
-<script src="static/research-v2.js?v=2"></script>
+<script src="static/research-v2.js?v=3"></script>
 <script src="static/ui-v3.js?v=11"></script>
 </body>
 </html>

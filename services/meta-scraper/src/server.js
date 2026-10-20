@@ -63,19 +63,53 @@ function metaLibraryUrl(input = {}) {
 
 function parseDate(raw) {
   if (!raw) return null;
-  const cleaned = String(raw).replace(/^[A-Za-z]+\s+/, "").trim();
-  const d = new Date(cleaned);
-  return Number.isNaN(d.getTime()) ? null : d;
+  const value = String(raw).replace(/[\u200b-\u200f\u202a-\u202e]/g, "").trim();
+  const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+  let m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  let year, month, day;
+  if (m) [,year,month,day] = m.map(Number);
+  else {
+    m = value.match(/^(?:[A-Za-z]+,\s*)?([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+    if (m) { month = months.indexOf(m[1].slice(0,3).toLowerCase()) + 1; day = +m[2]; year = +m[3]; }
+    else {
+      m = value.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+      if (!m) return null;
+      day = +m[1]; month = months.indexOf(m[2].slice(0,3).toLowerCase()) + 1; year = +m[3];
+    }
+  }
+  const d = new Date(Date.UTC(year, month - 1, day));
+  return month > 0 && d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day ? d : null;
 }
 
 function daysRunning(start, end = null) {
-  if (!start) return 0;
+  if (!start) return null;
   const stop = end || new Date();
-  return Math.max(0, Math.floor((stop.getTime() - start.getTime()) / 86400000));
+  if (stop < start) return null;
+  return Math.floor((stop.getTime() - start.getTime()) / 86400000);
+}
+
+function primaryCopy(text) {
+  // Preserve paragraph breaks from the visible creative; stop at player/link UI.
+  const match = String(text).match(/(?:^|\n)Sponsored[ \t]*\n([\s\S]*)/i);
+  if (!match) return "";
+  return match[1].split(/\n(?:\d{1,2}:\d{2}\s*\/\s*\d{1,2}:\d{2}|[A-Z0-9.-]+\.[A-Z]{2,}(?:\/\S*)?|Learn more|Shop now|See ad details|See summary details)\s*(?:\n|$)/i)[0]
+    .replace(/(?:\n)?(?:See more|See less)\s*$/i, "").trim();
+}
+
+function publicImpressions(text) {
+  // Only an explicit transparency label, never reach, age, or a number in ad copy.
+  const header = String(text).split(/\nSponsored\b/i)[0];
+  const match = header.match(/(?:^|\n)Impressions\s*:?\s*\n?\s*([\d,]+)\s*[-–]\s*([\d,]+)(?=\s*(?:\n|$))/i);
+  if (!match) return { impressions_min:null, impressions_max:null, impressions_type:"unavailable" };
+  const min = Number(match[1].replace(/,/g,"")), max = Number(match[2].replace(/,/g,""));
+  return Number.isSafeInteger(min) && Number.isSafeInteger(max) && max >= min
+    ? { impressions_min:min, impressions_max:max, impressions_type:"public_range" }
+    : { impressions_min:null, impressions_max:null, impressions_type:"unavailable" };
 }
 
 function normalizeText(text = "") {
   return String(text)
+    .replace(/[\u200b-\u200f\u202a-\u202e]/g, "")
     .replace(/\u00a0/g, " ")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
@@ -125,7 +159,7 @@ function normalizeCard(card) {
   });
 
   // Primary text is usually the longest meaningful copy line/block in the visible card.
-  const primaryText = [...textCandidates].sort((a,b) => b.length - a.length)[0] || "";
+  const primaryText = primaryCopy(text);
 
   const sourceUrl = card.links.find(x => /facebook\.com\/ads\/library\/.+id=/i.test(x)) ||
     "https://www.facebook.com/ads/library/?id=" + card.ad_archive_id;
@@ -161,9 +195,14 @@ function normalizeCard(card) {
     media_kind: card.videos.some(x => /^https?:/i.test(x)) ? "video" : mediaUrl ? "image" : "",
     started_at: start ? start.toISOString().slice(0,10) : null,
     ended_at: end ? end.toISOString().slice(0,10) : null,
-    days_running: daysRunning(start, isActive ? null : end),
+    days_running: !isActive && !end ? null : daysRunning(start, isActive ? null : end),
     is_active: isActive,
-    visible_text: text
+    visible_text: text,
+    primary_text_complete: primaryText && !/See more|…|\.\.\./i.test(primaryText) ? null : false,
+    ...publicImpressions(text),
+    impressions_source_url: sourceUrl,
+    captured_at: new Date().toISOString(),
+    parser_version: "0.3.0"
   };
 }
 
@@ -171,7 +210,7 @@ async function extractVisibleCards(page, limit = 300) {
   const raw = await page.evaluate((maxVisible) => {
     const compact = s => String(s || "").replace(/\u00a0/g, " ").replace(/[ \t]+/g, " ").trim();
     const all = Array.from(document.querySelectorAll("div, article"));
-    const idNodes = all.filter(el => /Library ID:\s*\d{5,30}/i.test(el.innerText || ""));
+    const idNodes = all.filter(el => /Library ID:\s*\d{5,30}/i.test(el.innerText || "") && !Array.from(el.children).some(child => /Library ID:\s*\d{5,30}/i.test(child.innerText || "")));
     const candidates = [];
     const seen = new Set();
 
@@ -183,6 +222,8 @@ async function extractVisibleCards(page, limit = 300) {
       for (let i = 0; i < 10 && card.parentElement; i++) {
         const parent = card.parentElement;
         const text = parent.innerText || "";
+        const ids = new Set(Array.from(text.matchAll(/Library ID:\s*(\d{5,30})/gi), m => m[1]));
+        if (ids.size > 1) break;
         if (text.length > 180 && text.length < 18000 && /Sponsored/i.test(text)) {
           card = parent;
           if (/Started running on|Library ID:/i.test(text)) break;
@@ -306,6 +347,11 @@ async function scrape(input) {
     let reachedEndSignal = false;
 
     for (let i = 0; i < maxScrolls; i++) {
+      const expanders = page.getByRole("button", { name: /^See more$/i });
+      for (let n = 0, count = Math.min(await expanders.count(), 25); n < count; n++) {
+        const button = expanders.nth(n);
+        if (await button.isVisible().catch(() => false)) await button.click({ timeout: 1500 }).catch(() => {});
+      }
       const visible = await extractVisibleCards(page, 350);
       for (const ad of visible) mergeAd(collected, ad);
 
@@ -344,7 +390,7 @@ async function scrape(input) {
       if (exact.length) ads = exact;
       else {
         const close = ads.filter(ad => String(ad.advertiser_name || "").trim().toLowerCase().includes(query));
-        if (close.length) ads = close;
+        ads = close;
       }
     }
 
@@ -369,7 +415,9 @@ async function scrape(input) {
       media_count: mediaCount,
       primary_text_count: copyCount,
       reached_end_signal: reachedEndSignal,
-      sample_complete: reachedEndSignal,
+      sample_complete: reachedEndSignal && collected.size < maxAds,
+      capture_status: ads.length ? "partial" : reachedEndSignal ? "no_results" : "parse_failed",
+      parser_version: "0.3.0",
       note: reachedEndSignal
         ? "Collector reached an apparent end-of-results signal."
         : "This is a collected sample; Meta may have additional ads beyond the retrieved set.",

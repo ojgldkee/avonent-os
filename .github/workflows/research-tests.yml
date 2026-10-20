@@ -1,0 +1,22 @@
+name: Research regression tests
+on:
+  push:
+    paths:
+      - 'static/research-v2.js'
+      - 'services/meta-scraper/**'
+      - '.github/workflows/research-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check static/research-v2.js
+      - run: node --check services/meta-scraper/src/server.js
+      - run: node --check services/meta-scraper/src/github-runner.js
+      - run: node --test services/meta-scraper/tests/research.test.mjs

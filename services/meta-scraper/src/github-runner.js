@@ -38,6 +38,24 @@ async function updateBrand(id, patch) {
 async function upsertAds(rows) {
   for (let i = 0; i < rows.length; i += 75) {
     const chunk = rows.slice(i, i + 75);
+    const ids = chunk.map(row => row.ad_archive_id).join(",");
+    const existing = await rest("competitor_ads?user_id=eq." + encodeURIComponent(chunk[0].user_id) + "&ad_archive_id=in.(" + ids + ")&select=*", {method:"GET"});
+    for (const row of chunk) {
+      const old = existing.find(ad => ad.ad_archive_id === row.ad_archive_id);
+      if (!old) continue;
+      if (old.product_id !== row.product_id || old.competitor_id !== row.competitor_id) {
+        throw new Error("Ad already belongs to another product/brand; shared-ad schema migration required.");
+      }
+      for (const key of ["primary_text","headline","description","cta_text","landing_url","media_url","media_thumbnail_url","advertiser_logo_url","media_kind","started_at","ended_at"]) {
+        if (!row[key] && old[key]) row[key] = old[key];
+      }
+      if (old.primary_text.length > row.primary_text.length && row.raw.primary_text_complete !== true) row.primary_text = old.primary_text;
+      if (row.started_at) {
+        const stop = row.is_active ? Date.now() : row.ended_at ? Date.parse(row.ended_at) : NaN;
+        row.days_running = Number.isFinite(stop) ? Math.max(0, Math.floor((stop-Date.parse(row.started_at))/86400000)) : 0;
+      }
+      row.qualifies_long_running = Boolean(row.started_at) && row.is_active && row.days_running >= Number(row.raw.long_running_threshold || 30);
+    }
     await rest("competitor_ads?on_conflict=user_id,ad_archive_id", {
       method: "POST",
       headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
@@ -105,6 +123,7 @@ async function collectBrand(brand) {
     });
     if (exact.length) sourceAds = exact;
     else if (close.length) sourceAds = close;
+    else if (sourceAds.length) throw new Error("No matching advertiser found. Set the correct Meta page ID in brand settings.");
   }
 
   const now = new Date().toISOString();
@@ -118,7 +137,7 @@ async function collectBrand(brand) {
       ? String(ad.source_url)
       : "https://www.facebook.com/ads/library/?id=" + encodeURIComponent(id);
 
-    const days = Math.max(0, Number(ad.days_running || 0));
+    const days = ad.started_at ? Math.max(0, Number(ad.days_running || 0)) : 0; // Legacy NOT NULL column; started_at is authoritative.
     const row = {
       user_id: brand.user_id,
       product_id: brand.product_id,
@@ -141,8 +160,8 @@ async function collectBrand(brand) {
       ended_at: ad.ended_at || null,
       days_running: days,
       is_active: ad.is_active !== false,
-      qualifies_long_running: ad.is_active !== false && days >= Number(brand.min_days_running || 30),
-      raw: ad,
+      qualifies_long_running: Boolean(ad.started_at) && ad.is_active !== false && days >= Number(brand.min_days_running || 30),
+      raw: { ...ad, long_running_threshold: Number(brand.min_days_running || 30) },
       last_seen_at: now,
       updated_at: now
     };
@@ -150,6 +169,7 @@ async function collectBrand(brand) {
   }
 
   const rows = Array.from(seen.values());
+  if (!rows.length && !result.reached_end_signal) throw new Error("No ads captured; the page may be blocked or its format may have changed.");
   if (rows.length) await upsertAds(rows);
 
   const logo = rows.map(x => x.advertiser_logo_url).find(Boolean) || brand.logo_url || "";

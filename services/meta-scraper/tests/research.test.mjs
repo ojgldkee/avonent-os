@@ -1,0 +1,43 @@
+import { readFileSync } from "node:fs";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+const root = new URL("../../../", import.meta.url);
+const server = readFileSync(new URL("services/meta-scraper/src/server.js", root), "utf8");
+const frontend = readFileSync(new URL("static/research-v2.js", root), "utf8");
+const parser = new Function(server.slice(server.indexOf("function parseDate"), server.indexOf("async function extractVisibleCards")) + ";return {parseDate,daysRunning,primaryCopy,publicImpressions,normalizeCard};")();
+const age = new Function(frontend.slice(frontend.indexOf("  function adAge"), frontend.indexOf("  function niceDate")) + ";return {adAge,qualifies};")();
+test("dates preserve month, validate calendar and support day first", () => {
+  for (const input of ["Oct 13, 2026","13 October 2026","2026-10-13"]) assert.equal(parser.parseDate(input).toISOString().slice(0,10),"2026-10-13");
+  assert.equal(parser.parseDate("Feb 30, 2026"),null);
+  assert.equal(parser.daysRunning(null),null);
+});
+test("age is current, nullable, and stops for ended ads", () => {
+  assert.equal(age.adAge({started_at:"2026-10-06",is_active:true},Date.parse("2026-10-20")),14);
+  assert.equal(age.adAge({started_at:"2026-10-01",ended_at:"2026-10-08",is_active:false}),7);
+  assert.equal(age.adAge({started_at:"2026-10-01",is_active:false}),null);
+  assert.equal(age.qualifies({is_active:true,days_running:999}),false);
+});
+test("visible copy retains paragraphs without video controls or landing headline", () => {
+  const copy = "First paragraph\n\n💧 Second paragraph";
+  assert.equal(parser.primaryCopy("Brand\nSponsored\n"+copy+"\n0:00 / 5:45\nSHOP.COM\nShop now"),copy);
+});
+test("impressions require a labeled range outside primary text", () => {
+  assert.equal(parser.publicImpressions("Impressions\n1,000 – 5,000\nBrand\nSponsored\nCopy").impressions_max,5000);
+  assert.equal(parser.publicImpressions("Brand\nSponsored\nImpressions: 1000 – 5000").impressions_min,null);
+});
+test("accordion changes text only and collapses previous card", () => {
+  const ads = [{id:"a",primary_text:"A".repeat(250)},{id:"b",primary_text:"B".repeat(250)}];
+  const paragraphs = new Map(ads.map(ad => ["copy-"+ad.id,{textContent:""}]));
+  const buttons = ads.map(ad => ({
+    dataset:{expandAd:ad.id}, attributes:{"aria-controls":"copy-"+ad.id},
+    getAttribute(key){return this.attributes[key]}, setAttribute(key,value){this.attributes[key]=value}
+  }));
+  const document = {querySelectorAll:() => buttons,getElementById:id => paragraphs.get(id)};
+  const toggle = new Function("ads","document","let expandedAdId=null;" + frontend.slice(frontend.indexOf("  function copyExcerpt"),frontend.indexOf("  function impressionLabel")) + "; return toggleCopy;")(ads,document);
+  toggle("a"); assert.equal(buttons[0].attributes["aria-expanded"],"true");
+  toggle("b"); assert.equal(buttons[0].attributes["aria-expanded"],"false");
+  assert.equal(buttons[1].attributes["aria-expanded"],"true");
+  assert.equal(paragraphs.get("copy-b").textContent,ads[1].primary_text);
+  toggle("b"); assert.equal(buttons[1].attributes["aria-expanded"],"false");
+});

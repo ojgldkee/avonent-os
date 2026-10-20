@@ -12,6 +12,43 @@
   let watchlist = [];
   let ads = [];
   let expandedAdId = null;
+  let visibleLimit = 24;
+
+
+  function adAge(ad, now = Date.now()) {
+    if (!ad.started_at || (!ad.is_active && !ad.ended_at)) return null;
+    const start = Date.parse(ad.started_at + (ad.started_at.length === 10 ? "T00:00:00Z" : ""));
+    const stop = ad.is_active ? now : Date.parse(ad.ended_at + (ad.ended_at.length === 10 ? "T00:00:00Z" : ""));
+    return Number.isFinite(start) && Number.isFinite(stop) && stop >= start ? Math.floor((stop - start) / 86400000) : null;
+  }
+  function qualifies(ad, days = 30) {
+    const age = adAge(ad);
+    return ad.is_active && age !== null && age >= days;
+  }
+  function safeUrl(value) {
+    try { const url = new URL(value); return ["https:", "http:"].includes(url.protocol) ? url.href : ""; } catch { return ""; }
+  }
+  function copyExcerpt(text) {
+    return text.length > 200 ? text.slice(0,200).trimEnd() + "…" : text;
+  }
+  function toggleCopy(id) {
+    expandedAdId = expandedAdId === id ? null : id;
+    document.querySelectorAll("[data-expand-ad]").forEach(button => {
+      const ad = ads.find(a => String(a.id) === button.dataset.expandAd);
+      if (!ad) return;
+      const open = String(ad.id) === expandedAdId;
+      const paragraph = document.getElementById(button.getAttribute("aria-controls"));
+      if (paragraph) paragraph.textContent = open ? ad.primary_text : copyExcerpt(ad.primary_text);
+      button.textContent = open ? "Show less" : "Show more";
+      button.setAttribute("aria-expanded", String(open));
+    });
+  }
+  function impressionLabel(ad) {
+    const raw = ad.raw || {};
+    return raw.impressions_type === "public_range" && Number.isSafeInteger(raw.impressions_min) && Number.isSafeInteger(raw.impressions_max) && raw.impressions_max >= raw.impressions_min
+      ? raw.impressions_min.toLocaleString() + "–" + raw.impressions_max.toLocaleString() + " (public range)"
+      : "Not publicly available";
+  }
 
   function niceDate(value) {
     if (!value) return "Never";
@@ -71,13 +108,13 @@
     if (w.error) throw w.error;
     if (a.error) throw a.error;
     watchlist = w.data || [];
-    ads = a.data || [];
+    ads = Array.from(new Map((a.data || []).map(row => [row.competitor_id + ":" + row.ad_archive_id, row])).values());
     render();
   }
 
   function render() {
     const activeAds = ads.filter(a => a.is_active);
-    const longAds = activeAds.filter(a => a.qualifies_long_running);
+    const longAds = activeAds.filter(a => qualifies(a));
     const scans = watchlist.map(w => w.last_scanned_at).filter(Boolean).sort().reverse();
 
     if ($("stat-watchlist")) $("stat-watchlist").textContent = String(watchlist.filter(w => w.active).length);
@@ -125,7 +162,7 @@
 
     box.innerHTML = watchlist.map(w => {
       const brandAds = ads.filter(a => a.competitor_id === w.id && a.is_active);
-      const longCount = brandAds.filter(a => a.qualifies_long_running).length;
+      const longCount = brandAds.filter(a => qualifies(a, Number(w.min_days_running || 30))).length;
       return '<article class="watch-item brand-card" data-brand-card="' + esc(w.id) + '">' +
         '<div class="brand-card-head">' +
           '<div class="brand-identity">' + brandAvatar(w) +
@@ -137,7 +174,7 @@
         (w.website_url ? '<a class="brand-site-link" target="_blank" rel="noopener" href="' + esc(w.website_url) + '">' + esc((()=>{try{return new URL(w.website_url).hostname.replace(/^www\./,"")}catch{return "Brand website"}})()) + '</a>' : '') +
         '<div class="brand-card-stats">' +
           '<div><span>Ads sampled</span><strong>' + Number(w.last_scan_ads || brandAds.length || 0) + '</strong></div>' +
-          '<div><span>' + Number(w.min_days_running || 30) + '+ day ads found</span><strong>' + Number(w.last_scan_long_running || longCount || 0) + '</strong></div>' +
+          '<div><span>' + Number(w.min_days_running || 30) + '+ day ads found</span><strong>' + longCount + '</strong></div>' +
           '<div><span>Last research</span><strong class="small-value">' + esc(w.last_scanned_at ? niceDate(w.last_scanned_at) : "Never") + '</strong></div>' +
         '</div>' +
         '<div class="brand-card-actions">' +
@@ -173,9 +210,14 @@
 
     let rows = ads.filter(a => a.is_active);
     if (brand !== "all") rows = rows.filter(a => a.competitor_id === brand);
-    if (mode === "long") rows = rows.filter(a => a.started_at && Number(a.days_running || 0) >= 30);
-    if (/^days-\d+$/.test(mode)) rows = rows.filter(a => a.started_at && Number(a.days_running || 0) >= Number(mode.slice(5)));
+    if (mode === "long") rows = rows.filter(a => qualifies(a));
+    if (mode === "unknown") rows = rows.filter(a => adAge(a) === null);
+    if (/^days-\d+$/.test(mode)) rows = rows.filter(a => qualifies(a, Number(mode.slice(5))));
 
+    const total = rows.length;
+    if ($("ad-sample-count")) $("ad-sample-count").textContent = total + " matching sampled ads · " + rows.filter(a => adAge(a) === null).length + " unknown age · up to 500 stored ads loaded";
+    rows = rows.slice(0, visibleLimit);
+    if ($("load-more-ads")) $("load-more-ads").hidden = visibleLimit >= total;
     if (!rows.length) {
       box.innerHTML = '<div class="empty wide">' +
         (mode === "long" ? 'No 30+ day ads in the collected sample. This does not mean the brand has none.' : 'No collected ads for this view yet. Research a tracked brand first.') +
@@ -184,18 +226,24 @@
     }
 
     box.innerHTML = rows.map(a => {
-      const expanded = expandedAdId === a.id;
-      const media = a.media_url
+      const expanded = expandedAdId === String(a.id);
+      const age = adAge(a);
+      const brand = watchlist.find(w => w.id === a.competitor_id) || {};
+      const avatar = brandAvatar({competitor_name:a.advertiser_name, logo_url:safeUrl(a.advertiser_logo_url || brand.logo_url), website_url:brand.website_url});
+      const mediaUrl = safeUrl(a.media_url), poster = safeUrl(a.media_thumbnail_url);
+      const media = mediaUrl
         ? '<div class="source-ad-media">' +
             (a.media_kind === "video"
-              ? '<video controls playsinline preload="none" ' + (a.media_thumbnail_url ? 'poster="' + esc(a.media_thumbnail_url) + '" ' : '') + 'src="' + esc(a.media_url) + '"></video>'
-              : '<img loading="lazy" src="' + esc(a.media_url) + '" alt="">') +
+              ? '<video controls playsinline preload="none" ' + (poster ? 'poster="' + esc(poster) + '" ' : '') + 'src="' + esc(mediaUrl) + '"></video>'
+              : '<img loading="lazy" src="' + esc(mediaUrl) + '" alt="">') +
           '</div>'
         : '<div class="ad-media-empty"><span>Creative preview</span><p>Media was not captured by this source yet.</p></div>';
 
       const primary = a.primary_text
-        ? '<div class="source-copy"><div class="source-copy-head"><span>Primary text</span><button class="copy-inline" type="button" data-copy-text="' + esc(a.id) + '">Copy</button></div><p style="white-space:pre-wrap;overflow-wrap:anywhere">' + esc(expanded || a.primary_text.length <= 180 ? a.primary_text : a.primary_text.slice(0,180).trimEnd() + "…") + '</p>' + (a.primary_text.length > 180 ? '<button type="button" class="copy-inline" data-expand-ad="' + esc(a.id) + '">' + (expanded ? 'Show less' : 'Show more') + '</button>' : '') + '</div>'
-        : '<div class="source-copy muted-copy"><div class="source-copy-head"><span>Primary text</span></div><p>Not captured yet.</p></div>';
+        ? '<div class="source-copy"><div class="source-copy-head"><span>Primary text</span><button class="copy-inline" type="button" data-copy-text="' + esc(a.id) + '">Copy</button></div><p id="copy-' + esc(a.id) + '" style="white-space:pre-wrap;overflow-wrap:anywhere">' + esc(expanded ? a.primary_text : copyExcerpt(a.primary_text)) + '</p>' +
+          (a.primary_text.length > 200 ? '<button type="button" class="copy-inline" data-expand-ad="' + esc(a.id) + '" aria-controls="copy-' + esc(a.id) + '" aria-expanded="' + expanded + '">' + (expanded ? 'Show less' : 'Show more') + '</button>' : '') +
+          (a.raw?.primary_text_complete === false ? '<small>Source text may be incomplete.</small>' : '') + '</div>'
+        : '<div class="source-copy muted-copy"><p>Primary text not captured yet.</p></div>';
 
       const headline = a.headline
         ? '<div class="ad-headline-block"><span>Headline</span><strong>' + esc(a.headline) + '</strong></div>'
@@ -206,16 +254,22 @@
         (a.landing_url ? '<a class="button secondary mini" target="_blank" rel="noopener" href="' + esc(a.landing_url) + '">Landing page</a>' : '');
 
       return '<article class="source-ad-card">' +
-        '<div class="source-ad-top"><div><span class="pill">' + esc(a.advertiser_name || "Tracked brand") + '</span><h3>Ad ' + esc(a.ad_archive_id || "") + '</h3></div>' +
-        '<div class="days-badge ' + (a.qualifies_long_running ? 'qualified' : '') + '"><strong>' + (a.started_at ? Number(a.days_running || 0) : '—') + '</strong><span>' + (a.started_at ? 'days' : 'unknown') + '</span></div></div>' +
-        media + headline + primary +
-        '<div class="source-meta"><span>' + (a.started_at ? 'Started ' + esc(a.started_at) : 'Start date unavailable') + '</span>' +
-          (a.qualifies_long_running ? '<span class="qualified-label">Long-running</span>' : '') +
+        '<div class="source-ad-top">' + avatar + '<div><span class="pill">' + esc(a.advertiser_name || "Tracked brand") + '</span><h3>Ad ' + esc(a.ad_archive_id || "") + '</h3></div>' +
+        '<div class="days-badge ' + (qualifies(a) ? 'qualified' : '') + '"><strong>' + (age === null ? '—' : age) + '</strong><span>' + (age === null ? 'unknown' : 'days') + '</span></div></div>' +
+        media + (a.media_kind === "video" && !poster ? '<p class="helper">Preview unavailable · press play to view video.</p>' : '') + headline + primary + '<p class="helper">Impressions: ' + esc(impressionLabel(a)) + '</p>' +
+        '<div class="source-meta"><span>' + (a.started_at ? 'Started ' + esc(new Date(a.started_at + 'T00:00:00Z').toLocaleDateString(undefined, {month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})) : 'Start date unavailable') + '</span>' +
+          (qualifies(a) ? '<span class="qualified-label">Long-running</span>' : '') +
           (a.analyzed_at ? '<span class="qualified-label">AI analyzed</span>' : '') +
         '</div>' +
         '<div class="source-actions">' + actions + '</div>' +
       '</article>';
     }).join("");
+    box.querySelectorAll("[data-brand-avatar-img]").forEach(img => img.addEventListener("error", () => img.remove(), {once:true}));
+    box.querySelectorAll("video").forEach(video => video.addEventListener("error", () => {
+      const message = document.createElement("p"); message.className = "helper";
+      message.textContent = "Video unavailable or expired. Open the Meta ad or refresh the brand.";
+      video.replaceWith(message);
+    }, {once:true}));
   }
 
   async function addCompetitor(event) {
@@ -335,7 +389,7 @@
     const p = currentProduct();
     if (!p) return;
 
-    const longRunning = ads.filter(a => a.is_active && a.qualifies_long_running);
+    const longRunning = ads.filter(a => qualifies(a));
     const sources = (longRunning.length ? longRunning : ads.filter(a => a.is_active)).slice(0, 30);
 
     if (!sources.length) {
@@ -413,9 +467,10 @@
       $("scan-now").onclick = () => runResearch();
       $("analyze-ads").onclick = analyzeResearch;
       $("generate-ideas").onclick = generateIdeas;
-      $("ad-filter").innerHTML = '<option value="all">All active ads</option><option value="days-7">7+ days</option><option value="days-14">14+ days</option><option value="days-30">30+ days</option><option value="days-60">60+ days</option><option value="days-90">90+ days</option>';
-      $("ad-filter").onchange = renderAds;
-      if ($("brand-filter")) $("brand-filter").onchange = renderAds;
+      $("ad-filter").innerHTML = '<option value="all">All active ads</option><option value="days-7">7+ days</option><option value="days-14">14+ days</option><option value="days-30">30+ days</option><option value="days-60">60+ days</option><option value="days-90">90+ days</option><option value="unknown">Unknown age</option>';
+      $("ad-filter").onchange = () => { visibleLimit = 24; renderAds(); };
+      if ($("load-more-ads")) $("load-more-ads").onclick = () => { visibleLimit += 24; renderAds(); };
+      if ($("brand-filter")) $("brand-filter").onchange = () => { visibleLimit = 24; renderAds(); };
 
       $("watchlist-list").onchange = async event => {
         const activeId = event.target.getAttribute("data-watch-active");
@@ -466,13 +521,13 @@
 
       $("research-ads").onclick = async event => {
         const expand = event.target.closest("[data-expand-ad]");
-        if (expand) { const next = expand.getAttribute("data-expand-ad"); expandedAdId = expandedAdId === next ? null : next; renderAds(); return; }
+        if (expand) { toggleCopy(expand.getAttribute("data-expand-ad")); return; }
         const id = event.target.getAttribute("data-copy-text");
         if (!id) return;
         const ad = ads.find(a => a.id === id);
         if (!ad) return;
-        await navigator.clipboard.writeText(ad.primary_text || "");
-        event.target.textContent = "Copied";
+        try { await navigator.clipboard.writeText(ad.primary_text || ""); event.target.textContent = "Copied"; }
+        catch { $("research-status").textContent = "Copy failed. Expand the text and select it to copy."; }
       };
     } catch (error) {
       console.error(error);
