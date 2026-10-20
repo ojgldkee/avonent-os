@@ -30,6 +30,71 @@ async function getBrowser() {
   return browserPromise;
 }
 
+function safeFacebookPageUrl(value = "") {
+  try {
+    const u = new URL(String(value));
+    const host = u.hostname.replace(/^www\./, "").toLowerCase();
+    if (u.protocol !== "https:" || host !== "facebook.com" || /\/ads\/library/i.test(u.pathname)) return "";
+    u.hostname = "www.facebook.com";
+    u.hash = "";
+    return u.toString();
+  } catch {
+    return "";
+  }
+}
+
+async function resolveFacebookPageId(pageUrl) {
+  const safeUrl = safeFacebookPageUrl(pageUrl);
+  if (!safeUrl) return "";
+
+  const browser = await getBrowser();
+  const context = await browser.newContext({
+    locale:"en-US",
+    viewport:{width:1280,height:900},
+    userAgent:"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/136 Safari/537.36"
+  });
+
+  try {
+    const page = await context.newPage();
+    await page.route("**/*", async route => {
+      const type = route.request().resourceType();
+      if (["font","media"].includes(type)) return route.abort();
+      return route.continue();
+    });
+    await page.goto(safeUrl, {waitUntil:"domcontentloaded", timeout:30000});
+    await page.waitForTimeout(1800);
+
+    const direct = await page.locator('a[href*="view_all_page_id="]').evaluateAll(nodes => {
+      for (const node of nodes) {
+        try {
+          const u = new URL(node.href);
+          const id = u.searchParams.get("view_all_page_id") || "";
+          if (/^\d{5,30}$/.test(id)) return id;
+        } catch {}
+      }
+      return "";
+    }).catch(() => "");
+    if (direct) return direct;
+
+    const html = await page.content();
+    const patterns = [
+      /"pageID"\s*:\s*"?(\d{5,30})"?/i,
+      /"page_id"\s*:\s*"?(\d{5,30})"?/i,
+      /"profile_id"\s*:\s*"?(\d{5,30})"?/i,
+      /"entity_id"\s*:\s*"?(\d{5,30})"?/i,
+      /fb:\/\/page\/\?id=(\d{5,30})/i,
+      /view_all_page_id(?:=|%3D)(\d{5,30})/i
+    ];
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) return match[1];
+    }
+    return "";
+  } finally {
+    await context.close();
+  }
+}
+
 function metaLibraryUrl(input = {}) {
   if (input.url) {
     const u = new URL(String(input.url));
@@ -342,6 +407,11 @@ function mergeAd(map, ad) {
 }
 
 async function scrape(input) {
+  let resolvedPageId = "";
+  if (!input.page_id && !input.url && input.page_url) {
+    resolvedPageId = await resolveFacebookPageId(input.page_url).catch(() => "");
+    if (resolvedPageId) input = {...input,page_id:resolvedPageId};
+  }
   const sourceUrl = metaLibraryUrl(input);
   const maxAds = Math.max(1, Math.min(Number(input.max_ads || 400), MAX_ADS_HARD_LIMIT));
   const maxScrolls = Math.max(10, Math.min(Number(input.max_scrolls || 120), MAX_SCROLLS_HARD_LIMIT));
@@ -452,7 +522,8 @@ async function scrape(input) {
       reached_end_signal: reachedEndSignal,
       sample_complete: reachedEndSignal && collected.size < maxAds,
       capture_status: ads.length ? "partial" : reachedEndSignal ? "no_results" : "parse_failed",
-      parser_version: "0.4.0",
+      parser_version: "0.5.0",
+      resolved_page_id: resolvedPageId || "",
       note: reachedEndSignal
         ? "Collector reached an apparent end-of-results signal."
         : "This is a collected sample; Meta may have additional ads beyond the retrieved set.",
