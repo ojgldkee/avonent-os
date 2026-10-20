@@ -160,3 +160,154 @@ textarea{min-height:96px;resize:vertical}.tall{min-height:165px}label{display:gr
 .chat-brand-picker select{margin-top:5px}
 @media(max-width:900px){.ad-import-shell{grid-template-columns:1fr}}
 @media(max-width:760px){.ad-import-preview{min-height:280px}.ad-form-actions{display:grid}.ad-form-actions>*{width:100%}}
+
+/* Compact tabbed workspaces */
+.workspace-tabs{
+  position:sticky;
+  top:58px;
+  z-index:35;
+  display:flex;
+  gap:6px;
+  overflow-x:auto;
+  padding:8px 0 10px;
+  margin-bottom:10px;
+  background:linear-gradient(to bottom,var(--bg) 72%,transparent);
+  scrollbar-width:none
+}
+.workspace-tabs::-webkit-scrollbar{display:none}
+.workspace-tab{
+  flex:0 0 auto;
+  min-height:38px;
+  padding:0 13px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:var(--panel);
+  color:var(--muted);
+  font-size:11px;
+  font-weight:850
+}
+.workspace-tab.active{background:#fff;color:#09090a;border-color:#fff}
+.ad-tab-panel{display:none}
+.ad-tab-panel.active{display:block}
+.ad-workspace-form{margin:0}
+.ad-step-panel{min-height:0}
+.ad-import-compact{display:grid;gap:10px;margin-bottom:12px}
+.compact-preview{min-height:180px}
+.compact-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+.step-nav{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-top:14px}
+.ad-action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:15px}
+.inline-copy-box{
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#08080a;
+  overflow:hidden
+}
+.inline-copy-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  min-height:42px;
+  padding:6px 8px 6px 12px;
+  border-bottom:1px solid var(--line)
+}
+.inline-copy-head span{
+  color:var(--muted);
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.12em;
+  text-transform:uppercase
+}
+.inline-copy-box textarea{border:0;border-radius:0;box-shadow:none;min-height:120px}
+.copy-inline{
+  min-height:30px;
+  padding:0 10px;
+  border:1px solid var(--line2);
+  border-radius:8px;
+  background:var(--panel2);
+  color:#fff;
+  font-size:11px;
+  font-weight:800
+}
+.compact-ad-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+/* Compact creative packages */
+.package-card{min-height:0!important}
+.package-tabs{
+  display:flex;
+  gap:5px;
+  overflow-x:auto;
+  margin:13px 0 10px;
+  padding-bottom:2px;
+  scrollbar-width:none
+}
+.package-tabs::-webkit-scrollbar{display:none}
+.package-tab{
+  flex:0 0 auto;
+  min-height:34px;
+  padding:0 11px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:#09090b;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:850
+}
+.package-tab.active{background:#fff;color:#080809;border-color:#fff}
+.package-tab-body{min-height:0}
+.package-tab-panel{display:none}
+.package-tab-panel.active{display:block}
+.package-panel-head{display:none}
+.package-copy-block{
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#09090b;
+  overflow:hidden;
+  margin-bottom:8px
+}
+.package-copy-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  min-height:40px;
+  padding:6px 8px 6px 12px;
+  border-bottom:1px solid var(--line)
+}
+.package-copy-head span{
+  color:var(--muted2);
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.13em;
+  text-transform:uppercase
+}
+.package-copy-block p{
+  margin:0;
+  padding:13px;
+  white-space:pre-wrap;
+  line-height:1.55;
+  color:#e3e3e6;
+  max-height:310px;
+  overflow:auto
+}
+.package-footer{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  align-items:end;
+  margin-top:11px
+}
+.package-footer label{margin:0}
+
+@media(max-width:760px){
+  .workspace-tabs{top:58px;margin-left:-2px;margin-right:-2px}
+  .workspace-tab{padding:0 11px}
+  .ad-step-panel{padding:14px}
+  .compact-form{grid-template-columns:1fr}
+  .compact-form .span-2{grid-column:auto}
+  .ad-action-grid{grid-template-columns:1fr}
+  .step-nav .button{min-width:0}
+  .compact-ad-grid{grid-template-columns:1fr}
+  .package-copy-block p{max-height:240px;font-size:15px}
+  .package-footer{grid-template-columns:1fr auto}
+}
