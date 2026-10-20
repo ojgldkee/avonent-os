@@ -112,3 +112,39 @@ test("copy-only analysis never claims it watched or heard a video", () => {
   assert.match(analysisFn, /visual_hook: ""/);
   assert.match(analysisFn, /analysis_scope:"copy_only"/);
 });
+
+
+test("research buttons use the built-in queue instead of the unconfigured on-demand scraper", () => {
+  const workflow = readFileSync(new URL(".github/workflows/competitor-research.yml", root), "utf8");
+  const runner = readFileSync(new URL("services/meta-scraper/src/github-runner.js", root), "utf8");
+  assert.doesNotMatch(frontend, /cloud\.invoke\("scan-competitor-ads"/);
+  assert.match(frontend, /scan_request_status:\s*"queued"/);
+  assert.match(workflow, /cron:\s*"\*\/10 \* \* \* \*"/);
+  assert.match(runner, /scan_request_status \|\| ""\) === "queued"/);
+  assert.match(runner, /12 \* 60 \* 60 \* 1000/);
+});
+
+test("ad cards expose sample-relative research ratings without claiming profitability", () => {
+  assert.match(frontend, /function adResearchScore/);
+  assert.match(frontend, /function adRank/);
+  assert.match(frontend, /Research score · not profitability/);
+  assert.match(frontend, /Sample rank #/);
+  assert.match(frontend, /creative repeated/);
+});
+
+test("primary copy expansion uses a footer control instead of overlaying text", () => {
+  assert.match(frontend, /source-copy-body/);
+  assert.match(frontend, /source-copy-footer/);
+  const strategistCss = readFileSync(new URL("static/strategist.css", root), "utf8");
+  assert.match(strategistCss, /source-copy-footer \[data-expand-ad\]\{position:static!important/);
+  assert.match(strategistCss, /source-copy \.source-copy-body>p\{max-height:none!important;overflow:visible!important/);
+});
+
+test("ideas have dedicated concepts hooks and scripts workspaces", () => {
+  const ideasHtml = readFileSync(new URL("creatives.html", root), "utf8");
+  const ideasUi = readFileSync(new URL("static/cloud-ideas-v1.js", root), "utf8");
+  for (const mode of ["concepts","hooks","scripts"]) assert.match(ideasHtml, new RegExp('data-ideas-workspace="'+mode+'"'));
+  assert.match(ideasUi, /renderHooksWorkspace/);
+  assert.match(ideasUi, /renderScriptsWorkspace/);
+  assert.match(ideasUi, /data-copy-library-hook/);
+});
