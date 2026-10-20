@@ -426,6 +426,12 @@
       const content = input.value.trim();
       if (!content) return;
 
+      const sendButton = form.querySelector('button[type="submit"]');
+      if (sendButton) {
+        sendButton.disabled = true;
+        sendButton.textContent = "Thinking…";
+      }
+
       try {
         if (!activeChatId) {
           await createChat(content);
@@ -434,44 +440,88 @@
           messages.innerHTML = "";
         }
 
+        const brandSelect = $("chat-brand-select");
+        const brandId = brandSelect ? brandSelect.value : "";
+
         const messageResult = await db.from("chat_messages").insert({
           chat_id: activeChatId,
           user_id: session.user.id,
           role: "user",
           content: content,
-          metadata: {}
+          metadata: { brand_id: brandId || null }
         });
         if (messageResult.error) throw messageResult.error;
 
+        messages.insertAdjacentHTML("beforeend", messageHtml("user", content));
+        messages.scrollTop = messages.scrollHeight;
+
+        let generated = null;
+        if (window.AVONENT_CHAT_STRATEGIST) {
+          generated = await window.AVONENT_CHAT_STRATEGIST.respond(content, brandId);
+        }
+
+        const assistantText = generated && generated.text
+          ? generated.text
+          : "Add brand knowledge in Brands so I can build a complete creative strategy around the product.";
+
+        const assistantResult = await db.from("chat_messages").insert({
+          chat_id: activeChatId,
+          user_id: session.user.id,
+          role: "assistant",
+          content: assistantText,
+          metadata: {
+            source: "local_creative_strategist",
+            brand_id: generated && generated.brand ? generated.brand.id : (brandId || null)
+          }
+        });
+        if (assistantResult.error) throw assistantResult.error;
+
+        messages.insertAdjacentHTML("beforeend", messageHtml("assistant", assistantText));
+
         const saveKind = $("save-kind").value;
         if (saveKind) {
+          const itemMetadata = {
+            source: "creative_chat",
+            brand_id: generated && generated.brand ? generated.brand.id : (brandId || null),
+            brand_name: generated && generated.brand ? generated.brand.name : ""
+          };
+          if (saveKind === "concept" && generated && generated.package) {
+            itemMetadata.package = generated.package;
+          }
+
           const itemResult = await db.from("creative_items").insert({
             user_id: session.user.id,
             chat_id: activeChatId,
             kind: saveKind,
-            title: itemTitleFromContent(saveKind, content),
-            content: content,
+            title: itemTitleFromContent(saveKind, assistantText),
+            content: assistantText,
+            angle: generated && generated.package ? generated.package.angle : "",
+            format: generated && generated.package ? generated.package.format : "",
             status: "Idea",
-            metadata: { source: "creative_chat" }
+            metadata: itemMetadata
           });
           if (itemResult.error) throw itemResult.error;
+          messages.insertAdjacentHTML("beforeend", messageHtml("system", "Saved the strategist response to your " + niceKind(saveKind) + " library."));
         }
 
         await db.from("creative_chats")
-          .update({ updated_at: new Date().toISOString() })
+          .update({
+            updated_at: new Date().toISOString(),
+            product_name: generated && generated.brand ? (generated.brand.product_name || "") : ""
+          })
           .eq("id", activeChatId);
 
-        messages.insertAdjacentHTML("beforeend", messageHtml("user", content));
-        if (saveKind) {
-          messages.insertAdjacentHTML("beforeend", messageHtml("system", "Saved to your " + niceKind(saveKind) + " library."));
-        }
-        messages.insertAdjacentHTML("beforeend", messageHtml("system", "Conversation saved. AI generation will activate after we connect a model."));
         input.value = "";
         $("save-kind").value = "";
         messages.scrollTop = messages.scrollHeight;
         await loadChats();
       } catch (error) {
         alert(error.message || String(error));
+      } finally {
+        if (sendButton) {
+          sendButton.disabled = false;
+          sendButton.textContent = "Send";
+        }
       }
     };
   }
