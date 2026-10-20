@@ -15,6 +15,63 @@
   let expandedAdId = null;
   let visibleLimit = 24;
 
+  let ideaProgressTimer = null;
+  let ideaProgressStartedAt = 0;
+
+  function ideaProgressStage(seconds) {
+    if (seconds < 5) return "Preparing product facts and source ads…";
+    if (seconds < 14) return "Selecting the strongest competitor patterns…";
+    if (seconds < 30) return "Writing five differentiated concepts and hooks…";
+    if (seconds < 48) return "Building scripts, shot plans and animation directions…";
+    if (seconds < 68) return "Ranking concepts and checking source support…";
+    return "Validating and packaging the final creative set…";
+  }
+
+  function ideaProgressPercent(seconds) {
+    if (seconds <= 3) return 5 + seconds * 3;
+    if (seconds <= 15) return 14 + Math.round((seconds - 3) * 1.8);
+    if (seconds <= 35) return 36 + Math.round((seconds - 15) * 1.5);
+    if (seconds <= 60) return 66 + Math.round((seconds - 35) * 0.8);
+    if (seconds <= 90) return 86 + Math.round((seconds - 60) * 0.2);
+    return 94;
+  }
+
+  function updateIdeaProgress() {
+    const panel = $("research-progress");
+    if (!panel || !ideaProgressStartedAt) return;
+    const seconds = Math.floor((Date.now() - ideaProgressStartedAt) / 1000);
+    const pct = Math.min(94, ideaProgressPercent(seconds));
+    $("research-progress-percent").textContent = pct + "%";
+    $("research-progress-fill").style.width = pct + "%";
+    $("research-progress-stage").textContent = ideaProgressStage(seconds);
+    $("research-progress-note").textContent = "Estimated progress · " + seconds + "s elapsed. Keep this page open until it reaches 100%.";
+  }
+
+  function startIdeaProgress(sourceCount) {
+    const panel = $("research-progress");
+    if (!panel) return;
+    ideaProgressStartedAt = Date.now();
+    panel.classList.remove("hidden");
+    $("research-progress-label").textContent = "Generating 5 concepts from " + sourceCount + " source ads";
+    $("research-progress-percent").textContent = "5%";
+    $("research-progress-fill").style.width = "5%";
+    $("research-progress-stage").textContent = "Preparing product facts and source ads…";
+    $("research-progress-note").textContent = "Estimated progress. Keep this page open while the strategist works.";
+    clearInterval(ideaProgressTimer);
+    ideaProgressTimer = setInterval(updateIdeaProgress, 1000);
+  }
+
+  function finishIdeaProgress(message, ok) {
+    clearInterval(ideaProgressTimer);
+    ideaProgressTimer = null;
+    const panel = $("research-progress");
+    if (!panel) return;
+    $("research-progress-percent").textContent = ok ? "100%" : "Stopped";
+    $("research-progress-fill").style.width = "100%";
+    $("research-progress-stage").textContent = message || (ok ? "Creative pack saved." : "Generation stopped.");
+    $("research-progress-note").textContent = ok ? "Done. Opening Ideas…" : "The request did not complete.";
+  }
+
 
   function adAge(ad, now = Date.now()) {
     if (!ad.started_at || (!ad.is_active && !ad.ended_at)) return null;
@@ -516,8 +573,9 @@
       await loadResearch();
     } catch (error) {
       $("research-status").textContent = error.data?.setup_required
-        ? "AI setup required: add OPENAI_API_KEY in Supabase → Edge Functions → Secrets. Use the AI setup link below."
+        ? "AI connection is not configured correctly."
         : (error.message || String(error));
+      finishIdeaProgress(error.message || "Generation stopped.", false);
     } finally {
       btn.disabled = false;
       btn.textContent = "Analyze research";
@@ -528,7 +586,7 @@
     const p = currentProduct();
     if (!p) return;
 
-    const sources = researchSources(ads);
+    const sources = researchSources(ads).slice(0, 16);
 
     if (!sources.length) {
       $("research-status").textContent = "Research at least one tracked brand first.";
@@ -538,7 +596,8 @@
     const btn = $("generate-ideas");
     btn.disabled = true;
     btn.textContent = "Generating…";
-    $("research-status").textContent = "Building original concepts from " + sources.length + " source ads…";
+    $("research-status").textContent = "Generation started. Keep this page open.";
+    startIdeaProgress(sources.length);
 
     try {
       const result = await cloud.invoke("creative-ai", { task: "ideas", product: p, competitor_ads: sources });
@@ -590,6 +649,8 @@
 
       const insert = await db.from("ai_ideas").insert(rows);
       if (insert.error) throw insert.error;
+      finishIdeaProgress(rows.length + " concepts generated and saved.", true);
+      await new Promise(resolve => setTimeout(resolve, 650));
       location.href = "creatives.html?cloud=1";
     } catch (error) {
       $("research-status").textContent = error.data?.setup_required
