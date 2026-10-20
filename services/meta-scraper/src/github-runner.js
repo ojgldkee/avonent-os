@@ -171,6 +171,7 @@ async function fetchMetaSearch(brand, query) {
     body: JSON.stringify({
       query: query || brand.competitor_name,
       page_id: brand.meta_page_id || "",
+      page_url: brand.facebook_page_url || "",
       url: brand.ad_library_url || "",
       country: "US",
       active_status: "active",
@@ -197,6 +198,21 @@ async function collectBrand(brand) {
 
   let result = await fetchMetaSearch(brand, brand.competitor_name);
   let sourceAds = Array.isArray(result.ads) ? result.ads : [];
+
+  if (!brand.meta_page_id && result.resolved_page_id) {
+    const resolvedId = String(result.resolved_page_id);
+    const adLibraryUrl = "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=US&view_all_page_id=" + encodeURIComponent(resolvedId) + "&search_type=page";
+    const data = brand.brand_data && typeof brand.brand_data === "object" ? brand.brand_data : {};
+    const patch = {
+      meta_page_id:resolvedId,
+      ad_library_url:adLibraryUrl,
+      resolution_status:"verified_store_facebook_page",
+      brand_data:{...data,advertiser_resolution_evidence:"page_id_extracted_from_store_linked_facebook_page",advertiser_resolved_at:new Date().toISOString()}
+    };
+    await updateBrand(brand.id, patch);
+    Object.assign(brand, patch);
+    console.log("[" + brand.competitor_name + "] resolved Meta page ID from store-linked Facebook page: " + resolvedId);
+  }
 
   if (!brand.meta_page_id && !brand.ad_library_url && brand.facebook_page_url) {
     const alternateQuery = facebookSearchQuery(brand.facebook_page_url, brand.competitor_name);
