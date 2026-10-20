@@ -1,14 +1,32 @@
-/* Shared public Meta Ad Library input validation. */
+/* Shared research input validation and source selection. */
 (function(root) {
   "use strict";
+
+  const FACEBOOK_HOSTS = ["facebook.com","www.facebook.com","m.facebook.com","business.facebook.com"];
+  const numeric = value => /^\d{5,30}$/.test(String(value || "")) ? String(value) : "";
+
+  function normalizeStoreUrl(input) {
+    const value = String(input || "").trim();
+    if (!value) throw new Error("Paste the competitor store URL.");
+    let url;
+    try { url = new URL(/^https?:\/\//i.test(value) ? value : "https://" + value); }
+    catch { throw new Error("Paste a valid store URL, such as https://resilia.shop."); }
+    if (url.protocol !== "https:") throw new Error("Use the store's https URL.");
+    const host = url.hostname.toLowerCase();
+    if (!host || host === "localhost" || host.endsWith(".local")) throw new Error("Use a public store URL.");
+    url.hash = "";
+    url.search = "";
+    url.pathname = "/";
+    return url.href;
+  }
+
   function parseMetaLink(input) {
     const value = String(input || "").trim();
     if (!value) return {url:"",pageId:"",adId:""};
     let url;
     try { url = new URL(/^https?:\/\//i.test(value) ? value : "https://" + value); }
     catch { throw new Error("Paste a valid Facebook Ad Library link."); }
-    if (url.protocol !== "https:" || !["facebook.com","www.facebook.com","m.facebook.com","business.facebook.com"].includes(url.hostname.toLowerCase())) throw new Error("Use an https Facebook Ad Library link.");
-    const numeric = value => /^\d{5,30}$/.test(value || "") ? value : "";
+    if (url.protocol !== "https:" || !FACEBOOK_HOSTS.includes(url.hostname.toLowerCase())) throw new Error("Use an https Facebook Ad Library link.");
     const library = /^\/ads\/library\/?$/.test(url.pathname);
     const pageId = numeric(url.searchParams.get("view_all_page_id")) || (!library ? numeric(url.searchParams.get("id")) || numeric(url.pathname.split("/").filter(Boolean).pop()) : "");
     const adId = library ? numeric(url.searchParams.get("id")) : "";
@@ -21,10 +39,40 @@
     if(!adId) {canonical.searchParams.set("active_status","active");canonical.searchParams.set("ad_type","all");canonical.searchParams.set("country","US");}
     return {url:canonical.href,pageId,adId};
   }
+
+  function parseFacebookReference(input) {
+    const value = String(input || "").trim();
+    if (!value) return {pageUrl:"",pageId:"",adLibraryUrl:"",adId:""};
+    let url;
+    try { url = new URL(/^https?:\/\//i.test(value) ? value : "https://" + value); }
+    catch { throw new Error("Paste a valid Facebook page or Ad Library link."); }
+    if (url.protocol !== "https:" || !FACEBOOK_HOSTS.includes(url.hostname.toLowerCase())) throw new Error("Use an https Facebook page or Ad Library link.");
+
+    if (/^\/ads\/library\/?$/.test(url.pathname)) {
+      const meta = parseMetaLink(url.href);
+      return {pageUrl:"",pageId:meta.pageId,adLibraryUrl:meta.url,adId:meta.adId};
+    }
+
+    const pageId = numeric(url.searchParams.get("id")) || numeric(url.pathname.split("/").filter(Boolean).pop());
+    const clean = new URL(url.href);
+    clean.protocol = "https:";
+    clean.hostname = "www.facebook.com";
+    clean.hash = "";
+    if (/^\/profile\.php$/i.test(clean.pathname) && pageId) {
+      clean.search = "";
+      clean.searchParams.set("id", pageId);
+    } else {
+      clean.search = "";
+    }
+    const adLibraryUrl = pageId ? parseMetaLink(clean.href).url : "";
+    return {pageUrl:clean.href,pageId,adLibraryUrl,adId:""};
+  }
+
   function researchSources(rows, limit=30) {
     return rows.filter(a => a.is_active && (a.primary_text || a.headline))
       .sort((a,b) => Number(Boolean(b.analyzed_at))-Number(Boolean(a.analyzed_at)) || String(a.started_at || "9999").localeCompare(String(b.started_at || "9999")))
       .slice(0,limit);
   }
-  root.AVONENT_RESEARCH_UTILS = {parseMetaLink,researchSources};
+
+  root.AVONENT_RESEARCH_UTILS = {normalizeStoreUrl,parseMetaLink,parseFacebookReference,researchSources};
 })(typeof window === "undefined" ? globalThis : window);
