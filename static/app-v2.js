@@ -32,6 +32,56 @@
     return base || niceKind(kind || "idea");
   }
 
+  function packageCardHtml(item) {
+    const p = item.metadata && item.metadata.package;
+    if (!p) return "";
+
+    function section(label, value) {
+      return '<div class="package-section"><span class="package-label">' + escapeHtml(label) + '</span><p>' + escapeHtml(value || "") + '</p></div>';
+    }
+
+    return '<article class="library-card package-card">' +
+      '<div class="card-top"><div><span class="pill">' + escapeHtml(item.metadata.brand_name || "Daily package") + '</span>' +
+      '<h3>' + escapeHtml(item.title || "Creative package") + '</h3></div>' +
+      '<button class="text-button mini" data-favorite="' + item.id + '">' + (item.favorite ? "★" : "☆") + '</button></div>' +
+      '<div class="meta">' + escapeHtml(p.angle || item.angle || "") + (p.format ? " · " + escapeHtml(p.format) : "") + '</div>' +
+      '<div class="package-sections">' +
+        section("Hook", p.hook) +
+        section("Primary text A", p.primary_texts && p.primary_texts[0]) +
+        section("Primary text B", p.primary_texts && p.primary_texts[1]) +
+        section("Headline A", p.headlines && p.headlines[0]) +
+        section("Headline B", p.headlines && p.headlines[1]) +
+        section("Video idea", p.video_idea) +
+        section("30-second script", p.script) +
+      '</div>' +
+      '<div class="package-copy-row">' +
+        '<button class="button secondary mini" data-copy-package="' + item.id + '" data-copy-field="hook">Copy hook</button>' +
+        '<button class="button secondary mini" data-copy-package="' + item.id + '" data-copy-field="primary0">Copy primary A</button>' +
+        '<button class="button secondary mini" data-copy-package="' + item.id + '" data-copy-field="primary1">Copy primary B</button>' +
+        '<button class="button secondary mini" data-copy-package="' + item.id + '" data-copy-field="video">Copy video idea</button>' +
+        '<button class="button secondary mini" data-copy-package="' + item.id + '" data-copy-field="script">Copy script</button>' +
+      '</div>' +
+      '<label>Status<select data-item-status="' + item.id + '">' +
+        STATUS_FLOW.map(function (status) { return '<option' + (status === item.status ? " selected" : "") + '>' + escapeHtml(status) + '</option>'; }).join("") +
+      '</select></label>' +
+      '<div class="card-actions">' +
+        '<button class="button secondary mini" data-delete="' + item.id + '">Delete</button>' +
+      '</div></article>';
+  }
+
+  function packageCopyValue(item, field) {
+    const p = item && item.metadata && item.metadata.package;
+    if (!p) return "";
+    if (field === "hook") return p.hook || "";
+    if (field === "primary0") return (p.primary_texts && p.primary_texts[0]) || "";
+    if (field === "primary1") return (p.primary_texts && p.primary_texts[1]) || "";
+    if (field === "headline0") return (p.headlines && p.headlines[0]) || "";
+    if (field === "headline1") return (p.headlines && p.headlines[1]) || "";
+    if (field === "video") return p.video_idea || "";
+    if (field === "script") return p.script || "";
+    return item.content || "";
+  }
+
   async function getSession() {
     const result = await db.auth.getSession();
     if (result.error) throw result.error;
@@ -455,7 +505,7 @@
 
     async function fetchItems() {
       const result = await db.from("creative_items")
-        .select("id,chat_id,kind,title,content,angle,format,status,favorite,created_at,updated_at")
+        .select("id,chat_id,kind,title,content,angle,format,status,favorite,metadata,created_at,updated_at")
         .order("favorite", { ascending: false })
         .order("updated_at", { ascending: false })
         .limit(1000);
@@ -478,6 +528,7 @@
       });
 
       grid.innerHTML = rows.length ? rows.map(function (item) {
+        if (item.metadata && item.metadata.package) return packageCardHtml(item);
         return '<article class="library-card">' +
           '<div class="card-top"><div><span class="pill">' + escapeHtml(niceKind(item.kind)) + '</span>' +
           '<h3>' + escapeHtml(item.title || niceKind(item.kind)) + '</h3></div>' +
@@ -485,7 +536,7 @@
           '<div class="meta">' + escapeHtml(item.angle || "No angle") + (item.format ? " · " + escapeHtml(item.format) : "") + '</div>' +
           '<p class="content">' + escapeHtml(item.content || "") + '</p>' +
           '<label>Status<select data-item-status="' + item.id + '">' +
-            STATUS_FLOW.map(function (s) { return '<option' + (s === item.status ? " selected" : "") + '>' + escapeHtml(s) + '</option>'; }).join("") +
+            STATUS_FLOW.map(function (status) { return '<option' + (status === item.status ? " selected" : "") + '>' + escapeHtml(status) + '</option>'; }).join("") +
           '</select></label>' +
           '<div class="card-actions">' +
           '<button class="button secondary mini" data-edit="' + item.id + '">Edit</button>' +
@@ -519,6 +570,19 @@
     };
 
     grid.addEventListener("click", async function (event) {
+      const copyPackageId = event.target.getAttribute("data-copy-package");
+      if (copyPackageId) {
+        const item = items.find(function (x) { return x.id === copyPackageId; });
+        const value = packageCopyValue(item, event.target.getAttribute("data-copy-field"));
+        if (value) {
+          await navigator.clipboard.writeText(value);
+          const original = event.target.textContent;
+          event.target.textContent = "Copied";
+          setTimeout(function(){ event.target.textContent = original; }, 1200);
+        }
+        return;
+      }
+
       const favoriteId = event.target.getAttribute("data-favorite");
       if (favoriteId) {
         const item = items.find(function (x) { return x.id === favoriteId; });
