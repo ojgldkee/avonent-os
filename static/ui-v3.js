@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const tabs = [
     ["index.html","Home","⌂"],
     ["creatives.html","Ideas","▤"],
-    ["ads.html","Ads","◎"],
+    ["ads.html","Research","◎"],
     ["brands.html","Products","◇"]
   ];
   if (!document.querySelector(".mobile-tabs")) {
