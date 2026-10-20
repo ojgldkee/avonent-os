@@ -85,6 +85,9 @@
 
     $("cloud-ideas-grid").innerHTML = rows.map((idea, index) => {
       const sourceIds = Array.isArray(idea.source_ad_ids) ? idea.source_ad_ids : [];
+      const strategy = idea.strategy || {};
+      const scores = strategy.scores || {};
+      const overall = Number(strategy.overall_score || 0);
       const status = idea.status || "Idea";
       const approved = idea.approved || status === "Approved";
       const rejected = status === "Rejected";
@@ -100,7 +103,10 @@
       return '<article class="cloud-idea-card" data-idea="' + idea.id + '">' +
         '<div class="idea-card-top">' +
           '<div><span class="idea-number">IDEA ' + String(index + 1).padStart(2, "0") + '</span><h2>' + esc(idea.title || idea.angle || "Ad idea") + '</h2><div class="idea-meta"><span>' + esc(idea.format || "Format TBD") + '</span><span>' + esc(idea.idea_model || "AI") + '</span></div></div>' +
-          '<span class="idea-state ' + (approved ? "approved" : rejected ? "rejected" : "") + '">' + esc(approved ? "Approved" : rejected ? "Rejected" : status) + '</span>' +
+          '<div class="idea-score-state">' +
+            (overall ? '<div class="idea-score"><strong>' + overall + '</strong><span>/100</span></div>' : '') +
+            '<span class="idea-state ' + (approved ? "approved" : rejected ? "rejected" : "") + '">' + esc(approved ? "Approved" : rejected ? "Rejected" : status) + '</span>' +
+          '</div>' +
         '</div>' +
 
         '<section class="idea-hook-block"><div class="idea-section-head"><span>Hook</span><button class="copy-inline" type="button" data-copy-hook="' + idea.id + '">Copy</button></div><p>' + esc(idea.hook || "") + '</p></section>' +
@@ -114,6 +120,16 @@
         '</div>' +
 
         '<section class="idea-why"><span>Why test it</span><p>' + esc(idea.why_test || "") + '</p></section>' +
+        (strategy.hypothesis ? '<section class="idea-hypothesis"><span>Hypothesis</span><p>' + esc(strategy.hypothesis) + '</p></section>' : '') +
+        (strategy.risk ? '<section class="idea-risk"><span>Biggest risk</span><p>' + esc(strategy.risk) + '</p></section>' : '') +
+        (overall ? '<div class="idea-score-grid">' +
+          '<div><span>Scroll stop</span><strong>' + Number(scores.scroll_stop || 0) + '/10</strong></div>' +
+          '<div><span>Specificity</span><strong>' + Number(scores.specificity || 0) + '/10</strong></div>' +
+          '<div><span>Product fit</span><strong>' + Number(scores.product_fit || 0) + '/10</strong></div>' +
+          '<div><span>Source support</span><strong>' + Number(scores.source_support || 0) + '/10</strong></div>' +
+          '<div><span>Producibility</span><strong>' + Number(scores.producibility || 0) + '/10</strong></div>' +
+          '<div><span>Compliance</span><strong>' + Number(scores.compliance_safety || 0) + '/10</strong></div>' +
+        '</div>' : '') +
 
         '<div class="idea-research-row">' +
           '<button class="source-link" type="button" data-sources="' + idea.id + '">' +
@@ -161,8 +177,10 @@
       const generated = Array.isArray(parsed && parsed.ideas) ? parsed.ideas : [];
       if (!generated.length) throw new Error("AI returned no ideas.");
 
-      const sourceIds = sources.map(a => a.ad_archive_id);
-      const rows = generated.slice(0, 5).map(i => ({
+      const availableSourceIds = new Set(sources.map(a => String(a.ad_archive_id)));
+      const rows = generated.slice(0, 5).map(i => {
+        const requestedSources = Array.isArray(i.source_ad_ids) ? i.source_ad_ids.map(String).filter(id => availableSourceIds.has(id)).slice(0,4) : [];
+        return ({
         user_id: session.user.id,
         product_id: p.id,
         title: i.title || "",
@@ -175,10 +193,17 @@
         cta: i.cta || "",
         why_test: i.why_test || "",
         inspiration: i.inspiration || "",
-        source_ad_ids: sourceIds,
+        source_ad_ids: requestedSources,
+        strategy: {
+          hypothesis:i.hypothesis || "",
+          scores:i.scores || {},
+          overall_score:Number(i.overall_score || 0),
+          risk:i.risk || ""
+        },
         idea_model: result.model || "",
         generated_for_date: today()
-      }));
+      });
+      });
 
       const insert = await db.from("ai_ideas").insert(rows);
       if (insert.error) throw insert.error;
@@ -211,6 +236,7 @@
           '<div class="drawer-source-top"><span class="pill">' + esc(a.advertiser_name || "Competitor") + '</span><div class="days-badge qualified"><strong>' + Number(a.days_running || 0) + '</strong><span>days</span></div></div>' +
           (a.headline ? '<h3>' + esc(a.headline) + '</h3>' : '') +
           (a.primary_text ? '<p>' + esc(a.primary_text) + '</p>' : '') +
+          (a.ai_analysis && a.ai_analysis.reusable_pattern ? '<div class="drawer-analysis"><span>AI pattern</span><p>' + esc(a.ai_analysis.reusable_pattern) + '</p></div>' : '') +
           '<div class="source-actions">' + (a.source_url ? '<a class="button secondary mini" target="_blank" rel="noopener" href="' + esc(a.source_url) + '">Open Meta</a>' : '') + '</div>' +
         '</article>').join("")
       : '<div class="empty">No source-ad rows are available for this idea.</div>';
