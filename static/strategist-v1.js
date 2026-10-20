@@ -149,6 +149,27 @@
     return result.data || [];
   }
 
+  async function ensureStarterBrand() {
+    const list = await getBrands();
+    if (list.length) return list;
+
+    await db.from("brands").insert({
+      user_id:"device-workspace",
+      name:"Avonent Health",
+      product_name:"Pure Moringa Capsules",
+      audience:"Adults who want a simpler daily wellness routine and respond to practical, specific direct-response creative rather than vague wellness branding.",
+      pain_points:"Afternoon energy slump; complicated supplement routines; skepticism about overhyped wellness products; inconsistent routines.",
+      benefits:"Simple daily routine; convenient capsules; easier consistency with a wellness habit; a product that is easy to understand and use.",
+      offer:"Current direct-response offer with a 30-day money-back guarantee. Confirm exact price and discount before launch.",
+      proof:"Use only documented product facts, ingredient information, sourcing/testing facts, product-in-hand demonstrations, genuine customer experience, and the money-back guarantee.",
+      voice:"Direct, premium, conversational, skeptical of hype, clear and specific.",
+      notes:"Avoid unsupported medical claims. Strong creative should feel native to Meta/TikTok, lead with a real problem or curiosity gap, show the product quickly, and clearly separate supportable product facts from marketing interpretation.",
+      active:true
+    });
+
+    return await getBrands();
+  }
+
   async function generateForBrand(brand, options) {
     options = options || {};
     const force = !!options.force;
@@ -244,6 +265,7 @@
 
   const ready = (async function(){
     await db.open();
+    await ensureStarterBrand();
     await ensureDaily();
     return true;
   })();
@@ -251,6 +273,7 @@
   window.AVONENT_STRATEGIST = {
     ready:ready,
     getBrands:getBrands,
+    ensureStarterBrand:ensureStarterBrand,
     buildPackage:buildPackage,
     generateForBrand:generateForBrand,
     generateNow:generateNow,
