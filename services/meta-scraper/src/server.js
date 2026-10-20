@@ -82,6 +82,28 @@ function normalizeText(text = "") {
     .trim();
 }
 
+function pickAdvertiserLogo(card, advertiser) {
+  const imgs = Array.isArray(card.image_meta) ? card.image_meta : [];
+  const name = String(advertiser || "").toLowerCase();
+  const candidates = imgs.filter(img => {
+    const w = Number(img.width || 0), h = Number(img.height || 0);
+    const src = String(img.src || "");
+    if (!/^https?:/i.test(src)) return false;
+    if (/emoji|sprite|icon\/emoji/i.test(src)) return false;
+    if (!w || !h) return false;
+    const ratio = Math.max(w,h) / Math.max(1,Math.min(w,h));
+    return ratio <= 1.25 && w <= 220 && h <= 220;
+  });
+  candidates.sort((a,b) => {
+    const aa = String(a.alt || "").toLowerCase();
+    const ba = String(b.alt || "").toLowerCase();
+    const as = name && aa.includes(name) ? 1000 : 0;
+    const bs = name && ba.includes(name) ? 1000 : 0;
+    return (bs + Math.min(Number(b.width||0),Number(b.height||0))) - (as + Math.min(Number(a.width||0),Number(a.height||0)));
+  });
+  return candidates[0]?.src || "";
+}
+
 function normalizeCard(card) {
   const text = normalizeText(card.text);
   const startMatch = text.match(/Started running on\s+([^\n]+)/i);
@@ -118,9 +140,10 @@ function normalizeCard(card) {
     }
   }) || "";
 
+  const advertiserLogoUrl = pickAdvertiserLogo(card, advertiser);
   const mediaUrl =
     card.videos.find(x => /^https?:/i.test(x)) ||
-    card.images.find(x => /^https?:/i.test(x) && !/profile|emoji|avatar/i.test(x)) ||
+    card.images.find(x => /^https?:/i.test(x) && x !== advertiserLogoUrl && !/profile|emoji|avatar/i.test(x)) ||
     card.posters.find(x => /^https?:/i.test(x)) ||
     "";
 
@@ -133,6 +156,8 @@ function normalizeCard(card) {
     description: "",
     landing_url: landingUrl,
     media_url: mediaUrl,
+    media_thumbnail_url: card.posters.find(x => /^https?:/i.test(x)) || (mediaUrl && !card.videos.some(x => /^https?:/i.test(x)) ? mediaUrl : ""),
+    advertiser_logo_url: advertiserLogoUrl,
     media_kind: card.videos.some(x => /^https?:/i.test(x)) ? "video" : mediaUrl ? "image" : "",
     started_at: start ? start.toISOString().slice(0,10) : null,
     ended_at: end ? end.toISOString().slice(0,10) : null,
@@ -173,9 +198,13 @@ async function extractVisibleCards(page, limit = 300) {
         .map(a => a.href)
         .filter(Boolean);
 
-      const images = Array.from(card.querySelectorAll("img"))
-        .map(x => x.currentSrc || x.src || "")
-        .filter(Boolean);
+      const image_meta = Array.from(card.querySelectorAll("img")).map(x => ({
+        src: x.currentSrc || x.src || "",
+        alt: x.alt || "",
+        width: x.naturalWidth || x.width || 0,
+        height: x.naturalHeight || x.height || 0
+      })).filter(x => x.src);
+      const images = image_meta.map(x => x.src);
 
       const videos = Array.from(card.querySelectorAll("video"))
         .flatMap(v => [
@@ -194,7 +223,8 @@ async function extractVisibleCards(page, limit = 300) {
         links,
         images,
         videos,
-        posters
+        posters,
+        image_meta
       });
 
       seen.add(match[1]);
@@ -224,6 +254,8 @@ function mergeAd(map, ad) {
     description: ad.description || old.description,
     landing_url: ad.landing_url || old.landing_url,
     media_url: ad.media_url || old.media_url,
+    media_thumbnail_url: ad.media_thumbnail_url || old.media_thumbnail_url,
+    advertiser_logo_url: ad.advertiser_logo_url || old.advertiser_logo_url,
     media_kind: ad.media_kind || old.media_kind,
     started_at: ad.started_at || old.started_at,
     ended_at: ad.ended_at || old.ended_at,
