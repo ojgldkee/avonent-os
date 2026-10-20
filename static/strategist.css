@@ -105,3 +105,25 @@ body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
   .competitor-optional{width:100%}
   .advertiser-candidate{align-items:flex-start}
 }
+
+
+/* Full strategist brief */
+.timed-script{display:grid;gap:10px;margin:10px 0 16px}
+.timed-beat{display:grid;grid-template-columns:82px minmax(0,1fr);gap:5px 10px;padding:12px;border:1px solid #2d3948;border-radius:12px;background:#0b1017}
+.timed-beat>strong{grid-column:1/-1;font-size:11px;color:#d9e4ef}
+.timed-beat>span{font-size:9px;font-weight:900;letter-spacing:.1em;color:#8393a5}
+.timed-beat>p{margin:0;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.strategy-list{margin:8px 0 16px;padding-left:20px;color:#b5c0cd;font-size:12px;line-height:1.55}
+.strategy-list li+li{margin-top:7px}
+.strategy-list small{color:#8492a3}
+.evidence-list{border-left:3px solid #44647e;padding-left:24px}
+.inference-list{border-left:3px solid #645a7f;padding-left:24px}
+.claim-list strong{text-transform:uppercase;font-size:9px;letter-spacing:.08em}
+.claim-warning{margin:12px 0;padding:12px;border:1px solid #65434a;border-radius:12px;background:#1a1013;color:#e4bdc6}
+.claim-warning>strong{font-size:11px}
+.claim-clear{padding:10px 12px;border:1px solid #315443;border-radius:12px;background:#0e1712;color:#9dcab0;font-size:11px}
+.idea-copy-pack h4{margin:18px 0 7px;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:#9cabbc}
+.idea-copy-pack>p{font-size:13px;line-height:1.55}
+@media(max-width:600px){
+  .timed-beat{grid-template-columns:64px minmax(0,1fr);padding:10px}
+}
