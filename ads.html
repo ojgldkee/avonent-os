@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#000000">
   <title>Research · Avonent</title>
   <link rel="stylesheet" href="static/site.css?v=1">
-  <link rel="stylesheet" href="static/ui-v3.css?v=22">
+  <link rel="stylesheet" href="static/ui-v3.css?v=26">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="static/config.js?v=2"></script>
 </head>
@@ -42,6 +42,7 @@
     </div>
     <div class="research-actions">
       <button id="scan-now" class="button" type="button">Scan competitors</button>
+      <button id="analyze-ads" class="button secondary" type="button">Analyze research</button>
       <button id="generate-ideas" class="button secondary" type="button">Generate ideas</button>
     </div>
     <p id="research-status" class="helper span-2"></p>
@@ -59,6 +60,10 @@
     <div class="research-stat">
       <span>Ads stored</span>
       <strong id="stat-ads">—</strong>
+    </div>
+    <div class="research-stat">
+      <span>Ads analyzed</span>
+      <strong id="stat-analyzed">—</strong>
     </div>
     <div class="research-stat">
       <span>Last scan</span>
@@ -131,7 +136,7 @@
 </main>
 
 <script src="static/cloud-v1.js?v=1"></script>
-<script src="static/research-v1.js?v=1"></script>
+<script src="static/research-v1.js?v=2"></script>
 <script src="static/ui-v3.js?v=10"></script>
 </body>
 </html>
