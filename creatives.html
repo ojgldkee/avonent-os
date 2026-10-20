@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="static/ui-v3.css?v=28">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="static/config.js?v=2"></script>
-  <link rel="stylesheet" href="static/strategist.css?v=7">
+  <link rel="stylesheet" href="static/strategist.css?v=9">
 <style>.ideas-main .compact-hero h1{font-size:clamp(28px,5vw,44px)}.ideas-main .compact-hero .sub{font-size:15px;line-height:1.55}.idea-copy-pack{padding:16px;border:1px solid #293342;border-radius:14px;overflow-wrap:anywhere}.idea-copy-pack summary{cursor:pointer;font-weight:700}.idea-script-block pre{white-space:pre-wrap;overflow-wrap:anywhere}.ideas-main select{font-size:16px}</style></head>
 <body data-page="ideas-cloud">
 <header class="topbar">
@@ -55,6 +55,12 @@
     <p id="ideas-status" class="helper span-2" role="status"></p><a class="text-button" href="https://supabase.com/dashboard/project/rycaylyhgjgovyxwhgjg/functions/secrets" target="_blank" rel="noopener">AI setup</a>
   </section>
 
+  <div class="ideas-workspace-tabs" role="tablist" aria-label="Creative workspace">
+    <button type="button" class="active" data-ideas-workspace="concepts" aria-selected="true">Concepts</button>
+    <button type="button" data-ideas-workspace="hooks" aria-selected="false">Hooks</button>
+    <button type="button" data-ideas-workspace="scripts" aria-selected="false">Scripts</button>
+  </div>
+
   <section class="ideas-stats">
     <div class="research-stat"><span>Ideas today</span><strong id="ideas-today-count">—</strong></div>
     <div class="research-stat"><span>Approved</span><strong id="ideas-approved-count">—</strong></div>
@@ -80,7 +86,7 @@
 
 <script src="static/cloud-v1.js?v=1"></script>
 <script src="static/research-utils.js?v=2"></script>
-<script src="static/cloud-ideas-v1.js?v=4"></script>
+<script src="static/cloud-ideas-v1.js?v=5"></script>
 <script src="static/ui-v3.js?v=11"></script>
 </body>
 </html>
