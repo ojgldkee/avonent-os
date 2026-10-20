@@ -151,3 +151,41 @@ body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
   .research-score strong,.days-badge strong{font-size:19px}
   .source-rank-line{display:grid;gap:3px}
 }
+
+
+/* Ideas workspace */
+.ideas-workspace-tabs{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;
+  margin:16px 0 18px;padding:5px;border:1px solid #2b3543;border-radius:16px;background:#111820
+}
+.ideas-workspace-tabs button{
+  appearance:none;border:0;border-radius:11px;background:transparent;color:#94a1b1;
+  padding:12px 8px;font:inherit;font-size:12px;font-weight:850;cursor:pointer
+}
+.ideas-workspace-tabs button.active{background:#eef3f8;color:#0d141d}
+.hook-library-card,.script-workspace-card{
+  padding:16px;border:1px solid #2b3543;border-radius:18px;background:#0a0f15
+}
+.hook-library-card+.hook-library-card,.script-workspace-card+.script-workspace-card{margin-top:12px}
+.hook-library-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.hook-library-head h2{margin:5px 0 0;font-size:20px;line-height:1.15;letter-spacing:-.035em}
+.hook-library-list{display:grid;gap:8px;margin-top:14px}
+.hook-library-row{
+  display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:9px;align-items:start;
+  padding:11px;border:1px solid #293543;border-radius:12px;background:#0d131b
+}
+.hook-library-row>span{font-size:10px;font-weight:900;color:#7f8c9d;letter-spacing:.08em}
+.hook-library-row p{margin:0;color:#e2e7ed;font-size:13px;line-height:1.45}
+.hook-library-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;color:#7f8c9d;font-size:10px}
+.script-opening{margin-top:14px}
+.script-opening>span{display:block;margin-bottom:7px;color:#8e9daf;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.final-script-pre{
+  margin:14px 0 0;padding:14px;border:1px solid #2b3543;border-radius:12px;background:#070b10;
+  white-space:pre-wrap;overflow-wrap:anywhere;color:#e0e6ed;font-size:12px;line-height:1.5
+}
+@media(max-width:560px){
+  .ideas-workspace-tabs{position:sticky;top:70px;z-index:12}
+  .hook-library-row{grid-template-columns:28px minmax(0,1fr)}
+  .hook-library-row .copy-inline{grid-column:2;justify-self:start}
+  .hook-library-head{display:grid}
+}
