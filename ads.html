@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#050506">
   <title>Ad Research · Avonent</title>
   <link rel="stylesheet" href="static/site.css?v=1">
-  <link rel="stylesheet" href="static/ui-v3.css?v=13">
+  <link rel="stylesheet" href="static/ui-v3.css?v=18">
 </head>
 <body data-page="ads">
 <header class="topbar">
@@ -23,253 +23,81 @@
   <div class="auth-nav">Local workspace</div>
 </header>
 
-<main class="ads-main">
+<main>
   <section class="page-title compact-hero">
-    <p class="eyebrow">COMPETITOR INTELLIGENCE</p>
-    <h1>Ad research without the endless scroll.</h1>
-    <p class="sub">Import the ad, capture the copy, attach the media, then turn the pattern into an original creative.</p>
+    <p class="eyebrow">META AD RESEARCH</p>
+    <h1>Paste one link. Get the ad breakdown.</h1>
+    <p class="sub">Pull the public ad information, save it, and turn the pattern into an original creative.</p>
   </section>
 
-  <nav class="workspace-tabs ad-workspace-tabs" aria-label="Ad research sections">
-    <button class="workspace-tab active" type="button" data-ad-tab="import">1. Import</button>
-    <button class="workspace-tab" type="button" data-ad-tab="copy">2. Copy & angle</button>
-    <button class="workspace-tab" type="button" data-ad-tab="media">3. Media & actions</button>
-    <button class="workspace-tab" type="button" data-ad-tab="saved">4. Saved ads</button>
-    <button class="workspace-tab" type="button" data-ad-tab="inspiration">5. Inspiration</button>
-  </nav>
-
-  <form id="ad-form" class="ad-workspace-form">
-    <section class="ad-tab-panel active" data-ad-panel="import">
-      <div class="panel ad-step-panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">STEP 1</p>
-            <h2>Paste the Meta Ad Library link</h2>
-            <p class="helper">Avonent captures the ad ID and source. Then move to Copy & angle to save the visible brand, description and primary text.</p>
-          </div>
-        </div>
-
-        <div class="ad-import-compact">
-          <div class="download-tool ad-url-tool">
-            <input id="meta-link-input" type="url" placeholder="https://www.facebook.com/ads/library/?id=...">
-            <button id="inspect-meta-link" class="button" type="button">Inspect ad</button>
-          </div>
-          <p id="meta-link-status" class="helper"></p>
-
-          <div id="meta-preview" class="ad-import-preview compact-preview">
-            <div class="preview-empty">
-              <span class="preview-icon">↓</span>
-              <strong>Paste an ad link</strong>
-              <p>The preview and saved research will appear here.</p>
-            </div>
-          </div>
-        </div>
-
-        <label>Meta Ad Library link
-          <input id="ad-source-url" type="url" required placeholder="https://www.facebook.com/ads/library/?id=...">
-        </label>
-
-        <label>Ad Library ID
-          <input id="ad-library-id" readonly placeholder="Extracted automatically">
-        </label>
-
-        <div class="step-nav">
-          <span></span>
-          <button class="button" type="button" data-next-ad-tab="copy">Next: copy & angle</button>
-        </div>
+  <section class="panel">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">FACEBOOK AD LIBRARY</p>
+        <h2>Paste an ad link</h2>
       </div>
-    </section>
+    </div>
+    <div class="download-tool">
+      <input id="meta-link-input" type="url" placeholder="https://www.facebook.com/ads/library/?id=...">
+      <button id="inspect-meta-link" class="button" type="button">Pull ad</button>
+    </div>
+    <p id="meta-link-status" class="helper">Brand, primary text, headline, description and media appear below when Meta exposes them.</p>
 
-    <section class="ad-tab-panel" data-ad-panel="copy">
-      <div class="panel ad-step-panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">STEP 2</p>
-            <h2>Brand, primary text and angle</h2>
-            <p class="helper">Keep the important creative information together. Copy buttons sit directly beside the text they copy.</p>
-          </div>
-          <button id="clear-ad-form" class="text-button" type="button">Clear</button>
-        </div>
-
-        <div class="ad-form compact-form">
-          <label>Tracked brand
-            <select id="ad-brand-select">
-              <option value="">No saved brand</option>
-            </select>
-          </label>
-
-          <label>Advertiser / brand name
-            <input id="ad-advertiser" placeholder="Brand name">
-          </label>
-
-          <label>Product
-            <input id="ad-product" placeholder="Product name">
-          </label>
-
-          <label>First observed
-            <input id="ad-date" type="date">
-          </label>
-
-          <label class="span-2">Primary text / main ad copy
-            <div class="inline-copy-box">
-              <div class="inline-copy-head">
-                <span>Main text</span>
-                <button class="copy-inline" data-copy-source="ad-primary-text" type="button">Copy</button>
-              </div>
-              <textarea id="ad-primary-text" class="tall" placeholder="Paste the main Meta ad text here..."></textarea>
-            </div>
-          </label>
-
-          <label>Hook
-            <div class="inline-copy-box">
-              <div class="inline-copy-head">
-                <span>Opening hook</span>
-                <button class="copy-inline" data-copy-source="ad-hook" type="button">Copy</button>
-              </div>
-              <textarea id="ad-hook" placeholder="Opening line, first visual, pattern interrupt..."></textarea>
-            </div>
-          </label>
-
-          <label>Angle
-            <textarea id="ad-angle" placeholder="Problem, mechanism, authority, identity, proof..."></textarea>
-          </label>
-
-          <label class="span-2">Description / research notes
-            <div class="inline-copy-box">
-              <div class="inline-copy-head">
-                <span>Description / notes</span>
-                <button class="copy-inline" data-copy-source="ad-description" type="button">Copy</button>
-              </div>
-              <textarea id="ad-description" placeholder="Description, CTA, landing-page notes, visual pattern, why it caught your attention..."></textarea>
-            </div>
-          </label>
-        </div>
-
-        <div class="step-nav">
-          <button class="button secondary" type="button" data-next-ad-tab="import">Back</button>
-          <button class="button" type="button" data-next-ad-tab="media">Next: media & actions</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="ad-tab-panel" data-ad-panel="media">
-      <div class="panel ad-step-panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">STEP 3</p>
-            <h2>Media and actions</h2>
-            <p class="helper">Attach the creative or paste a direct media URL. Save, download the research package, or turn the pattern into an original Avonent concept.</p>
-          </div>
-        </div>
-
-        <div class="ad-form compact-form">
-          <label>Direct media URL
-            <input id="ad-media-url" type="url" placeholder="Direct image/video URL if available">
-          </label>
-
-          <label>Attach ad image/video
-            <input id="ad-file" type="file" accept="image/*,video/*">
-          </label>
-
-          <label>Status
-            <select id="ad-status">
-              <option>Saved</option>
-              <option>Reviewing</option>
-              <option>Referenced</option>
-              <option>Archived</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="ad-action-grid">
-          <button class="button" type="submit">Save research card</button>
-          <button id="download-current-package" class="button secondary" type="button">Download all</button>
-          <button id="create-from-ad" class="button secondary" type="button">Create original concept</button>
-        </div>
-        <p id="ad-save-status" class="helper"></p>
-
-        <div class="step-nav">
-          <button class="button secondary" type="button" data-next-ad-tab="copy">Back</button>
-          <button class="button secondary" type="button" data-next-ad-tab="saved">View saved ads</button>
-        </div>
-      </div>
-    </section>
-  </form>
-
-  <section class="ad-tab-panel" data-ad-panel="inspiration">
-    <div class="panel ad-step-panel">
-      <div class="section-head">
-        <div>
-          <p class="eyebrow">COMPETITOR PATTERNS</p>
-          <h2>Use the structure, not the exact wording</h2>
-          <p class="helper">These are patterns found in current Meta Ad Library research. Treat them as inspiration, not proof the ads are profitable.</p>
-        </div>
-      </div>
-
-      <div class="inspiration-grid">
-        <article class="inspiration-card">
-          <div class="inspiration-card-head"><span class="pill">Resilia</span><span class="meta">Ingredient proof</span></div>
-          <h3>Research-backed ingredient framing</h3>
-          <p>Resilia is repeatedly using a headline around two heavily studied botanicals. The useful pattern is specificity + perceived research depth, not the exact headline.</p>
-          <div class="inspiration-example">Pattern: “Why these specific ingredients?” → proof/detail → product.</div>
-          <div class="card-actions">
-            <a class="button secondary mini" href="https://www.facebook.com/ads/library/?id=29078813375069313" target="_blank" rel="noopener">View example</a>
-            <a class="button secondary mini" href="chat.html?prompt=Build%20an%20original%20Avonent%20ad%20using%20an%20ingredient-specificity%20and%20research-backed%20pattern.%20Do%20not%20copy%20competitor%20wording.">Use pattern</a>
-          </div>
-        </article>
-
-        <article class="inspiration-card">
-          <div class="inspiration-card-head"><span class="pill">Rosabella</span><span class="meta">Testimonial</span></div>
-          <h3>Personal transformation story</h3>
-          <p>Rosabella appears in testimonial-style creative that leads with a spouse/customer story and an emotionally clear outcome. Use the story structure without copying or making unsupported claims.</p>
-          <div class="inspiration-example">Pattern: person → frustration → discovery → believable change → CTA.</div>
-          <div class="card-actions">
-            <a class="button secondary mini" href="https://www.facebook.com/ads/library/?id=28955370840765281" target="_blank" rel="noopener">View example</a>
-            <a class="button secondary mini" href="chat.html?prompt=Build%20an%20original%20Avonent%20testimonial-style%20ad%20using%20a%20frustration-to-discovery-to-outcome%20story.%20Keep%20claims%20supportable.">Use pattern</a>
-          </div>
-        </article>
-
-        <article class="inspiration-card">
-          <div class="inspiration-card-head"><span class="pill">Metabolae</span><span class="meta">Specificity</span></div>
-          <h3>Precise ingredient + delivery detail</h3>
-          <p>Metabolae is using very specific ingredient-equivalent and delivery-language headlines. The transferable lesson is concrete product detail instead of vague benefit language.</p>
-          <div class="inspiration-example">Pattern: exact product detail → why it matters → simple proof → offer.</div>
-          <div class="card-actions">
-            <a class="button secondary mini" href="https://www.facebook.com/ads/library/?id=1644145337372898" target="_blank" rel="noopener">View example</a>
-            <a class="button secondary mini" href="chat.html?prompt=Build%20an%20original%20Avonent%20ad%20using%20a%20precise-product-detail%20pattern.%20Lead%20with%20a%20specific%20supportable%20ingredient%20or%20product%20fact.">Use pattern</a>
-          </div>
-        </article>
-
-        <article class="inspiration-card">
-          <div class="inspiration-card-head"><span class="pill">Resia</span><span class="meta">Product detail</span></div>
-          <h3>Product fact as the headline</h3>
-          <p>Resia is also running direct product-detail creative. The lesson is that a concrete formulation/delivery fact can be the hook when the audience already understands the category.</p>
-          <div class="inspiration-example">Pattern: concrete fact → mechanism/context → proof → risk reversal.</div>
-          <div class="card-actions">
-            <a class="button secondary mini" href="https://www.facebook.com/ads/library/?id=2030369877676530" target="_blank" rel="noopener">View example</a>
-            <a class="button secondary mini" href="chat.html?prompt=Build%20an%20original%20Avonent%20ad%20where%20a%20concrete%20product%20fact%20is%20the%20hook.%20Do%20not%20invent%20claims%20or%20copy%20Resia.">Use pattern</a>
-          </div>
-        </article>
+    <div id="meta-preview" class="ad-import-preview compact-preview">
+      <div class="preview-empty">
+        <span class="preview-icon">↓</span>
+        <strong>Your pulled ad will appear here</strong>
+        <p>Paste a Meta Ad Library URL above.</p>
       </div>
     </div>
   </section>
 
-  <section class="ad-tab-panel" data-ad-panel="saved">
-    <div class="panel ad-step-panel">
-      <div class="section-head">
-        <div><p class="eyebrow">STEP 4</p><h2>Saved competitor ads</h2></div>
-        <input id="ad-search" class="compact-search" type="search" placeholder="Search brand, hook, copy...">
-      </div>
-      <div id="ad-grid" class="ad-grid compact-ad-grid">
-        <div class="empty wide">No saved competitor ads yet.</div>
-      </div>
+  <form id="ad-form" class="hidden" aria-hidden="true">
+    <input id="ad-source-url" type="url">
+    <input id="ad-library-id">
+    <select id="ad-brand-select"><option value="">No saved brand</option></select>
+    <input id="ad-advertiser">
+    <input id="ad-product">
+    <textarea id="ad-primary-text"></textarea>
+    <textarea id="ad-hook"></textarea>
+    <textarea id="ad-angle"></textarea>
+    <textarea id="ad-description"></textarea>
+    <input id="ad-media-url" type="url">
+    <input id="ad-file" type="file" accept="image/*,video/*">
+    <input id="ad-date" type="date">
+    <select id="ad-status"><option>Saved</option><option>Reviewing</option><option>Referenced</option><option>Archived</option></select>
+    <button type="submit">Save research card</button>
+    <button id="download-current-package" type="button">Download all</button>
+    <button id="create-from-ad" type="button">Create original concept</button>
+    <button id="clear-ad-form" type="button">Clear</button>
+  </form>
+  <p id="ad-save-status" class="helper"></p>
+
+  <section class="panel">
+    <div class="section-head">
+      <div><p class="eyebrow">SAVED RESEARCH</p><h2>Competitor ads</h2></div>
+      <input id="ad-search" class="compact-search" type="search" placeholder="Search brand, hook, copy...">
+    </div>
+    <div id="ad-grid" class="ad-grid compact-ad-grid"><div class="empty wide">No saved competitor ads yet.</div></div>
+  </section>
+
+  <section class="panel">
+    <div class="section-head">
+      <div><p class="eyebrow">INSPIRATION</p><h2>Patterns worth studying</h2><p class="helper">Use the structure, not exact wording or unsupported claims.</p></div>
+    </div>
+    <div class="inspiration-grid">
+      <article class="inspiration-card"><span class="pill">Resilia</span><h3>Ingredient specificity</h3><p>Concrete botanicals + research framing instead of vague wellness copy.</p><a class="button secondary mini" href="https://www.facebook.com/ads/library/?id=29078813375069313" target="_blank" rel="noopener">View example</a></article>
+      <article class="inspiration-card"><span class="pill">Rosabella</span><h3>Personal story</h3><p>Frustration → discovery → believable outcome → CTA.</p><a class="button secondary mini" href="https://www.facebook.com/ads/library/?id=28955370840765281" target="_blank" rel="noopener">View example</a></article>
+      <article class="inspiration-card"><span class="pill">Metabolae</span><h3>Product fact first</h3><p>Specific ingredient/formulation details instead of generic benefits.</p><a class="button secondary mini" href="https://www.facebook.com/ads/library/?id=1644145337372898" target="_blank" rel="noopener">View example</a></article>
+      <article class="inspiration-card"><span class="pill">Resia</span><h3>Detail → mechanism → proof</h3><p>Make a concrete product fact the centerpiece of the creative.</p><a class="button secondary mini" href="https://www.facebook.com/ads/library/?id=2030369877676530" target="_blank" rel="noopener">View example</a></article>
     </div>
   </section>
 </main>
 
+<script>window.AVONENT_CONFIG={supabaseUrl:"https://rycaylyhgjgovyxwhgjg.supabase.co"};</script>
 <script src="static/local-workspace.js?v=2"></script>
 <script src="static/strategist-v1.js?v=4"></script>
-<script src="static/ads-v4.js?v=4"></script>
+<script src="static/ads-v4.js?v=7"></script>
 <script src="static/ui-v3.js?v=8"></script>
 </body>
 </html>
