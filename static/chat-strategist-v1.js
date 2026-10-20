@@ -163,4 +163,14 @@
   }
 
   window.AVONENT_CHAT_STRATEGIST={respond,getBrand,recentResearch};
+
+  document.addEventListener("DOMContentLoaded",async()=>{
+    const select=document.getElementById("chat-brand-select");
+    if(!select) return;
+    const r=await db.from("brands").select("*").order("updated_at",{ascending:false});
+    const list=r.data||[];
+    select.innerHTML=list.length
+      ? list.map((b,i)=>'<option value="'+b.id+'"'+(i===0?' selected':'')+'>'+String(b.name||"Brand").replace(/[&<>"]/g,"")+' — '+String(b.product_name||"").replace(/[&<>"]/g,"")+'</option>').join("")
+      : '<option value="">No brand yet — add one in Brands</option>';
+  });
 })();
