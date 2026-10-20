@@ -199,21 +199,69 @@
 
   async function ensureStarterBrand() {
     const list = await getBrands();
-    if (list.length) return list;
+    const existingNames = new Set(list.map(function(x){
+      return String(x.product_name || "").trim().toLowerCase();
+    }));
 
-    await db.from("brands").insert({
-      user_id:"device-workspace",
-      name:"Avonent Health",
-      product_name:"Pure Moringa Capsules",
-      audience:"Adults who want a simpler daily wellness routine and respond to practical, specific direct-response creative rather than vague wellness branding.",
-      pain_points:"Afternoon energy slump; complicated supplement routines; skepticism about overhyped wellness products; inconsistent routines.",
-      benefits:"Simple daily routine; convenient capsules; easier consistency with a wellness habit; a product that is easy to understand and use.",
-      offer:"Current direct-response offer with a 30-day money-back guarantee. Confirm exact price and discount before launch.",
-      proof:"Use only documented product facts, ingredient information, sourcing/testing facts, product-in-hand demonstrations, genuine customer experience, and the money-back guarantee.",
-      voice:"Direct, premium, conversational, skeptical of hype, clear and specific.",
-      notes:"Avoid unsupported medical claims. Strong creative should feel native to Meta/TikTok, lead with a real problem or curiosity gap, show the product quickly, and clearly separate supportable product facts from marketing interpretation.",
-      active:true
-    });
+    const starters = [
+      {
+        name:"Avonent Health",
+        product_name:"Pure Moringa Capsules",
+        category:"Supplements",
+        competitors:"Resilia, Rosabella, Metabolae, Resia",
+        audience:"Adults looking for a simple daily supplement routine who respond to concrete product facts and direct-response creative rather than vague wellness branding.",
+        pain_points:"Complicated supplement routines; skepticism about overhyped products; difficulty knowing what differentiates one supplement from another; inconsistent daily routines.",
+        benefits:"Simple daily capsule routine; easy-to-understand product; convenient format; a straightforward way to add moringa to a daily routine.",
+        offer:"Current Avonent offer and 30-day money-back guarantee. Confirm exact pricing and discount before launch.",
+        proof:"Use only documented label facts, ingredient information, sourcing/testing facts, product-in-hand demonstrations, genuine customer experience, and the money-back guarantee.",
+        product_facts:"Pure Moringa Capsules. Add exact label facts, serving details, sourcing, testing, capsule count, and documented differentiators from the actual product label before AI generation.",
+        claim_limits:"Do not invent medical benefits, disease claims, clinical evidence, testing, ingredient amounts, testimonials, or guaranteed outcomes.",
+        voice:"Direct, premium, specific, conversational, skeptical of hype.",
+        notes:"Use competitor patterns for structure only. Prefer ingredient specificity, buyer checklists, product demonstrations, and clear product facts over generic wellness language.",
+        active:true
+      },
+      {
+        name:"Avonent Health",
+        product_name:"Oregano Oil",
+        category:"Supplements",
+        competitors:"",
+        audience:"Adults already interested in natural supplement products who compare ingredients, potency, format, sourcing, and ease of use before buying.",
+        pain_points:"Confusing oregano oil products; uncertainty about potency and formulation; harsh taste or inconvenient formats; skepticism about exaggerated health claims.",
+        benefits:"Simple, convenient oregano oil product format; clear product facts; easy comparison with alternatives when the actual formulation is documented.",
+        offer:"Set the actual Avonent offer, price, guarantee, shipping, and subscription details before launch.",
+        proof:"Use only the real label, ingredient source, formulation, potency details, testing, manufacturing facts, customer reviews, and guarantee that Avonent can document.",
+        product_facts:"Placeholder product record. Add the exact oregano species, oil/carrier ingredients, potency or carvacrol information if present on the real label, serving size, capsule/drop format, sourcing, testing, and count.",
+        claim_limits:"Do not claim oregano oil treats infections, kills pathogens in the body, cures illness, replaces medical care, or produces guaranteed outcomes. Do not invent potency or carvacrol percentages.",
+        voice:"Direct, specific, product-detail-first, skeptical of hype.",
+        notes:"Strong creative should compare real formulation details and buying criteria rather than making broad medical promises.",
+        active:true
+      },
+      {
+        name:"Avonent Health",
+        product_name:"Beetroot",
+        category:"Supplements",
+        competitors:"",
+        audience:"Adults comparing beetroot supplements who care about format, convenience, serving information, ingredient quality, and clearly documented product facts.",
+        pain_points:"Confusing beetroot formulas; uncertainty about ingredient amounts and serving sizes; inconvenient powders or routines; exaggerated performance claims.",
+        benefits:"Convenient beetroot supplement format; simple daily use; clear ingredient and serving information when documented on the actual label.",
+        offer:"Set the actual Avonent offer, price, guarantee, shipping, and subscription details before launch.",
+        proof:"Use only documented label facts, ingredient amounts, sourcing/testing information, product demonstrations, genuine reviews, and guarantee details.",
+        product_facts:"Placeholder product record. Add the exact beetroot ingredient form, serving size, capsule/powder format, nitrate information only if documented, sourcing, testing, count, and other real label facts.",
+        claim_limits:"Do not promise blood-pressure changes, athletic-performance outcomes, circulation treatment, disease prevention, or any other medical result unless specifically substantiated and legally permissible. Do not invent nitrate content.",
+        voice:"Direct, practical, specific, product-detail-first.",
+        notes:"Use real formulation and convenience facts. Strong ideas can focus on product comparisons, routine convenience, buyer questions, and demonstrations.",
+        active:true
+      }
+    ];
+
+    for (const product of starters) {
+      const key = product.product_name.toLowerCase();
+      if (existingNames.has(key)) continue;
+      await db.from("brands").insert(Object.assign({
+        user_id:"device-workspace"
+      }, product));
+      existingNames.add(key);
+    }
 
     return await getBrands();
   }
