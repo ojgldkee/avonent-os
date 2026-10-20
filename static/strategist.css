@@ -18,3 +18,48 @@ body[data-page="products-cloud"] .product-editor-panel .strategy-advanced-fields
 @media(max-width:720px){.strategy-tabs{margin:13px 0 20px}.strategy-tabs a{font-size:12px;padding:12px 7px}.research-main,.products-main{padding-top:20px!important}.panel{padding:20px!important}.page-title{padding-top:10px!important}.research-stats{gap:10px!important}.research-stat{padding:18px!important}.research-stat strong{font-size:30px!important}.strategy-lead{align-items:flex-start}}
 
 html,body{max-width:100%;overflow-x:clip}body[data-page=research] *,body[data-page=research] *::before,body[data-page=research] *::after{box-sizing:border-box}body[data-page=research] .research-main,body[data-page=research] .research-grid,body[data-page=research] .watchlist-panel,body[data-page=research] .watch-item,body[data-page=research] .watch-item-main,body[data-page=research] .watch-item-main>div{min-width:0;max-width:100%}body[data-page=research] .watch-item{overflow:hidden}body[data-page=research] .watch-item strong{overflow-wrap:anywhere;word-break:break-word}body[data-page=research] .watch-item-main{flex-wrap:wrap}@media(max-width:720px){body[data-page=research] .research-main{width:100%;padding-left:14px!important;padding-right:14px!important}}
+
+/* Brand research cards */
+body[data-page="research"]{overflow-x:hidden}
+body[data-page="research"] .research-main{width:min(100%,1180px);max-width:1180px;margin:0 auto}
+body[data-page="research"] .watchlist-panel,
+body[data-page="research"] .long-running-panel,
+body[data-page="research"] .research-controlbar,
+body[data-page="research"] .research-stats,
+body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
+.brand-watch-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.brand-card{padding:16px!important}
+.brand-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.brand-card-name{min-width:0}
+.brand-card-name h3{margin:6px 0 0;font-size:22px;line-height:1.1;letter-spacing:-.035em;overflow-wrap:anywhere}
+.brand-card-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:14px}
+.brand-card-stats>div{padding:10px;border:1px solid #2f3947;border-radius:12px;background:#0c1118;min-width:0}
+.brand-card-stats span{display:block;color:#8f9aaa;font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+.brand-card-stats strong{display:block;margin-top:7px;font-size:20px;line-height:1.05}
+.brand-card-stats .small-value{font-size:12px;line-height:1.25}
+.brand-card-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.brand-card-settings{margin-top:10px;border-top:1px solid #293342;padding-top:9px}
+.brand-card-settings summary{cursor:pointer;color:#98a5b5;font-size:11px;font-weight:750}
+.brand-card-settings label{margin-top:10px}
+.research-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.research-filters select{width:auto;min-width:150px}
+.ad-media-empty{display:grid;place-items:center;min-height:160px;margin-top:12px;border:1px dashed #303b49;border-radius:12px;background:#0a0f15;text-align:center;padding:20px}
+.ad-media-empty span{font-size:11px;font-weight:800;color:#c5ced8}
+.ad-media-empty p{margin:6px 0 0;color:#7f8a98;font-size:11px}
+.ad-headline-block{margin-top:12px;padding:12px;border:1px solid #2d3744;border-radius:12px;background:#0b1017}
+.ad-headline-block span{display:block;color:#8794a4;font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.ad-headline-block strong{display:block;margin-top:6px;font-size:15px;line-height:1.35}
+.muted-copy p{color:#7e8895!important}
+@media(max-width:760px){
+  .brand-watch-grid{grid-template-columns:1fr}
+  .brand-card-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .brand-card-actions{display:grid;grid-template-columns:1fr 1fr}
+  .brand-card-actions .danger{grid-column:1/-1;justify-self:start}
+  .research-filters{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .research-filters select{width:100%;min-width:0}
+  .research-filters .button{grid-column:1/-1;width:100%}
+}
+@media(max-width:430px){
+  .brand-card-stats{grid-template-columns:1fr 1fr}
+  .brand-card-stats>div:last-child{grid-column:1/-1}
+}
