@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#050506">
   <title>Ad Research · Avonent</title>
   <link rel="stylesheet" href="static/site.css?v=1">
-  <link rel="stylesheet" href="static/ui-v3.css?v=10">
+  <link rel="stylesheet" href="static/ui-v3.css?v=11">
 </head>
 <body data-page="ads">
 <header class="topbar">
@@ -23,134 +23,194 @@
   <div class="auth-nav">Local workspace</div>
 </header>
 
-<main>
+<main class="ads-main">
   <section class="page-title compact-hero">
     <p class="eyebrow">COMPETITOR INTELLIGENCE</p>
-    <h1>Turn ads into creative intelligence.</h1>
-    <p class="sub">Paste a Meta Ad Library link, capture the brand and copy, attach the creative, download the research package, and turn patterns into original ideas.</p>
+    <h1>Ad research without the endless scroll.</h1>
+    <p class="sub">Import the ad, capture the copy, attach the media, then turn the pattern into an original creative.</p>
   </section>
 
-  <section class="ad-import-shell">
-    <div class="ad-import-input">
-      <div>
-        <p class="eyebrow">META AD IMPORT</p>
-        <h2>Paste a Facebook Ad Library link</h2>
-        <p class="helper">Avonent extracts the Ad Library ID and organizes the research. Meta does not expose a raw downloadable media URL for every ad page, so attach the creative or paste a direct media URL when one is available.</p>
-      </div>
-      <div class="download-tool ad-url-tool">
-        <input id="meta-link-input" type="url" placeholder="https://www.facebook.com/ads/library/?id=...">
-        <button id="inspect-meta-link" class="button" type="button">Inspect ad</button>
-      </div>
-      <p id="meta-link-status" class="helper"></p>
-    </div>
+  <nav class="workspace-tabs ad-workspace-tabs" aria-label="Ad research sections">
+    <button class="workspace-tab active" type="button" data-ad-tab="import">1. Import</button>
+    <button class="workspace-tab" type="button" data-ad-tab="copy">2. Copy & angle</button>
+    <button class="workspace-tab" type="button" data-ad-tab="media">3. Media & actions</button>
+    <button class="workspace-tab" type="button" data-ad-tab="saved">4. Saved ads</button>
+  </nav>
 
-    <div id="meta-preview" class="ad-import-preview">
-      <div class="preview-empty">
-        <span class="preview-icon">↓</span>
-        <strong>Your ad research will appear here</strong>
-        <p>Paste a Meta Ad Library link to start.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="ad-form-panel" class="panel">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow">AD DETAILS</p>
-        <h2>Research card</h2>
-      </div>
-      <button id="clear-ad-form" class="text-button" type="button">Clear</button>
-    </div>
-
-    <form id="ad-form" class="ad-form">
-      <label class="span-2">Meta Ad Library link
-        <input id="ad-source-url" type="url" required placeholder="https://www.facebook.com/ads/library/?id=...">
-      </label>
-
-      <label>Ad Library ID
-        <input id="ad-library-id" readonly placeholder="Extracted automatically">
-      </label>
-
-      <label>Tracked brand
-        <select id="ad-brand-select">
-          <option value="">No saved brand</option>
-        </select>
-      </label>
-
-      <label>Advertiser / brand name
-        <input id="ad-advertiser" placeholder="Brand name">
-      </label>
-
-      <label>Product
-        <input id="ad-product" placeholder="Product name">
-      </label>
-
-      <label class="span-2">Primary text / main ad copy
-        <div class="copy-field">
-          <textarea id="ad-primary-text" class="tall" placeholder="Paste the main Meta ad text here..."></textarea>
-          <button class="copy-field-button" data-copy-source="ad-primary-text" type="button">Copy</button>
+  <form id="ad-form" class="ad-workspace-form">
+    <section class="ad-tab-panel active" data-ad-panel="import">
+      <div class="panel ad-step-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">STEP 1</p>
+            <h2>Paste the Meta Ad Library link</h2>
+            <p class="helper">Avonent captures the ad ID and source. Then move to Copy & angle to save the visible brand, description and primary text.</p>
+          </div>
         </div>
-      </label>
 
-      <label>Hook
-        <div class="copy-field">
-          <textarea id="ad-hook" placeholder="Opening line, first visual, pattern interrupt..."></textarea>
-          <button class="copy-field-button" data-copy-source="ad-hook" type="button">Copy</button>
+        <div class="ad-import-compact">
+          <div class="download-tool ad-url-tool">
+            <input id="meta-link-input" type="url" placeholder="https://www.facebook.com/ads/library/?id=...">
+            <button id="inspect-meta-link" class="button" type="button">Inspect ad</button>
+          </div>
+          <p id="meta-link-status" class="helper"></p>
+
+          <div id="meta-preview" class="ad-import-preview compact-preview">
+            <div class="preview-empty">
+              <span class="preview-icon">↓</span>
+              <strong>Paste an ad link</strong>
+              <p>The preview and saved research will appear here.</p>
+            </div>
+          </div>
         </div>
-      </label>
 
-      <label>Angle
-        <textarea id="ad-angle" placeholder="Problem, desire, mechanism, proof, identity..."></textarea>
-      </label>
+        <label>Meta Ad Library link
+          <input id="ad-source-url" type="url" required placeholder="https://www.facebook.com/ads/library/?id=...">
+        </label>
 
-      <label class="span-2">Description / research notes
-        <textarea id="ad-description" placeholder="Description, CTA, landing-page notes, why the ad caught your attention..."></textarea>
-      </label>
+        <label>Ad Library ID
+          <input id="ad-library-id" readonly placeholder="Extracted automatically">
+        </label>
 
-      <label>Direct media URL (optional)
-        <input id="ad-media-url" type="url" placeholder="Direct image/video URL if available">
-      </label>
-
-      <label>Attach ad image/video
-        <input id="ad-file" type="file" accept="image/*,video/*">
-      </label>
-
-      <label>First observed
-        <input id="ad-date" type="date">
-      </label>
-
-      <label>Status
-        <select id="ad-status">
-          <option>Saved</option>
-          <option>Reviewing</option>
-          <option>Referenced</option>
-          <option>Archived</option>
-        </select>
-      </label>
-
-      <div class="ad-form-actions span-2">
-        <button class="button" type="submit">Save research card</button>
-        <button id="download-current-package" class="button secondary" type="button">Download all</button>
-        <button id="create-from-ad" class="button secondary" type="button">Create original concept</button>
+        <div class="step-nav">
+          <span></span>
+          <button class="button" type="button" data-next-ad-tab="copy">Next: copy & angle</button>
+        </div>
       </div>
-    </form>
-    <p id="ad-save-status" class="helper"></p>
-  </section>
+    </section>
 
-  <section class="panel">
-    <div class="section-head">
-      <div><p class="eyebrow">SAVED RESEARCH</p><h2>Competitor ad library</h2></div>
-      <input id="ad-search" class="compact-search" type="search" placeholder="Search brand, hook, copy...">
-    </div>
-    <div id="ad-grid" class="ad-grid">
-      <div class="empty wide">No saved competitor ads yet.</div>
+    <section class="ad-tab-panel" data-ad-panel="copy">
+      <div class="panel ad-step-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">STEP 2</p>
+            <h2>Brand, primary text and angle</h2>
+            <p class="helper">Keep the important creative information together. Copy buttons sit directly beside the text they copy.</p>
+          </div>
+          <button id="clear-ad-form" class="text-button" type="button">Clear</button>
+        </div>
+
+        <div class="ad-form compact-form">
+          <label>Tracked brand
+            <select id="ad-brand-select">
+              <option value="">No saved brand</option>
+            </select>
+          </label>
+
+          <label>Advertiser / brand name
+            <input id="ad-advertiser" placeholder="Brand name">
+          </label>
+
+          <label>Product
+            <input id="ad-product" placeholder="Product name">
+          </label>
+
+          <label>First observed
+            <input id="ad-date" type="date">
+          </label>
+
+          <label class="span-2">Primary text / main ad copy
+            <div class="inline-copy-box">
+              <div class="inline-copy-head">
+                <span>Main text</span>
+                <button class="copy-inline" data-copy-source="ad-primary-text" type="button">Copy</button>
+              </div>
+              <textarea id="ad-primary-text" class="tall" placeholder="Paste the main Meta ad text here..."></textarea>
+            </div>
+          </label>
+
+          <label>Hook
+            <div class="inline-copy-box">
+              <div class="inline-copy-head">
+                <span>Opening hook</span>
+                <button class="copy-inline" data-copy-source="ad-hook" type="button">Copy</button>
+              </div>
+              <textarea id="ad-hook" placeholder="Opening line, first visual, pattern interrupt..."></textarea>
+            </div>
+          </label>
+
+          <label>Angle
+            <textarea id="ad-angle" placeholder="Problem, mechanism, authority, identity, proof..."></textarea>
+          </label>
+
+          <label class="span-2">Description / research notes
+            <div class="inline-copy-box">
+              <div class="inline-copy-head">
+                <span>Description / notes</span>
+                <button class="copy-inline" data-copy-source="ad-description" type="button">Copy</button>
+              </div>
+              <textarea id="ad-description" placeholder="Description, CTA, landing-page notes, visual pattern, why it caught your attention..."></textarea>
+            </div>
+          </label>
+        </div>
+
+        <div class="step-nav">
+          <button class="button secondary" type="button" data-next-ad-tab="import">Back</button>
+          <button class="button" type="button" data-next-ad-tab="media">Next: media & actions</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="ad-tab-panel" data-ad-panel="media">
+      <div class="panel ad-step-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">STEP 3</p>
+            <h2>Media and actions</h2>
+            <p class="helper">Attach the creative or paste a direct media URL. Save, download the research package, or turn the pattern into an original Avonent concept.</p>
+          </div>
+        </div>
+
+        <div class="ad-form compact-form">
+          <label>Direct media URL
+            <input id="ad-media-url" type="url" placeholder="Direct image/video URL if available">
+          </label>
+
+          <label>Attach ad image/video
+            <input id="ad-file" type="file" accept="image/*,video/*">
+          </label>
+
+          <label>Status
+            <select id="ad-status">
+              <option>Saved</option>
+              <option>Reviewing</option>
+              <option>Referenced</option>
+              <option>Archived</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="ad-action-grid">
+          <button class="button" type="submit">Save research card</button>
+          <button id="download-current-package" class="button secondary" type="button">Download all</button>
+          <button id="create-from-ad" class="button secondary" type="button">Create original concept</button>
+        </div>
+        <p id="ad-save-status" class="helper"></p>
+
+        <div class="step-nav">
+          <button class="button secondary" type="button" data-next-ad-tab="copy">Back</button>
+          <button class="button secondary" type="button" data-next-ad-tab="saved">View saved ads</button>
+        </div>
+      </div>
+    </section>
+  </form>
+
+  <section class="ad-tab-panel" data-ad-panel="saved">
+    <div class="panel ad-step-panel">
+      <div class="section-head">
+        <div><p class="eyebrow">STEP 4</p><h2>Saved competitor ads</h2></div>
+        <input id="ad-search" class="compact-search" type="search" placeholder="Search brand, hook, copy...">
+      </div>
+      <div id="ad-grid" class="ad-grid compact-ad-grid">
+        <div class="empty wide">No saved competitor ads yet.</div>
+      </div>
     </div>
   </section>
 </main>
 
 <script src="static/local-workspace.js?v=2"></script>
-<script src="static/strategist-v1.js?v=2"></script>
-<script src="static/ads-v4.js?v=2"></script>
+<script src="static/strategist-v1.js?v=3"></script>
+<script src="static/ads-v4.js?v=3"></script>
 <script src="static/ui-v3.js?v=7"></script>
 </body>
 </html>
