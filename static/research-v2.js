@@ -11,6 +11,7 @@
   let products = [];
   let watchlist = [];
   let ads = [];
+  let expandedAdId = null;
 
   function niceDate(value) {
     if (!value) return "Never";
@@ -172,7 +173,8 @@
 
     let rows = ads.filter(a => a.is_active);
     if (brand !== "all") rows = rows.filter(a => a.competitor_id === brand);
-    if (mode === "long") rows = rows.filter(a => a.qualifies_long_running);
+    if (mode === "long") rows = rows.filter(a => a.started_at && Number(a.days_running || 0) >= 30);
+    if (/^days-\d+$/.test(mode)) rows = rows.filter(a => a.started_at && Number(a.days_running || 0) >= Number(mode.slice(5)));
 
     if (!rows.length) {
       box.innerHTML = '<div class="empty wide">' +
@@ -182,16 +184,17 @@
     }
 
     box.innerHTML = rows.map(a => {
+      const expanded = expandedAdId === a.id;
       const media = a.media_url
         ? '<div class="source-ad-media">' +
             (a.media_kind === "video"
-              ? '<video controls playsinline preload="metadata" src="' + esc(a.media_url) + '"></video>'
+              ? '<video controls playsinline preload="none" ' + (a.media_thumbnail_url ? 'poster="' + esc(a.media_thumbnail_url) + '" ' : '') + 'src="' + esc(a.media_url) + '"></video>'
               : '<img loading="lazy" src="' + esc(a.media_url) + '" alt="">') +
           '</div>'
         : '<div class="ad-media-empty"><span>Creative preview</span><p>Media was not captured by this source yet.</p></div>';
 
       const primary = a.primary_text
-        ? '<div class="source-copy"><div class="source-copy-head"><span>Primary text</span><button class="copy-inline" type="button" data-copy-text="' + esc(a.id) + '">Copy</button></div><p>' + esc(a.primary_text) + '</p></div>'
+        ? '<div class="source-copy"><div class="source-copy-head"><span>Primary text</span><button class="copy-inline" type="button" data-copy-text="' + esc(a.id) + '">Copy</button></div><p style="white-space:pre-wrap;overflow-wrap:anywhere">' + esc(expanded || a.primary_text.length <= 180 ? a.primary_text : a.primary_text.slice(0,180).trimEnd() + "…") + '</p>' + (a.primary_text.length > 180 ? '<button type="button" class="copy-inline" data-expand-ad="' + esc(a.id) + '">' + (expanded ? 'Show less' : 'Show more') + '</button>' : '') + '</div>'
         : '<div class="source-copy muted-copy"><div class="source-copy-head"><span>Primary text</span></div><p>Not captured yet.</p></div>';
 
       const headline = a.headline
@@ -204,7 +207,7 @@
 
       return '<article class="source-ad-card">' +
         '<div class="source-ad-top"><div><span class="pill">' + esc(a.advertiser_name || "Tracked brand") + '</span><h3>Ad ' + esc(a.ad_archive_id || "") + '</h3></div>' +
-        '<div class="days-badge ' + (a.qualifies_long_running ? 'qualified' : '') + '"><strong>' + Number(a.days_running || 0) + '</strong><span>days</span></div></div>' +
+        '<div class="days-badge ' + (a.qualifies_long_running ? 'qualified' : '') + '"><strong>' + (a.started_at ? Number(a.days_running || 0) : '—') + '</strong><span>' + (a.started_at ? 'days' : 'unknown') + '</span></div></div>' +
         media + headline + primary +
         '<div class="source-meta"><span>' + (a.started_at ? 'Started ' + esc(a.started_at) : 'Start date unavailable') + '</span>' +
           (a.qualifies_long_running ? '<span class="qualified-label">Long-running</span>' : '') +
@@ -410,6 +413,7 @@
       $("scan-now").onclick = () => runResearch();
       $("analyze-ads").onclick = analyzeResearch;
       $("generate-ideas").onclick = generateIdeas;
+      $("ad-filter").innerHTML = '<option value="all">All active ads</option><option value="days-7">7+ days</option><option value="days-14">14+ days</option><option value="days-30">30+ days</option><option value="days-60">60+ days</option><option value="days-90">90+ days</option>';
       $("ad-filter").onchange = renderAds;
       if ($("brand-filter")) $("brand-filter").onchange = renderAds;
 
@@ -461,6 +465,8 @@
       };
 
       $("research-ads").onclick = async event => {
+        const expand = event.target.closest("[data-expand-ad]");
+        if (expand) { const next = expand.getAttribute("data-expand-ad"); expandedAdId = expandedAdId === next ? null : next; renderAds(); return; }
         const id = event.target.getAttribute("data-copy-text");
         if (!id) return;
         const ad = ads.find(a => a.id === id);
