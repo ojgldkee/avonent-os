@@ -68,6 +68,10 @@
     const index = ranked.findIndex(x => x.id === String(ad.id));
     return {rank:index >= 0 ? index + 1 : null,total:ranked.length};
   }
+  function creativeUsageCount(ad, brandAds) {
+    const fingerprint = creativeFingerprint(ad);
+    return brandAds.filter(x => x.is_active && creativeFingerprint(x) === fingerprint).length;
+  }
   function copyExcerpt(text) {
     return text.length > 200 ? text.slice(0,200).trimEnd() + "…" : text;
   }
@@ -323,6 +327,8 @@
       const brandAds = ads.filter(x => x.competitor_id === a.competitor_id);
       const researchScore = adResearchScore(a, brandAds);
       const researchRank = adRank(a, brandAds);
+      const creativeUses = creativeUsageCount(a, brandAds);
+      const aiScore = Number(a.ai_analysis?.research_score || 0);
       const avatar = brandAvatar({competitor_name:a.advertiser_name, logo_url:safeUrl(a.advertiser_logo_url || brandRow.logo_url), website_url:brandRow.website_url});
       const mediaUrl = safeUrl(a.media_url), poster = safeUrl(a.media_thumbnail_url);
       let mediaHtml = '<div class="ad-media-empty"><span>Creative preview</span><p>Media was not captured by this source yet.</p></div>';
@@ -352,7 +358,7 @@
         '<div class="source-ad-top">' + avatar + '<div><span class="pill">' + esc(a.advertiser_name || "Tracked brand") + '</span><h3>Ad ' + esc(a.ad_archive_id || "") + '</h3></div>' +
         '<div class="source-score-stack"><div class="research-score" title="Research signal only — not profitability"><strong>' + researchScore + '</strong><span>score</span></div>' +
         '<div class="days-badge ' + (qualifies(a) ? 'qualified' : '') + '"><strong>' + (ageDays === null ? '—' : ageDays) + '</strong><span>' + (ageDays === null ? 'unknown' : 'days') + '</span></div></div></div>' +
-        '<div class="source-rank-line"><span>Sample rank #' + (researchRank.rank || '—') + ' of ' + researchRank.total + '</span><span>Research score · not profitability</span></div>' +
+        '<div class="source-rank-line"><span>Sample rank #' + (researchRank.rank || '—') + ' of ' + researchRank.total + (creativeUses > 1 ? ' · creative repeated ' + creativeUses + '×' : '') + '</span><span>' + (aiScore ? 'AI copy score ' + aiScore + '/100 · ' : '') + 'Research score · not profitability</span></div>' +
         mediaHtml + (adKind === "video" && !poster ? '<p class="helper">Preview unavailable · press play to view video.</p>' : '') + headline + primary + '<p class="helper">Impressions: ' + esc(impressionLabel(a)) + '</p>' +
         '<div class="source-meta"><span>' + (a.started_at ? 'Started ' + esc(new Date(a.started_at + 'T00:00:00Z').toLocaleDateString(undefined, {month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})) : 'Start date unavailable') + '</span>' +
           '<span>' + esc(adKind === "unknown" ? "Unknown media" : adKind === "video" ? "Video" : "Image") + '</span>' +
