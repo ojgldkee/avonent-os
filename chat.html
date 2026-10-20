@@ -2,108 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="robots" content="noindex,nofollow">
-  <meta name="theme-color" content="#000000">
-  <title>Creative Chat · Avonent</title>
-  <link rel="stylesheet" href="static/site.css?v=1">
-  <link rel="stylesheet" href="static/ui-v3.css?v=13">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="refresh" content="0;url=creatives.html">
+  <link rel="canonical" href="creatives.html">
+  <title>Ideas · Avonent</title>
+  <script>location.replace("creatives.html");</script>
 </head>
-<body data-page="chat">
-<header class="topbar">
-  <a class="logo" href="index.html">AVONENT</a>
-  <nav class="nav">
-    <a href="index.html">Dashboard</a>
-    <a class="active" href="chat.html">Creative Chat</a>
-    <a href="creatives.html">Library</a>
-    <a href="pipeline.html">Pipeline</a>
-    <a href="ads.html">Ad Library</a>
-    <a href="brands.html">Brands</a>
-    <a href="assets.html">Assets</a>
-  </nav>
-  <div class="auth-nav">
-    <a id="login-link" class="text-button" href="auth.html?mode=login">Log in</a>
-    <a id="signup-link" class="button small-button" href="auth.html?mode=signup">Sign up</a>
-    <span id="account-email" class="account-email hidden"></span>
-    <button id="signout-button" class="text-button hidden" type="button">Sign out</button>
-  </div>
-</header>
-
-<main class="chat-layout">
-  <aside class="chat-sidebar">
-    <button id="new-chat" class="button full" type="button">+ New chat</button>
-    <div class="sidebar-label">Chats</div>
-    <div id="chat-list" class="chat-list">
-      <div class="empty">Log in to save chats.</div>
-    </div>
-  </aside>
-
-  <section class="chat-panel">
-    <div class="chat-head">
-      <div>
-        <p class="eyebrow">CREATIVE STRATEGIST</p>
-        <h1 id="chat-title">New creative chat</h1>
-      </div>
-      <button id="rename-chat" class="text-button hidden" type="button">Rename</button>
-    </div>
-
-    <div id="chat-signed-out" class="notice">
-      <div>
-        <strong>Try the workspace now.</strong>
-        <p>You can type below, but log in to save chats and creative outputs across devices.</p>
-      </div>
-      <a class="button secondary" href="auth.html?mode=login">Log in</a>
-    </div>
-
-    <div id="messages" class="messages">
-      <div class="welcome-message">
-        <p class="eyebrow">START HERE</p>
-        <h2>What are we making?</h2>
-        <p>Give the strategist a product, audience, angle, problem, offer, ad reference, or rough idea.</p>
-        <div class="prompt-chips">
-          <button type="button" data-prompt="Give me 10 original ad angles for this product">10 ad angles</button>
-          <button type="button" data-prompt="Write 15 strong hooks for this product">Write hooks</button>
-          <button type="button" data-prompt="Build a 30-second UGC ad script">UGC script</button>
-          <button type="button" data-prompt="Turn this idea into a production-ready creative brief">Creative brief</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="ai-status" class="ai-status">
-      <strong>Creative strategist:</strong> brand-aware local engine active. Uses saved brand knowledge and competitor research on this device.
-    </div>
-
-    <label class="chat-brand-picker">Brand / product context
-      <select id="chat-brand-select">
-        <option value="">Loading brands…</option>
-      </select>
-    </label>
-
-    <form id="chat-form" class="composer">
-      <textarea id="chat-input" rows="3" placeholder="Describe the product, angle, ad idea, or what you want written..." required></textarea>
-      <div class="composer-row">
-        <select id="save-kind" aria-label="Save generated or written content as">
-          <option value="">Chat only</option>
-          <option value="idea">Save as idea</option>
-          <option value="hook">Save as hook</option>
-          <option value="script">Save as script</option>
-          <option value="brief">Save as brief</option>
-          <option value="primary_text">Save as primary text</option>
-          <option value="headline">Save as headline</option>
-          <option value="concept">Save as concept</option>
-          <option value="note">Save as note</option>
-        </select>
-        <button type="submit">Send</button>
-      </div>
-    </form>
-  </section>
-</main>
-
-<script src="static/local-workspace.js?v=2"></script>
-
-<script src="static/strategist-v1.js?v=4"></script>
-<script src="static/chat-strategist-v1.js?v=4"></script>
-<script src="static/app-v2.js?v=7"></script>
-<script src="static/ui-v3.js?v=8"></script>
-</body>
+<body></body>
 </html>
