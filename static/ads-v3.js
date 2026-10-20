@@ -13,6 +13,11 @@
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
   })[ch]);
 
+  function safeUrl(raw) {
+    try { const url = new URL(raw); return url.protocol === "https:" ? url.href : ""; }
+    catch { return ""; }
+  }
+
   const show = el => el && el.classList.remove("hidden");
   const hide = el => el && el.classList.add("hidden");
 
@@ -86,8 +91,11 @@
       setTimeout(() => URL.revokeObjectURL(objectUrl), 3000);
       result.textContent = "Download started.";
     } catch (error) {
-      window.open(raw, "_blank", "noopener");
-      result.textContent = "That host blocks browser downloading, so the direct media URL was opened in a new tab.";
+      result.textContent = "Download failed: " + (error.message || "Network error") + ". ";
+      const link = document.createElement("a");
+      link.href = raw; link.target = "_blank"; link.rel = "noopener noreferrer";
+      link.textContent = "Open media to save manually";
+      result.appendChild(link);
     }
   }
 
@@ -172,7 +180,7 @@
           (ref.angle ? '<p><strong>Angle:</strong> ' + esc(ref.angle) + '</p>' : '') +
           (ref.notes ? '<p>' + esc(ref.notes) + '</p>' : '') +
           '<div class="ad-actions">' +
-            '<a class="button secondary mini" href="' + esc(ref.source_url) + '" target="_blank" rel="noopener">Open Meta ad</a>' +
+            '<a class="button secondary mini" href="' + esc(safeUrl(ref.source_url)) + '" target="_blank" rel="noopener">Open Meta ad</a>' +
             (asset?.url ? '<a class="button secondary mini" href="' + esc(asset.url) + '" download target="_blank" rel="noopener">Download media</a>' : '') +
             '<button class="button secondary mini" type="button" data-delete-ad="' + ref.id + '">Delete</button>' +
           '</div></article>';
@@ -183,12 +191,18 @@
 
     $("ad-form").onsubmit = async event => {
       event.preventDefault();
+      const saveButton = event.target.querySelector('button[type="submit"]');
+      if (saveButton.disabled) return;
+      saveButton.disabled = true;
       saveStatus.textContent = "Saving…";
       let assetId = null;
       let uploadedPath = null;
 
       try {
+        const sourceUrl = safeUrl($("ad-source-url").value.trim());
+        if (!sourceUrl) throw new Error("Enter a valid HTTPS ad URL.");
         const file = $("ad-file").files[0];
+        if (file && !/^(image|video)\//.test(file.type)) throw new Error("Choose an image or video file.");
         if (file) {
           if (file.size > 100 * 1024 * 1024) throw new Error("Media must be 100 MB or smaller.");
 
@@ -217,7 +231,7 @@
         const saved = await db.from("ad_references").insert({
           user_id: session.user.id,
           source: "Meta Ad Library",
-          source_url: $("ad-source-url").value.trim(),
+          source_url: sourceUrl,
           advertiser_name: $("ad-advertiser").value.trim(),
           product_name: $("ad-product").value.trim(),
           hook: $("ad-hook").value.trim(),
@@ -234,11 +248,12 @@
         saveStatus.textContent = "Saved to your private Ad Library.";
         await load();
       } catch (error) {
-        if (uploadedPath && !assetId) {
+        if (uploadedPath) {
           await db.storage.from("creative-assets").remove([uploadedPath]);
+          if (assetId) await db.from("creative_assets").delete().eq("id", assetId);
         }
         saveStatus.textContent = error.message || String(error);
-      }
+      } finally { saveButton.disabled = false; }
     };
 
     grid.onclick = async event => {
@@ -248,14 +263,6 @@
       const ref = refs.find(x => x.id === id);
       const deleted = await db.from("ad_references").delete().eq("id", id);
       if (deleted.error) return alert(deleted.error.message);
-
-      if (ref?.media_asset_id) {
-        const asset = assets[ref.media_asset_id];
-        if (asset) {
-          await db.storage.from("creative-assets").remove([asset.storage_path]);
-          await db.from("creative_assets").delete().eq("id", asset.id);
-        }
-      }
 
       await load();
     };
