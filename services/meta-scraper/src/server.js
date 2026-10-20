@@ -116,6 +116,35 @@ function normalizeText(text = "") {
     .trim();
 }
 
+function facebookAdvertiserIdentity(card, advertiser) {
+  const target = String(advertiser || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const links = Array.isArray(card.link_meta) ? card.link_meta : (card.links || []).map(href => ({ href, text:"" }));
+  const candidates = [];
+  for (const item of links) {
+    try {
+      const u = new URL(item.href);
+      const host = u.hostname.replace(/^www\./, "").toLowerCase();
+      if (u.protocol !== "https:" || host !== "facebook.com" || /\/ads\/library/i.test(u.pathname)) continue;
+      if (/\/(?:sharer|share|dialog|plugins|help|privacy|policies|login)(?:\/|\?|$)/i.test(u.pathname)) continue;
+      const id = /^\d{5,30}$/.test(u.searchParams.get("id") || "") ? u.searchParams.get("id") :
+        (/^\d{5,30}$/.test(u.pathname.split("/").filter(Boolean).pop() || "") ? u.pathname.split("/").filter(Boolean).pop() : "");
+      const text = String(item.text || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const score = (id ? 20 : 0) + (target && text === target ? 30 : target && text.includes(target) ? 15 : 0);
+      const clean = new URL(u.href);
+      clean.protocol = "https:";
+      clean.hostname = "www.facebook.com";
+      clean.hash = "";
+      if (/^\/profile\.php$/i.test(clean.pathname) && id) {
+        clean.search = "";
+        clean.searchParams.set("id", id);
+      } else clean.search = "";
+      candidates.push({ page_id:id || "", page_url:clean.href, score });
+    } catch {}
+  }
+  candidates.sort((a,b) => b.score - a.score);
+  return candidates[0] || { page_id:"", page_url:"", score:0 };
+}
+
 function pickAdvertiserLogo(card, advertiser) {
   const imgs = Array.isArray(card.image_meta) ? card.image_meta : [];
   const name = String(advertiser || "").toLowerCase();
@@ -163,6 +192,7 @@ function normalizeCard(card) {
 
   const sourceUrl = card.links.find(x => /facebook\.com\/ads\/library\/.+id=/i.test(x)) ||
     "https://www.facebook.com/ads/library/?id=" + card.ad_archive_id;
+  const advertiserIdentity = facebookAdvertiserIdentity(card, advertiser);
 
   const landingUrl = card.links.map(x => {
     try { const u = new URL(x); return ["l.facebook.com","lm.facebook.com"].includes(u.hostname) ? u.searchParams.get("u") || x : x; } catch { return ""; }
@@ -186,6 +216,8 @@ function normalizeCard(card) {
   return {
     ad_archive_id: card.ad_archive_id,
     advertiser_name: advertiser,
+    advertiser_page_id: advertiserIdentity.page_id,
+    advertiser_page_url: advertiserIdentity.page_url,
     source_url: sourceUrl,
     primary_text: primaryText,
     headline: "",
@@ -204,7 +236,7 @@ function normalizeCard(card) {
     ...publicImpressions(text),
     impressions_source_url: sourceUrl,
     captured_at: new Date().toISOString(),
-    parser_version: "0.3.0"
+    parser_version: "0.4.0"
   };
 }
 
@@ -237,9 +269,10 @@ async function extractVisibleCards(page, limit = 300) {
       const text = compact(card.innerText || "");
       if (!text || text.length > 22000) continue;
 
-      const links = Array.from(card.querySelectorAll("a[href]"))
-        .map(a => a.href)
-        .filter(Boolean);
+      const link_meta = Array.from(card.querySelectorAll("a[href]"))
+        .map(a => ({ href:a.href || "", text:(a.innerText || a.getAttribute("aria-label") || "").trim() }))
+        .filter(x => x.href);
+      const links = link_meta.map(x => x.href);
 
       const image_meta = Array.from(card.querySelectorAll("img")).map(x => ({
         src: x.currentSrc || x.src || "",
@@ -264,6 +297,7 @@ async function extractVisibleCards(page, limit = 300) {
         ad_archive_id: match[1],
         text,
         links,
+        link_meta,
         images,
         videos,
         posters,
@@ -419,7 +453,7 @@ async function scrape(input) {
       reached_end_signal: reachedEndSignal,
       sample_complete: reachedEndSignal && collected.size < maxAds,
       capture_status: ads.length ? "partial" : reachedEndSignal ? "no_results" : "parse_failed",
-      parser_version: "0.3.0",
+      parser_version: "0.4.0",
       note: reachedEndSignal
         ? "Collector reached an apparent end-of-results signal."
         : "This is a collected sample; Meta may have additional ads beyond the retrieved set.",
