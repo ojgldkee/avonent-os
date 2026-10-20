@@ -99,6 +99,17 @@
     }
   }
 
+  function setAdTab(name){
+    document.querySelectorAll("[data-ad-panel]").forEach(panel=>{
+      panel.classList.toggle("active",panel.getAttribute("data-ad-panel")===name);
+    });
+    document.querySelectorAll("[data-ad-tab]").forEach(tab=>{
+      tab.classList.toggle("active",tab.getAttribute("data-ad-tab")===name);
+    });
+    const tabs=document.querySelector(".ad-workspace-tabs");
+    if(tabs) tabs.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+
   async function inspectMetaLink(){
     const raw=$("meta-link-input").value.trim();
     const parsed=parseMetaUrl(raw);
