@@ -1,4 +1,15 @@
 services:
+  meta-scraper:
+    build:
+      context: ./services/meta-scraper
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      SCRAPER_API_KEY: ${META_SCRAPER_KEY}
+    shm_size: "1gb"
+    ports:
+      - "127.0.0.1:8080:8080"
+
   db:
     image: postgres:16-alpine
     restart: unless-stopped
