@@ -189,3 +189,11 @@ body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
   .hook-library-row .copy-inline{grid-column:2;justify-self:start}
   .hook-library-head{display:grid}
 }
+
+
+.score-breakdown{margin:9px 0 0;border:1px solid #273342;border-radius:11px;background:#090e14}
+.score-breakdown summary{cursor:pointer;padding:9px 11px;color:#a9b7c8;font-size:10px;font-weight:850}
+.score-breakdown>div{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 11px 11px}
+.score-breakdown span{display:flex;justify-content:space-between;gap:8px;color:#7f8d9e;font-size:10px}
+.score-breakdown b{color:#dce5ef;font-weight:850}
+@media(max-width:460px){.score-breakdown>div{grid-template-columns:1fr}}
