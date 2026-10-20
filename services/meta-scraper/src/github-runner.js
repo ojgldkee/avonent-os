@@ -144,15 +144,24 @@ function sourceMatchesCandidate(ad, candidate) {
   return normalizeAdvertiser(ad.advertiser_name) === normalizeAdvertiser(candidate.advertiser_name);
 }
 
-async function collectBrand(brand) {
-  console.log("\n[" + brand.competitor_name + "] starting");
+function facebookSearchQuery(pageUrl, brandName) {
+  try {
+    const u = new URL(pageUrl);
+    let slug = decodeURIComponent(u.pathname.split("/").filter(Boolean).pop() || "").toLowerCase().replace(/[^a-z0-9]+/g,"");
+    if (!slug || /^\d+$/.test(slug) || slug === "profile.php") return "";
+    const brandCompact = normalizeAdvertiser(brandName).replace(/\s+/g,"");
+    if (brandCompact && slug.endsWith(brandCompact)) {
+      let prefix = slug.slice(0, -brandCompact.length);
+      prefix = prefix.replace(/by$/, " by ").trim();
+      if (prefix) return (prefix + " " + brandName).replace(/\s+/g," ").trim();
+    }
+    return slug.replace(/([a-z])by([a-z])/g, "$1 by $2").trim();
+  } catch {
+    return "";
+  }
+}
 
-  await updateBrand(brand.id, {
-    last_scan_status: "running",
-    last_scan_message: "Research in progress",
-    scan_request_status: "running"
-  });
-
+async function fetchMetaSearch(brand, query) {
   const response = await fetch(SCRAPER_URL + "/v1/meta/search", {
     method: "POST",
     headers: {
@@ -160,7 +169,7 @@ async function collectBrand(brand) {
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      query: brand.competitor_name,
+      query: query || brand.competitor_name,
       page_id: brand.meta_page_id || "",
       url: brand.ad_library_url || "",
       country: "US",
@@ -170,13 +179,45 @@ async function collectBrand(brand) {
       long_running_days: Number(brand.min_days_running || 30)
     })
   });
-
   const result = await response.json().catch(() => ({}));
   if (!response.ok || !result.ok) {
     throw new Error(result.error || ("collector returned " + response.status));
   }
+  return result;
+}
 
+async function collectBrand(brand) {
+  console.log("\n[" + brand.competitor_name + "] starting");
+
+  await updateBrand(brand.id, {
+    last_scan_status: "running",
+    last_scan_message: "Research in progress",
+    scan_request_status: "running"
+  });
+
+  let result = await fetchMetaSearch(brand, brand.competitor_name);
   let sourceAds = Array.isArray(result.ads) ? result.ads : [];
+
+  if (!brand.meta_page_id && !brand.ad_library_url && brand.facebook_page_url) {
+    const alternateQuery = facebookSearchQuery(brand.facebook_page_url, brand.competitor_name);
+    if (alternateQuery && normalizeAdvertiser(alternateQuery) !== normalizeAdvertiser(brand.competitor_name)) {
+      console.log("[" + brand.competitor_name + "] retrying Meta search as: " + alternateQuery);
+      const alternate = await fetchMetaSearch(brand, alternateQuery);
+      const merged = new Map();
+      for (const ad of [...sourceAds, ...(Array.isArray(alternate.ads) ? alternate.ads : [])]) {
+        const key = String(ad.ad_archive_id || "").trim();
+        if (key) merged.set(key, ad);
+      }
+      sourceAds = [...merged.values()];
+      result = {
+        ...result,
+        ads: sourceAds,
+        reached_end_signal: Boolean(result.reached_end_signal || alternate.reached_end_signal),
+        sample_complete: Boolean(result.sample_complete && alternate.sample_complete),
+        oldest_started_at: [result.oldest_started_at, alternate.oldest_started_at].filter(Boolean).sort()[0] || ""
+      };
+    }
+  }
 
   // Store-first brands stay unresolved until a strong website/social match or an explicit user choice.
   // A similar advertiser name alone is never treated as proof that it is the same business.
