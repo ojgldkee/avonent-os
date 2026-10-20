@@ -5,118 +5,82 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow">
   <meta name="theme-color" content="#000000">
-  <title>Avonent Creative</title>
+  <title>Avonent OS</title>
   <link rel="stylesheet" href="static/site.css?v=1">
-  <link rel="stylesheet" href="static/ui-v3.css?v=20">
+  <link rel="stylesheet" href="static/ui-v3.css?v=27">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="static/config.js?v=2"></script>
 </head>
-<body data-page="dashboard">
+<body data-page="dashboard-cloud">
 <header class="topbar">
   <a class="logo" href="index.html">AVONENT</a>
   <nav class="nav">
-    <a class="active" href="index.html">Dashboard</a>
-    
+    <a class="active" href="index.html">Home</a>
     <a href="creatives.html">Ideas</a>
-    
-    <a href="ads.html">Ad Library</a>
+    <a href="ads.html">Research</a>
     <a href="brands.html">Products</a>
-    
   </nav>
   <div class="auth-nav">
-    <a id="login-link" class="text-button" href="auth.html?mode=login">Log in</a>
-    <a id="signup-link" class="button small-button" href="auth.html?mode=signup">Sign up</a>
-    <span id="account-email" class="account-email hidden"></span>
-    <button id="signout-button" class="text-button hidden" type="button">Sign out</button>
+    <a data-cloud-login class="text-button" href="auth.html?mode=login">Log in</a>
+    <span data-cloud-user class="account-email hidden"></span>
+    <button data-cloud-signout class="text-button hidden" type="button">Sign out</button>
   </div>
 </header>
 
-<main>
-  <section class="hero">
-    <p class="eyebrow">AI CREATIVE ENGINE</p>
-    <h1>Find the next ad to test.</h1>
-    <p class="sub">Daily hooks and ad ideas built from your products and competitor research.</p>
+<main class="dashboard-cloud-main">
+  <section class="hero operator-hero">
+    <p class="eyebrow">AI CREATIVE OPERATING SYSTEM</p>
+    <h1>Know what to test next.</h1>
+    <p class="sub">Products feed the facts. Research finds durable competitor patterns. AI turns those patterns into ranked creative hypotheses you can approve and script.</p>
     <div class="hero-actions">
-      <a class="button" href="creatives.html">Open today&#39;s ideas</a>
-      <a class="button secondary" href="creatives.html">Open creative library</a>
+      <a class="button" href="creatives.html">Review ideas</a>
+      <a class="button secondary" href="ads.html">Run research</a>
+      <a class="button secondary" href="brands.html">Products</a>
     </div>
   </section>
 
-  <div id="signed-out-banner" class="notice">
-    <div>
-      <strong>Preview mode</strong>
-      <p>You can view the dashboard without logging in. Sign in to load your private creative workspace and sync it across devices.</p>
-    </div>
-    <a class="button secondary" href="auth.html?mode=login">Log in</a>
-  </div>
-
-  <section class="stats">
-    
-    <a class="stat" href="creatives.html?kind=idea"><span>Ideas</span><strong id="stat-ideas">—</strong></a>
-    <a class="stat" href="creatives.html?kind=hook"><span>Hooks</span><strong id="stat-hooks">—</strong></a>
-    <a class="stat" href="creatives.html?kind=script"><span>Scripts</span><strong id="stat-scripts">—</strong></a>
-    <a class="stat" href="creatives.html?kind=brief"><span>Briefs</span><strong id="stat-briefs">—</strong></a>
+  <section class="operator-stats">
+    <a class="research-stat" href="brands.html"><span>Products</span><strong id="dash-products">—</strong></a>
+    <a class="research-stat" href="ads.html"><span>Competitors</span><strong id="dash-watchlist">—</strong></a>
+    <a class="research-stat" href="ads.html"><span>Long-running ads</span><strong id="dash-long">—</strong></a>
+    <a class="research-stat" href="ads.html"><span>Analyzed patterns</span><strong id="dash-analyzed">—</strong></a>
+    <a class="research-stat" href="creatives.html"><span>Ideas today</span><strong id="dash-ideas">—</strong></a>
   </section>
 
-  <section class="panel daily-strategy-panel">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow">TODAY'S STRATEGY</p>
-        <h2>Today's hooks & ideas</h2>
-        <p class="helper">Generated from product knowledge and saved competitor patterns. Pick an idea first; only then generate a high-quality AI Script.</p>
-      </div>
-      <div class="daily-head-actions">
-        <a class="button secondary small-button" href="brands.html">Products</a>
-        <button id="generate-daily-now" class="button small-button" type="button">Generate fresh pack</button>
-      </div>
-    </div>
-    <div id="daily-ideas" class="strategy-grid">
-      <div class="empty">Loading today's creative strategy…</div>
-    </div>
-  </section>
-
-  <section class="grid two">
-    <div class="panel">
+  <section class="dashboard-cloud-grid">
+    <section class="panel">
       <div class="section-head">
-        <div><p class="eyebrow">CONTINUE</p><h2>Recent chats</h2></div>
-        <a href="creatives.html">View all</a>
+        <div>
+          <p class="eyebrow">TODAY</p>
+          <h2>Best ideas waiting on you</h2>
+          <p class="helper">Ranked by the strategist before they reach this screen.</p>
+        </div>
+        <a class="button secondary mini" href="creatives.html">All ideas</a>
       </div>
-      <div id="recent-chats" class="stack">
-        <div class="empty">Loading chats…</div>
+      <div id="dash-idea-list" class="dashboard-idea-list">
+        <div class="empty">Loading today's ideas…</div>
       </div>
-    </div>
+    </section>
 
-    <div class="panel">
-      <div class="section-head">
-        <div><p class="eyebrow">LIBRARY</p><h2>Recent saves</h2></div>
-        <a href="creatives.html">View all</a>
+    <aside class="panel operator-next">
+      <p class="eyebrow">NEXT ACTION</p>
+      <h2 id="next-action-title">Loading…</h2>
+      <p id="next-action-copy" class="helper"></p>
+      <a id="next-action-button" class="button" href="brands.html">Open</a>
+
+      <div class="operator-flow">
+        <div><span>1</span><p>Scan products</p></div>
+        <div><span>2</span><p>Scan competitors</p></div>
+        <div><span>3</span><p>Analyze patterns</p></div>
+        <div><span>4</span><p>Generate ideas</p></div>
+        <div><span>5</span><p>Approve + script</p></div>
       </div>
-      <div id="recent-items" class="stack">
-        <div class="empty">Loading library…</div>
-      </div>
-    </div>
+    </aside>
   </section>
-
-  <section class="panel">
-    <div class="section-head">
-      <div><p class="eyebrow">TODAY</p><h2>Creative workflow</h2></div>
-    </div>
-    <div class="workflow">
-      <a href="creatives.html?status=Idea"><span>Ideas</span><strong id="flow-idea">—</strong></a>
-      <a href="creatives.html?status=Brief"><span>Brief</span><strong id="flow-brief">—</strong></a>
-      <a href="creatives.html?status=Editing"><span>Editing</span><strong id="flow-editing">—</strong></a>
-      <a href="creatives.html?status=Review"><span>Review</span><strong id="flow-review">—</strong></a>
-      <a href="creatives.html?status=Approved"><span>Approved</span><strong id="flow-approved">—</strong></a>
-      <a href="creatives.html?status=Launched"><span>Launched</span><strong id="flow-launched">—</strong></a>
-      <a href="creatives.html?status=Winner"><span>Winner</span><strong id="flow-winner">—</strong></a>
-    </div>
-  </section>
-
-  
 </main>
 
-<script src="static/local-workspace.js?v=2"></script>
-
-<script src="static/strategist-v1.js?v=4"></script>
-<script src="static/app-v2.js?v=8"></script>
+<script src="static/cloud-v1.js?v=1"></script>
+<script src="static/cloud-dashboard-v1.js?v=1"></script>
 <script src="static/ui-v3.js?v=10"></script>
 </body>
 </html>
