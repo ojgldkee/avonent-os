@@ -35,11 +35,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: services/meta-scraper/package-lock.json
 
       - name: Install collector
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
