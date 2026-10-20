@@ -29,17 +29,19 @@
     "Customer POV"
   ];
 
-  const openerTemplates = [
-    "I wish someone told me this before I kept buying the wrong thing.",
-    "If you are still dealing with {pain}, watch this.",
-    "The problem is not that you need more products. It is that most products ignore this.",
-    "I thought this was just another overhyped product until I looked at what was actually different.",
-    "Before you buy another option for {pain}, check this first.",
-    "Three things I would look for before spending money in this category.",
-    "This is the easiest way I have found to make {benefit} feel less complicated.",
-    "Most people focus on the wrong part of {pain}.",
-    "Here is why this became the one product I kept in my routine.",
-    "If your current routine still feels like work, this is worth seeing."
+  const competitorPatterns = [
+    {name:"Hidden pattern", hook:"The pattern most brands never explain about {pain}.", lead:"Open a curiosity gap around a specific customer problem, then pay it off with a supportable product fact."},
+    {name:"Proof before purchase", hook:"Before I trust another supplement for {pain}, I check these 3 things.", lead:"Lead with a buyer checklist: ingredient clarity, proof, and a believable reason to choose the product."},
+    {name:"Ingredient specificity", hook:"The ingredient detail I would check before buying anything for {pain}.", lead:"Make one concrete ingredient/product detail the center of the ad instead of vague wellness language."},
+    {name:"What brands leave out", hook:"What most {category} ads leave out is the part I actually care about.", lead:"Contrast generic category promises with one specific, supportable product detail."},
+    {name:"Insider / authority", hook:"If I were comparing products for {pain}, this is where I would start.", lead:"Use an informed buyer/insider frame without inventing credentials or pretending to be a clinician."},
+    {name:"Skeptic conversion", hook:"I did not care about another {category} product until I saw this.", lead:"Start from skepticism and let a demonstration, label detail, guarantee, or proof point earn attention."},
+    {name:"Simple outcome", hook:"The goal is not more supplements. It is a simpler way to support {benefit}.", lead:"Sell clarity and ease rather than stacking exaggerated benefits."},
+    {name:"Product-first reveal", hook:"If I could show you one thing about {product}, it would be this.", lead:"Reveal the product immediately, then explain one reason it deserves attention."},
+    {name:"Three reasons", hook:"3 reasons I would look twice at {product} before buying another option.", lead:"Use a fast listicle around product facts, proof, and the offer."},
+    {name:"Routine mistake", hook:"The mistake is choosing a product by the promise instead of what is actually in the routine.", lead:"Challenge the category's usual buying behavior and move into specific product proof."},
+    {name:"Guarantee / risk reversal", hook:"The detail that made this easier to try was not the hype — it was the risk reversal.", lead:"Lead with guarantee/offer structure when that is genuinely part of the brand's offer."},
+    {name:"Direct comparison", hook:"Before you pick another option for {pain}, compare this first.", lead:"Compare category alternatives on one fair, supportable dimension instead of vague superiority claims."}
   ];
 
   function escapeHtml(value) {
@@ -69,7 +71,9 @@
   function fill(template, brand) {
     return template
       .replaceAll("{pain}", firstLine(brand.pain_points, "the problem you are trying to solve"))
-      .replaceAll("{benefit}", firstLine(brand.benefits, "the outcome you actually want"));
+      .replaceAll("{benefit}", firstLine(brand.benefits, "the outcome you actually want"))
+      .replaceAll("{product}", productName(brand))
+      .replaceAll("{category}", firstLine(brand.category, "supplement"));
   }
 
   function productName(brand) {
@@ -86,20 +90,22 @@
     const audience = firstLine(brand.audience, "the target customer");
     const offer = firstLine(brand.offer, "See how it fits your routine");
     const proof = firstLine(brand.proof, "Show the product, process, ingredients, customer experience, or other supportable proof");
-    const hook = fill(pick(openerTemplates, seed, 5 + index), brand);
+    const pattern = pick(competitorPatterns, seed, 5 + index);
+    const hook = fill(pattern.hook, brand);
 
     const primaryA =
       hook + "\n\n" +
-      angle.frame + " " + product + " is positioned around " + benefit.toLowerCase() +
-      " for " + audience + ". " + proof + ".\n\n" + offer + ".";
+      pattern.lead + " For " + product + ", the ad should move quickly into a real product detail: " +
+      proof + ". Keep the message centered on " + benefit.toLowerCase() + " for " + audience +
+      " instead of stacking vague promises.\n\n" + offer + ".";
 
     const primaryB =
-      "Still dealing with " + pain + "? The goal is not another complicated routine. " +
-      "The idea behind " + product + " is to make " + benefit.toLowerCase() +
-      " easier to understand and easier to act on.\n\n" + proof + ".\n\n" + offer + ".";
+      "Most ads in this category jump straight to a promise. I would start somewhere more believable.\n\n" +
+      "If you are dealing with " + pain + ", look at what the product actually is, what the brand can prove, and how it fits into a real routine. " +
+      product + " should earn attention with " + proof.toLowerCase() + " — not hype.\n\n" + offer + ".";
 
-    const headlineA = "A simpler approach to " + benefit;
-    const headlineB = "Rethink your " + pain + " routine";
+    const headlineA = "What most " + firstLine(brand.category, "supplement") + " ads leave out";
+    const headlineB = "Look at this before your next " + firstLine(brand.category, "supplement") + " purchase";
 
     const videoIdea =
       format + ". Open on a visual of " + pain +
@@ -125,7 +131,8 @@
       headlines: [headlineA, headlineB],
       video_idea: videoIdea,
       script: script,
-      why: angle.frame + " The format is " + format.toLowerCase() + " so the message can be understood quickly.",
+      inspiration_pattern: pattern.name,
+      why: pattern.lead + " " + angle.frame + " The format is " + format.toLowerCase() + " so the message can be understood quickly.",
       compliance: "Use only claims the brand can substantiate. For supplements, avoid diagnosing, treating, curing, or guaranteeing medical outcomes."
     };
   }
