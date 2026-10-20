@@ -175,15 +175,17 @@
     const force = !!options.force;
     const count = Number(options.count || 3);
     const date = new Date().toISOString().slice(0,10);
+    const runSalt = force ? Date.now().toString(36) : "daily";
+    const generationSeed = date + ":" + runSalt;
     const existingResult = await db.from("creative_items").select("*");
     const existing = existingResult.data || [];
     const created = [];
 
     for (let i = 0; i < count; i += 1) {
-      const key = "daily:" + date + ":" + brand.id + ":" + i;
+      const key = "daily:" + date + ":" + brand.id + ":" + runSalt + ":" + i;
       if (!force && existing.some(function(x){ return x.metadata && x.metadata.daily_key === key; })) continue;
 
-      const pack = buildPackage(brand, date, i);
+      const pack = buildPackage(brand, generationSeed, i);
       const result = await db.from("creative_items").insert({
         user_id:"device-workspace",
         kind:"concept",
