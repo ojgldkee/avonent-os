@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#000000">
   <title>Account · Avonent Creative</title>
   <link rel="stylesheet" href="static/site.css?v=1">
-  <link rel="stylesheet" href="static/ui-v3.css?v=4">
+  <link rel="stylesheet" href="static/ui-v3.css?v=5">
 </head>
 <body data-page="auth">
 <header class="topbar">
@@ -38,9 +38,13 @@
         <input id="auth-email" type="email" autocomplete="email" required placeholder="you@example.com">
       </label>
       <label>Password
-        <input id="auth-password" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters">
+        <div class="password-field">
+          <input id="auth-password" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters">
+          <button id="toggle-password" class="password-toggle" type="button" aria-label="Show password">Show</button>
+        </div>
       </label>
       <button id="auth-submit" type="submit">Log in</button>
+      <button id="create-account-inline" class="button secondary hidden" type="button">Create account with these details</button>
     </form>
 
     <p id="auth-switch-row" class="auth-switch">
@@ -54,7 +58,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="static/config.js?v=1"></script>
-<script src="static/auth-v3.js?v=4"></script>
+<script src="static/auth-v3.js?v=5"></script>
 <script src="static/ui-v3.js?v=4"></script>
 </body>
 </html>
