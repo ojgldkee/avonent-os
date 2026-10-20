@@ -48,6 +48,7 @@
     const switchLink = $("auth-switch-link");
     const forgot = $("forgot-password");
     const togglePassword = $("toggle-password");
+    const inlineCreate = $("create-account-inline");
 
     if (togglePassword) {
       togglePassword.onclick = () => {
@@ -152,7 +153,8 @@
         const result = await db.auth.signInWithPassword({ email, password });
         if (result.error) {
           if (/invalid login credentials/i.test(result.error.message || "")) {
-            message("No account yet", "That email has not been registered yet. Tap Sign up below and use the same email and password once, then you can log in normally.", true);
+            message("No account yet", "That email has not been registered yet. Create it now using the same email and password.", true);
+            show(inlineCreate);
             return;
           }
           throw result.error;
@@ -168,6 +170,17 @@
 
     function renderButtonOnly() {
       submit.textContent = mode === "signup" ? "Sign up" : mode === "recovery" ? "Update password" : "Log in";
+    }
+
+    if (inlineCreate) {
+      inlineCreate.onclick = () => {
+        mode = "signup";
+        history.replaceState(null, "", "auth.html?mode=signup");
+        hide(inlineCreate);
+        render();
+        $("display-name").value = $("display-name").value || "Avonent Owner";
+        passwordInput.focus();
+      };
     }
 
     forgot.onclick = async () => {
