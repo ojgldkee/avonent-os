@@ -207,11 +207,10 @@ function normalizeCard(card) {
   }) || "";
 
   const advertiserLogoUrl = pickAdvertiserLogo(card, advertiser);
-  const mediaUrl =
-    card.videos.find(x => /^https?:/i.test(x)) ||
-    card.images.find(x => /^https?:/i.test(x) && x !== advertiserLogoUrl && !/profile|emoji|avatar/i.test(x)) ||
-    card.posters.find(x => /^https?:/i.test(x)) ||
-    "";
+  const videoUrl = card.videos.find(x => /^https?:/i.test(x)) || "";
+  const imageUrl = card.images.find(x => /^https?:/i.test(x) && x !== advertiserLogoUrl && !/profile|emoji|avatar/i.test(x)) || "";
+  const posterUrl = card.posters.find(x => /^https?:/i.test(x)) || "";
+  const mediaUrl = videoUrl || imageUrl || posterUrl;
 
   return {
     ad_archive_id: card.ad_archive_id,
@@ -224,9 +223,9 @@ function normalizeCard(card) {
     description: "",
     landing_url: landingUrl,
     media_url: mediaUrl,
-    media_thumbnail_url: card.posters.find(x => /^https?:/i.test(x)) || (mediaUrl && !card.videos.some(x => /^https?:/i.test(x)) ? mediaUrl : ""),
+    media_thumbnail_url: posterUrl || (imageUrl ? imageUrl : ""),
     advertiser_logo_url: advertiserLogoUrl,
-    media_kind: card.videos.some(x => /^https?:/i.test(x)) ? "video" : mediaUrl ? "image" : "",
+    media_kind: videoUrl ? "video" : imageUrl ? "image" : "",
     started_at: start ? start.toISOString().slice(0,10) : null,
     ended_at: end ? end.toISOString().slice(0,10) : null,
     days_running: !isActive && !end ? null : daysRunning(start, isActive ? null : end),
