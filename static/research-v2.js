@@ -629,7 +629,7 @@
         $("media-filter").value = "all";
         $("age-filter").value = "all";
         $("keyword-filter").value = "";
-        $("sort-filter").value = "newest";
+        $("sort-filter").value = "score";
         visibleLimit = 24;
         renderAds();
       };
