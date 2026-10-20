@@ -197,3 +197,10 @@ body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
 .score-breakdown span{display:flex;justify-content:space-between;gap:8px;color:#7f8d9e;font-size:10px}
 .score-breakdown b{color:#dce5ef;font-weight:850}
 @media(max-width:460px){.score-breakdown>div{grid-template-columns:1fr}}
+
+/* AI-directed creative studio */
+.production-controls{display:flex;flex-wrap:wrap;gap:10px;padding:14px 16px;margin:12px 0;border:1px solid #273747;border-radius:14px;background:linear-gradient(135deg,#101923,#0c1118)}
+.production-controls .helper{flex:1 1 200px;margin:0;padding:9px 12px;border:1px solid #263440;border-radius:10px;color:#c2d1df;line-height:1.5}
+.hook-library-card .idea-copy-pack{margin-top:14px;background:#0d141c;border-color:#2a3b4b}
+.hook-library-card .idea-copy-pack summary{padding:4px 0;color:#cde7ed}
+@media(max-width:600px){.production-controls{padding:10px;gap:8px}.production-controls .helper{flex:1 1 100%;font-size:12px}}
