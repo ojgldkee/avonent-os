@@ -45,20 +45,25 @@
     const copy = String(ad.primary_text || "").toLowerCase().replace(/\s+/g," ").trim();
     return copy ? "c:" + copy.slice(0,240) : "id:" + String(ad.ad_archive_id || ad.id || "");
   }
-  function adResearchScore(ad, brandAds) {
+  function adScoreBreakdown(ad, brandAds) {
     const age = adAge(ad);
     const peers = brandAds.filter(x => x.is_active);
     const fingerprint = creativeFingerprint(ad);
     const recurrence = peers.filter(x => creativeFingerprint(x) === fingerprint).length;
-    const longevity = age === null ? 0 : Math.min(40, Math.round(Math.min(age, 90) / 90 * 40));
-    const repeated = recurrence <= 1 ? 0 : Math.min(20, 8 + (recurrence - 2) * 4);
-    const copy = ad.primary_text ? 10 : 0;
-    const headline = ad.headline ? 5 : 0;
-    const destination = ad.landing_url ? 5 : 0;
-    const cta = ad.cta_text ? 5 : 0;
-    const media = mediaKind(ad) === "unknown" ? 0 : 10;
-    const active = ad.is_active ? 5 : 0;
-    return Math.max(0, Math.min(100, longevity + repeated + copy + headline + destination + cta + media + active));
+    const parts = {
+      longevity: age === null ? 0 : Math.min(40, Math.round(Math.min(age, 90) / 90 * 40)),
+      repetition: recurrence <= 1 ? 0 : Math.min(20, 8 + (recurrence - 2) * 4),
+      copy: ad.primary_text ? 10 : 0,
+      headline: ad.headline ? 5 : 0,
+      destination: ad.landing_url ? 5 : 0,
+      cta: ad.cta_text ? 5 : 0,
+      media: mediaKind(ad) === "unknown" ? 0 : 10,
+      active: ad.is_active ? 5 : 0
+    };
+    return {...parts, total:Math.max(0,Math.min(100,Object.values(parts).reduce((sum,value)=>sum+Number(value||0),0))), recurrence};
+  }
+  function adResearchScore(ad, brandAds) {
+    return adScoreBreakdown(ad, brandAds).total;
   }
   function adRank(ad, brandAds) {
     const ranked = brandAds.filter(x => x.is_active)
@@ -300,6 +305,11 @@
     if (keyword) rows = rows.filter(a => [a.primary_text,a.headline,a.advertiser_name].some(value => String(value || "").toLowerCase().includes(keyword)));
 
     rows.sort((a,b) => {
+      if (sort === "score") {
+        const aPeers = ads.filter(x => x.competitor_id === a.competitor_id);
+        const bPeers = ads.filter(x => x.competitor_id === b.competitor_id);
+        return adResearchScore(b,bPeers) - adResearchScore(a,aPeers);
+      }
       if (sort === "collected") return (sortTime(b.last_seen_at || b.created_at || b.updated_at) || 0) - (sortTime(a.last_seen_at || a.created_at || a.updated_at) || 0);
       const at = sortTime(a.started_at), bt = sortTime(b.started_at);
       if (at === null && bt === null) return 0;
@@ -324,7 +334,8 @@
       const ageDays = adAge(a);
       const brandRow = watchlist.find(w => w.id === a.competitor_id) || {};
       const brandAds = ads.filter(x => x.competitor_id === a.competitor_id);
-      const researchScore = adResearchScore(a, brandAds);
+      const scoreParts = adScoreBreakdown(a, brandAds);
+      const researchScore = scoreParts.total;
       const researchRank = adRank(a, brandAds);
       const creativeUses = creativeUsageCount(a, brandAds);
       const aiScore = Number(a.ai_analysis?.research_score || 0);
@@ -358,6 +369,7 @@
         '<div class="source-score-stack"><div class="research-score" title="Research signal only — not profitability"><strong>' + researchScore + '</strong><span>score</span></div>' +
         '<div class="days-badge ' + (qualifies(a) ? 'qualified' : '') + '"><strong>' + (ageDays === null ? '—' : ageDays) + '</strong><span>' + (ageDays === null ? 'unknown' : 'days') + '</span></div></div></div>' +
         '<div class="source-rank-line"><span>Sample rank #' + (researchRank.rank || '—') + ' of ' + researchRank.total + (creativeUses > 1 ? ' · creative repeated ' + creativeUses + '×' : '') + '</span><span>' + (aiScore ? 'AI copy score ' + aiScore + '/100 · ' : '') + 'Research score · not profitability</span></div>' +
+        '<details class="score-breakdown"><summary>Why ' + researchScore + '/100?</summary><div><span>Longevity <b>' + scoreParts.longevity + '/40</b></span><span>Creative repetition <b>' + scoreParts.repetition + '/20</b></span><span>Primary copy <b>' + scoreParts.copy + '/10</b></span><span>Media <b>' + scoreParts.media + '/10</b></span><span>Headline <b>' + scoreParts.headline + '/5</b></span><span>Landing page <b>' + scoreParts.destination + '/5</b></span><span>CTA <b>' + scoreParts.cta + '/5</b></span><span>Active <b>' + scoreParts.active + '/5</b></span></div></details>' +
         mediaHtml + (adKind === "video" && !poster ? '<p class="helper">Preview unavailable · press play to view video.</p>' : '') + headline + primary + '<p class="helper">Impressions: ' + esc(impressionLabel(a)) + '</p>' +
         '<div class="source-meta"><span>' + (a.started_at ? 'Started ' + esc(new Date(a.started_at + 'T00:00:00Z').toLocaleDateString(undefined, {month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})) : 'Start date unavailable') + '</span>' +
           '<span>' + esc(adKind === "unknown" ? "Unknown media" : adKind === "video" ? "Video" : "Image") + '</span>' +
