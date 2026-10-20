@@ -1,0 +1,18 @@
+/* Avonent strategist experience */
+:root{--bg:#080b10;--panel:#111720;--panel2:#19212d;--line:#293342;--line2:#394658;--muted:#9ca9b9;--radius:22px}
+body{background:radial-gradient(ellipse at 90% 0%,rgba(83,116,155,.12),transparent 40%),#080b10}
+.topbar{background:rgba(8,11,16,.94);border-color:#27303b}.logo{letter-spacing:.22em}
+.panel,.research-stat{background:linear-gradient(145deg,#151b24,#0f141b)!important;border:1px solid #2b3543!important;border-radius:22px!important;box-shadow:0 12px 34px rgba(0,0,0,.12)}
+.page-title h1,.compact-hero h1{letter-spacing:-.055em;line-height:1.08}.eyebrow{color:#a3b7cf!important;letter-spacing:.19em}
+.button,button.button{border-radius:13px!important;min-height:46px}.button.secondary{background:#19222d!important;border-color:#354354!important}
+input,select,textarea{border-radius:13px!important;background:#0b1017!important;border-color:#354050!important;max-width:100%}
+input:focus,textarea:focus,select:focus{outline:2px solid #86a9d6;outline-offset:1px}
+.strategy-tabs{display:flex;gap:7px;overflow-x:auto;padding:5px;background:#121923;border:1px solid #2b3543;border-radius:17px;margin:20px 0 24px;scrollbar-width:none}.strategy-tabs a{flex:1;text-align:center;padding:13px 10px;white-space:nowrap;border-radius:12px;font-weight:750;font-size:13px;color:#9eabbc}.strategy-tabs a.active,.strategy-tabs a:hover{background:#eaf0f8;color:#0c131b}
+.strategy-lead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.strategy-chip{padding:7px 11px;border:1px solid #38546a;border-radius:100px;color:#b5d9ed;font-size:12px;font-weight:700}
+.strategy-intro{margin:0 0 20px;color:#aebac9;line-height:1.6}.strategy-section-title{font-size:clamp(22px,4vw,30px);letter-spacing:-.04em;margin:0 0 9px}
+.strategy-helper{font-size:13px;color:#aab8c9;line-height:1.6}.strategy-notice{border:1px solid #304458;border-radius:14px;background:#111d29;padding:15px;margin:12px 0;color:#b7cbdb;font-size:13px;line-height:1.5}
+.strategy-details{grid-column:1/-1;border:1px solid #303b49;border-radius:16px;padding:15px;background:#0e151e}.strategy-details summary{font-weight:750;cursor:pointer}.strategy-details p{color:#a9b5c4;font-size:13px}
+body[data-page="products-cloud"] .product-editor-panel .form-grid>label{margin-bottom:4px}
+body[data-page="products-cloud"] .product-editor-panel textarea{min-height:96px}
+body[data-page="products-cloud"] .product-editor-panel .strategy-advanced-fields{display:contents}
+@media(max-width:720px){.strategy-tabs{margin:13px 0 20px}.strategy-tabs a{font-size:12px;padding:12px 7px}.research-main,.products-main{padding-top:20px!important}.panel{padding:20px!important}.page-title{padding-top:10px!important}.research-stats{gap:10px!important}.research-stat{padding:18px!important}.research-stat strong{font-size:30px!important}.strategy-lead{align-items:flex-start}}
