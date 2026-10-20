@@ -51,22 +51,17 @@
   }
 
   function extraHooks(brand,base,count){
-    const product=brand.product_name||brand.name||"this product";
-    const pain=(brand.pain_points||"this problem").split(/\n|,|;/)[0].trim();
-    const benefit=(brand.benefits||"a better outcome").split(/\n|,|;/)[0].trim();
-    const hooks=[
-      base.hook,
-      "Before you buy another product for "+pain+", look at this.",
-      "The part nobody explains about "+pain+" is what made me change my routine.",
-      "I stopped making "+pain+" more complicated than it needed to be.",
-      "If "+benefit+" is the goal, this is the product detail I would pay attention to.",
-      "I was skeptical of "+product+" for one reason — then I saw how it actually fits into a routine.",
-      "Three reasons I would choose "+product+" over another complicated routine.",
-      "This is what I would want to know before spending money on "+product+".",
-      "The best ad for "+product+" should show this before it says anything else.",
-      "You do not need another vague promise. You need to see how "+product+" actually works."
-    ];
-    return hooks.slice(0,count||10);
+    const total=count||10;
+    const hooks=[];
+    const salt=new Date().toISOString().slice(0,10)+"|hooks|"+base.hook;
+    if(window.AVONENT_STRATEGIST){
+      for(let i=0;i<total;i+=1){
+        const pack=window.AVONENT_STRATEGIST.buildPackage(brand,salt,i);
+        if(pack&&pack.hook&&!hooks.includes(pack.hook)) hooks.push(pack.hook);
+      }
+    }
+    if(!hooks.length&&base&&base.hook) hooks.push(base.hook);
+    return hooks.slice(0,total);
   }
 
   function researchInsight(refs,brand){
@@ -103,9 +98,9 @@
 
     if(/hook|opening|pattern interrupt/.test(q)){
       const hooks=extraHooks(brand,pack,10);
-      text="10 HOOKS FOR "+String(brand.name||"THE BRAND").toUpperCase()+"\n\n"+
+      text="10 COMPETITOR-PATTERN HOOKS FOR "+String(brand.name||"THE BRAND").toUpperCase()+"\n\n"+
         hooks.map((h,i)=>(i+1)+". "+h).join("\n")+
-        "\n\nBEST NEXT TEST\n"+pack.video_idea+
+        "\n\nThese use proven direct-response structures from competitor research without copying another brand's wording.\n\nBEST NEXT TEST\n"+pack.video_idea+
         "\n\nPRIMARY TEXT\n"+pack.primary_texts[0]+
         "\n\nHEADLINES\n1. "+pack.headlines[0]+"\n2. "+pack.headlines[1];
     } else if(/script|ugc|video script|30.?second/.test(q)){
