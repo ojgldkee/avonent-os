@@ -91,3 +91,24 @@ test("frontend exposes combined media, age, keyword and sort filtering", () => {
   assert.match(frontend, /function mediaKind/);
   assert.doesNotMatch(frontend, /\$\("ad-filter"\)/);
 });
+
+
+test("prepared strategist requires evidence, claim checks, and production-ready script fields", () => {
+  const creativeAi = readFileSync(new URL("supabase/functions/creative-ai/index.ts", root), "utf8");
+  const ideasUi = readFileSync(new URL("static/cloud-ideas-v1.js", root), "utf8");
+  for (const field of ["audience","first_three_seconds","video_concept","shot_directions","timed_script","source_observations","ai_inferences","product_fact_checks","unsupported_claim_checks"]) {
+    assert.match(creativeAi, new RegExp(field));
+    assert.match(ideasUi, new RegExp(field));
+  }
+  assert.match(creativeAi, /exactly 4 materially different hook variations/);
+  assert.match(creativeAi, /AI output validation failed/);
+  assert.match(ideasUi, /"SAY: " \+ \(b\.say \|\| ""\)/);
+  assert.match(ideasUi, /"SHOW: " \+ \(b\.show \|\| ""\)/);
+});
+
+test("copy-only analysis never claims it watched or heard a video", () => {
+  const analysisFn = readFileSync(new URL("supabase/functions/analyze-competitor-ads/index.ts", root), "utf8");
+  assert.match(analysisFn, /spoken_hook: ""/);
+  assert.match(analysisFn, /visual_hook: ""/);
+  assert.match(analysisFn, /analysis_scope:"copy_only"/);
+});
