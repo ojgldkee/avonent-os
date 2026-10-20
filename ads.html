@@ -85,22 +85,31 @@
       </div>
 
       <form id="competitor-form" class="competitor-form">
-        <label>Brand name
-          <input id="competitor-name" maxlength="2048" autocomplete="off" placeholder="e.g. Resilia">
+        <label>Store URL
+          <input id="competitor-store" type="url" required maxlength="2048" autocomplete="url" inputmode="url" placeholder="https://resilia.shop">
         </label>
-        <label>Facebook Ad Library link (optional)
-          <input id="competitor-link" type="url" placeholder="https://www.facebook.com/ads/library/…" autocomplete="off">
-        </label>
-        <label>Long-running threshold
-          <div class="number-field">
-            <input id="competitor-days" type="number" min="1" max="3650" value="30">
-            <span>days</span>
-          </div>
-        </label>
-        <button class="button" type="submit">Add brand</button>
+        <details class="competitor-optional">
+          <summary>Optional settings</summary>
+          <label>Brand name override
+            <input id="competitor-name" maxlength="120" autocomplete="off" placeholder="Only if the store name is wrong">
+          </label>
+          <label>Facebook page or Ad Library link
+            <input id="competitor-link" type="url" placeholder="Optional" autocomplete="off">
+          </label>
+          <label>Logo URL override
+            <input id="competitor-logo" type="url" placeholder="Optional" autocomplete="off">
+          </label>
+          <label>Long-running threshold
+            <div class="number-field">
+              <input id="competitor-days" type="number" min="1" max="3650" value="30">
+              <span>days</span>
+            </div>
+          </label>
+        </details>
+        <button class="button" type="submit">Add competitor</button>
       </form>
 
-      <p class="strategy-helper">Paste a brand’s Ad Library link for a precise match. A single-ad link collects that ad; an advertiser link tracks its library. Names use keyword search.</p><div id="watchlist-list" class="watchlist-list">
+      <p class="strategy-helper">Start with the store URL. Avonent saves the store even when Facebook resolution is missing, and it will never treat a similar advertiser name as a confirmed match without stronger evidence or your selection.</p><div id="watchlist-list" class="watchlist-list">
         <div class="empty">Loading competitors…</div>
       </div>
     </aside>
@@ -113,11 +122,29 @@
           <p class="helper">Long-running is a research signal, not proof of profitability.</p>
         </div>
         <div class="research-filters">
-          <select id="brand-filter"><option value="all">All tracked brands</option></select>
-          <select id="ad-filter">
-            <option value="all">All active ads</option>
-            <option value="long">30+ days</option>
+          <select id="brand-filter" aria-label="Tracked brand"><option value="all">All tracked brands</option></select>
+          <select id="media-filter" aria-label="Media type">
+            <option value="all">All media</option>
+            <option value="video">Video ads</option>
+            <option value="image">Image ads</option>
+            <option value="unknown">Unknown media</option>
           </select>
+          <select id="age-filter" aria-label="Ad age">
+            <option value="all">All ages</option>
+            <option value="days-7">7+ days</option>
+            <option value="days-14">14+ days</option>
+            <option value="days-30">30+ days</option>
+            <option value="days-60">60+ days</option>
+            <option value="days-90">90+ days</option>
+            <option value="unknown">Unknown age</option>
+          </select>
+          <input id="keyword-filter" class="research-search" type="search" inputmode="search" placeholder="Search copy, headline, advertiser" aria-label="Search ads">
+          <select id="sort-filter" aria-label="Sort ads">
+            <option value="newest">Newest start date</option>
+            <option value="oldest">Oldest start date</option>
+            <option value="collected">Most recently collected</option>
+          </select>
+          <button id="clear-filters" class="button secondary mini" type="button">Clear filters</button>
         </div>
       </div>
 
@@ -147,7 +174,7 @@
 
 <script src="static/cloud-v1.js?v=1"></script>
 <script src="static/research-utils.js?v=1"></script>
-<script src="static/research-v2.js?v=4"></script>
+<script src="static/research-v2.js?v=5"></script>
 <script src="static/ui-v3.js?v=11"></script>
 </body>
 </html>
