@@ -114,24 +114,47 @@
     const raw=$("meta-link-input").value.trim();
     const parsed=parseMetaUrl(raw);
     const status=$("meta-link-status");
+    if(!parsed.valid){ status.textContent="Paste a valid Facebook Ad Library link with an ad ID."; return; }
 
-    if(!parsed.source){
-      status.textContent="Paste a valid HTTPS URL.";
-      return;
+    const button=$("inspect-meta-link");
+    button.disabled=true;
+    button.textContent="Pulling…";
+    status.textContent="Reading the public Meta Ad Library page…";
+
+    try{
+      const base=(window.AVONENT_CONFIG&&window.AVONENT_CONFIG.supabaseUrl)||"";
+      const response=await fetch(base.replace(/\/$/,"")+"/functions/v1/meta-ad-import",{
+        method:"POST",
+        headers:{"content-type":"application/json"},
+        body:JSON.stringify({url:parsed.source})
+      });
+      const data=await response.json();
+      if(!response.ok||data.error) throw new Error(data.error||"Could not import this ad.");
+
+      $("ad-source-url").value=data.source_url||parsed.source;
+      $("ad-library-id").value=data.ad_id||parsed.id;
+      $("ad-advertiser").value=data.brand_name||"";
+      $("ad-primary-text").value=data.primary_text||"";
+      $("ad-description").value=data.description||"";
+      $("ad-media-url").value=data.media_url||"";
+      if(!$("ad-date").value) $("ad-date").value=new Date().toISOString().slice(0,10);
+
+      window.AVONENT_PULLED_META=data;
+      renderPreview({...currentData(),headline:data.headline||""});
+
+      const found=[];
+      if(data.brand_name) found.push("brand");
+      if(data.primary_text) found.push("primary text");
+      if(data.headline) found.push("headline");
+      if(data.description) found.push("description");
+      if(data.media_url) found.push("media");
+      status.textContent=found.length?"Pulled: "+found.join(", ")+".":"Meta loaded the page but did not expose creative fields for this ad.";
+    }catch(error){
+      status.textContent=error.message||String(error);
+    }finally{
+      button.disabled=false;
+      button.textContent="Pull ad";
     }
-
-    $("ad-source-url").value=parsed.source;
-    $("ad-library-id").value=parsed.id;
-    if(!$("ad-date").value) $("ad-date").value=new Date().toISOString().slice(0,10);
-
-    if(!parsed.valid){
-      status.textContent="The link was saved, but it does not look like a standard Meta Ad Library URL with an ad ID.";
-    }else{
-      status.textContent="Meta ad ID "+parsed.id+" captured. Add the visible brand/copy and attach the creative or a direct media URL, then save.";
-    }
-
-    renderPreview(currentData());
-    $("ad-advertiser").focus();
   }
 
   function renderPreview(data,assetUrl){
@@ -150,15 +173,28 @@
       '<div class="research-preview-copy">'+
         '<div class="research-preview-top"><span class="pill">'+esc(data.advertiser_name||"Unlabeled brand")+'</span><span class="meta">Ad '+esc(data.ad_library_id||"—")+'</span></div>'+
         '<h3>'+esc(data.product_name||"Competitor ad research")+'</h3>'+
-        '<p class="research-primary">'+esc(data.primary_text||"Paste the primary text to make this research card searchable and reusable.")+'</p>'+
+        '<div class="saved-copy-block"><span>Primary text</span><p>'+esc(data.primary_text||"No primary text exposed.")+'</p></div>'+
+        (data.headline?'<div class="saved-copy-block"><span>Headline</span><p>'+esc(data.headline)+'</p></div>':'')+
+        (window.AVONENT_PULLED_META&&window.AVONENT_PULLED_META.description?'<div class="saved-copy-block"><span>Description</span><p>'+esc(window.AVONENT_PULLED_META.description)+'</p></div>':'')+
         '<div class="research-preview-actions">'+
-          (data.primary_text?'<button class="button secondary mini" data-preview-copy="primary" type="button">Copy primary text</button>':'')+
-          (data.source_url?'<a class="button secondary mini" href="'+esc(data.source_url)+'" target="_blank" rel="noopener">Open Meta ad</a>':'')+
+          (data.primary_text?'<button class="button secondary mini" data-preview-copy="primary" type="button">Copy primary</button>':'')+
+          '<button class="button mini" data-preview-action="save" type="button">Save research</button>'+
+          '<button class="button secondary mini" data-preview-action="download" type="button">Download all</button>'+
+          '<button class="button secondary mini" data-preview-action="concept" type="button">Create concept</button>'+
+          (data.source_url?'<a class="button secondary mini" href="'+esc(data.source_url)+'" target="_blank" rel="noopener">Open Meta</a>':'')+
         '</div>'+
       '</div>';
 
     const copy=preview.querySelector("[data-preview-copy]");
     if(copy) copy.onclick=async()=>{await navigator.clipboard.writeText(data.primary_text);copy.textContent="Copied";};
+    preview.querySelectorAll("[data-preview-action]").forEach(btn=>{
+      btn.onclick=()=>{
+        const action=btn.getAttribute("data-preview-action");
+        if(action==="save") document.querySelector('#ad-form button[type="submit"]')?.click();
+        if(action==="download") $("download-current-package")?.click();
+        if(action==="concept") $("create-from-ad")?.click();
+      };
+    });
   }
 
   async function loadBrands(){
