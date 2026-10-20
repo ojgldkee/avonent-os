@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="static/ui-v3.css?v=28">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="static/config.js?v=2"></script>
+  <link rel="stylesheet" href="static/strategist.css?v=1">
 </head>
 <body data-page="products-cloud">
 <header class="topbar">
@@ -30,11 +31,11 @@
 <main class="products-main">
   <section class="page-title compact-hero">
     <p class="eyebrow">PRODUCT INTELLIGENCE</p>
-    <h1>Teach Avonent what you sell.</h1>
-    <p class="sub">Avonent scans your public storefront for product facts, then you add the customer, proof, positioning and claim limits the AI needs to make better ads.</p>
+    <h1>Your product intelligence.</h1>
+    <p class="sub">Your storefront supplies the facts. Avonent uses them as context when planning creative, so you can focus on strategy instead of filling out forms.</p>
   </section>
 
-  <section class="product-scan panel">
+  <div class="strategy-lead"><span class="strategy-chip">Connected storefront · avonent.com</span><span class="strategy-chip">Creative strategy context</span></div><section class="product-scan panel">
     <div>
       <p class="eyebrow">WEBSITE SCAN</p>
       <h2>avonent.com</h2>
@@ -73,8 +74,9 @@
 
         <div class="span-2 product-editor-heading">
           <div>
-            <p class="eyebrow">AI CONTEXT</p>
+            <p class="eyebrow">PRODUCT PROFILE</p>
             <h2 id="product-form-title">Product</h2>
+            <p class="strategy-helper">Storefront facts are imported automatically. Edit only what needs correction or additional creative direction.</p>
           </div>
           <a id="product-source-link" class="button secondary mini hidden" href="#" target="_blank" rel="noopener">Open product page</a>
         </div>
@@ -98,6 +100,7 @@
 
         <div id="store-facts" class="store-facts span-2"></div>
 
+        <details class="strategy-details"><summary>Optional strategist context · audience, offers and proof</summary><p>Only add information that is not already available on your product page. Do not invent product claims or evidence.</p></details>
         <label class="span-2">Target customer
           <textarea id="product-audience" placeholder="Who buys this? What do they care about? What do they already believe?"></textarea>
         </label>
