@@ -47,6 +47,16 @@
     const switchText = $("auth-switch-text");
     const switchLink = $("auth-switch-link");
     const forgot = $("forgot-password");
+    const togglePassword = $("toggle-password");
+
+    if (togglePassword) {
+      togglePassword.onclick = () => {
+        const revealing = passwordInput.type === "password";
+        passwordInput.type = revealing ? "text" : "password";
+        togglePassword.textContent = revealing ? "Hide" : "Show";
+        togglePassword.setAttribute("aria-label", revealing ? "Hide password" : "Show password");
+      };
+    }
 
     function render() {
       hide($("auth-message"));
@@ -140,7 +150,13 @@
         }
 
         const result = await db.auth.signInWithPassword({ email, password });
-        if (result.error) throw result.error;
+        if (result.error) {
+          if (/invalid login credentials/i.test(result.error.message || "")) {
+            message("No account yet", "That email has not been registered yet. Tap Sign up below and use the same email and password once, then you can log in normally.", true);
+            return;
+          }
+          throw result.error;
+        }
         location.href = "index.html";
       } catch (error) {
         message("Could not continue", error.message || String(error), true);
