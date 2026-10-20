@@ -334,3 +334,20 @@ textarea{min-height:96px;resize:vertical}.tall{min-height:165px}label{display:gr
   line-height:1.45
 }
 @media(max-width:760px){.inspiration-grid{grid-template-columns:1fr}}
+
+/* one-screen Meta importer */
+body[data-page="ads"] .workspace-tabs,
+body[data-page="ads"] .step-nav{display:none!important}
+body[data-page="ads"] .ad-tab-panel[data-ad-panel="import"],
+body[data-page="ads"] .ad-tab-panel[data-ad-panel="saved"],
+body[data-page="ads"] .ad-tab-panel[data-ad-panel="inspiration"]{display:block!important}
+body[data-page="ads"] .ad-tab-panel[data-ad-panel="copy"],
+body[data-page="ads"] .ad-tab-panel[data-ad-panel="media"]{display:none!important}
+body[data-page="ads"] label:has(#ad-source-url),
+body[data-page="ads"] label:has(#ad-library-id){display:none!important}
+body[data-page="ads"] .ad-import-preview{min-height:220px}
+@media(max-width:760px){
+  body[data-page="ads"] main{padding-top:12px}
+  body[data-page="ads"] .ad-import-preview{min-height:0}
+  body[data-page="ads"] .research-preview-actions{display:grid;grid-template-columns:1fr 1fr}
+}
