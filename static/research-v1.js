@@ -125,7 +125,8 @@
         '<div class="days-badge ' + (a.qualifies_long_running ? 'qualified' : '') + '"><strong>' + Number(a.days_running || 0) + '</strong><span>days</span></div></div>' +
         media + copy +
         '<div class="source-meta"><span>Started ' + esc(a.started_at || "unknown") + '</span><span>' + (a.is_active ? "Active" : "Inactive") + '</span>' +
-        (a.qualifies_long_running ? '<span class="qualified-label">Long-running</span>' : '') + '</div>' +
+        (a.qualifies_long_running ? '<span class="qualified-label">Long-running</span>' : '') +
+        (a.analyzed_at ? '<span class="qualified-label">AI analyzed</span>' : '') + '</div>' +
         '<div class="source-actions">' + actions + '</div>' +
       '</article>';
     }).join("");
