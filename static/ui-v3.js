@@ -3,10 +3,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const current = location.pathname.split("/").pop() || "index.html";
   const tabs = [
     ["index.html","Home","⌂"],
-    ["chat.html","Chat","◫"],
-    ["creatives.html","Library","▤"],
+    ["creatives.html","Ideas","▤"],
     ["ads.html","Ads","◎"],
-    ["brands.html","Brands","◇"]
+    ["brands.html","Products","◇"]
   ];
   if (!document.querySelector(".mobile-tabs")) {
     const nav = document.createElement("nav");
