@@ -10,8 +10,9 @@
   <link rel="stylesheet" href="static/ui-v3.css?v=28">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="static/config.js?v=2"></script>
-  <link rel="stylesheet" href="static/strategist.css?v=11">
-<style>.ideas-main .compact-hero h1{font-size:clamp(28px,5vw,44px)}.ideas-main .compact-hero .sub{font-size:15px;line-height:1.55}.idea-copy-pack{padding:16px;border:1px solid #293342;border-radius:14px;overflow-wrap:anywhere}.idea-copy-pack summary{cursor:pointer;font-weight:700}.idea-script-block pre{white-space:pre-wrap;overflow-wrap:anywhere}.ideas-main select{font-size:16px}</style></head>
+  <link rel="stylesheet" href="static/strategist.css?v=13">
+<style>.ideas-main .compact-hero h1{font-size:clamp(28px,5vw,44px)}.ideas-main .compact-hero .sub{font-size:15px;line-height:1.55}.idea-copy-pack{padding:16px;border:1px solid #293342;border-radius:14px;overflow-wrap:anywhere}.idea-copy-pack summary{cursor:pointer;font-weight:700}.idea-script-block pre{white-space:pre-wrap;overflow-wrap:anywhere}.ideas-main select{font-size:16px}.ai-progress-card{grid-column:1/-1;padding:16px;border:1px solid #34485d;border-radius:16px;background:#0c131c}.ai-progress-card.hidden{display:none}.ai-progress-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.ai-progress-head strong{font-size:14px}.ai-progress-head span{font-size:13px;color:#a9b8c8;font-variant-numeric:tabular-nums}.ai-progress-stage{margin:6px 0 0;color:#aab8c8;font-size:12px}.ai-progress-track{height:10px;border-radius:999px;background:#202c38;overflow:hidden;margin-top:12px}.ai-progress-fill{height:100%;width:0;background:linear-gradient(90deg,#dce9f6,#7eafd8);transition:width .7s ease}.ai-progress-note{margin:9px 0 0;color:#8292a4;font-size:11px;line-height:1.45}@media(max-width:600px){.ai-progress-card{padding:13px}}
+</style></head>
 <body data-page="ideas-cloud">
 <header class="topbar">
   <a class="logo" href="index.html">AVONENT</a>
@@ -52,7 +53,13 @@
       <a class="button secondary" href="ads.html">Research competitors</a>
       <button id="generate-more-ideas" class="button" type="button">Generate from research</button>
     </div>
-    <p id="ideas-status" class="helper span-2" role="status"></p><a class="text-button" href="https://supabase.com/dashboard/project/rycaylyhgjgovyxwhgjg/functions/secrets" target="_blank" rel="noopener">AI setup</a>
+    <div id="ideas-progress" class="ai-progress-card hidden" aria-live="polite">
+      <div class="ai-progress-head"><strong id="ideas-progress-label">Generating creative pack</strong><span id="ideas-progress-percent">0%</span></div>
+      <p id="ideas-progress-stage" class="ai-progress-stage">Preparing product and research…</p>
+      <div class="ai-progress-track"><div id="ideas-progress-fill" class="ai-progress-fill"></div></div>
+      <p id="ideas-progress-note" class="ai-progress-note">Estimated progress. The model does not expose an exact internal percentage. Keep this page open until it reaches 100%.</p>
+    </div>
+    <p id="ideas-status" class="helper span-2" role="status"></p>
   </section>
 
   <div class="ideas-workspace-tabs" role="tablist" aria-label="Creative workspace">
@@ -86,7 +93,7 @@
 
 <script src="static/cloud-v1.js?v=1"></script>
 <script src="static/research-utils.js?v=2"></script>
-<script src="static/cloud-ideas-v1.js?v=7"></script>
+<script src="static/cloud-ideas-v1.js?v=9"></script>
 <script src="static/ui-v3.js?v=11"></script>
 </body>
 </html>
