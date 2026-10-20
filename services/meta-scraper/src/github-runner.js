@@ -81,6 +81,69 @@ function normalizeAdvertiser(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function urlHost(value) {
+  try { return new URL(value).hostname.toLowerCase().replace(/^www\./, ""); } catch { return ""; }
+}
+
+function sameStore(a, b) {
+  const ah = urlHost(a), bh = urlHost(b);
+  return Boolean(ah && bh && (ah === bh || ah.endsWith("." + bh) || bh.endsWith("." + ah)));
+}
+
+function sameFacebookPage(a, b) {
+  try {
+    const normalize = value => {
+      const u = new URL(value);
+      return u.pathname.replace(/\/+$/, "").toLowerCase() + (u.pathname.toLowerCase() === "/profile.php" ? "?id=" + (u.searchParams.get("id") || "") : "");
+    };
+    return Boolean(a && b && normalize(a) === normalize(b));
+  } catch {
+    return false;
+  }
+}
+
+function advertiserCandidates(sourceAds, brand) {
+  const groups = new Map();
+  for (const ad of sourceAds) {
+    const name = String(ad.advertiser_name || "").trim();
+    if (!name) continue;
+    const pageId = String(ad.advertiser_page_id || "").trim();
+    const pageUrl = String(ad.advertiser_page_url || "").trim();
+    const key = pageId || normalizeAdvertiser(name);
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, {
+      key,
+      advertiser_name:name,
+      meta_page_id:pageId,
+      facebook_page_url:pageUrl,
+      logo_url:String(ad.advertiser_logo_url || ""),
+      ad_count:0,
+      landing_domains:new Set(),
+      website_match:false,
+      facebook_match:false
+    });
+    const item = groups.get(key);
+    item.ad_count++;
+    const landing = externalWebsite(ad.landing_url || "");
+    const host = urlHost(landing);
+    if (host) item.landing_domains.add(host);
+    if (landing && brand.website_url && sameStore(landing, brand.website_url)) item.website_match = true;
+    if (pageUrl && brand.facebook_page_url && sameFacebookPage(pageUrl, brand.facebook_page_url)) item.facebook_match = true;
+    if (!item.logo_url && ad.advertiser_logo_url) item.logo_url = String(ad.advertiser_logo_url);
+    if (!item.meta_page_id && pageId) item.meta_page_id = pageId;
+    if (!item.facebook_page_url && pageUrl) item.facebook_page_url = pageUrl;
+  }
+  return [...groups.values()].map(item => ({
+    ...item,
+    landing_domains:[...item.landing_domains].slice(0,6)
+  })).sort((a,b) => Number(b.website_match)-Number(a.website_match) || Number(b.facebook_match)-Number(a.facebook_match) || b.ad_count-a.ad_count);
+}
+
+function sourceMatchesCandidate(ad, candidate) {
+  if (candidate.meta_page_id && String(ad.advertiser_page_id || "") === candidate.meta_page_id) return true;
+  return normalizeAdvertiser(ad.advertiser_name) === normalizeAdvertiser(candidate.advertiser_name);
+}
+
 async function collectBrand(brand) {
   console.log("\n[" + brand.competitor_name + "] starting");
 
@@ -114,18 +177,66 @@ async function collectBrand(brand) {
 
   let sourceAds = Array.isArray(result.ads) ? result.ads : [];
 
-  // If we do not yet know the Meta page ID, do not silently mix unrelated keyword matches
-  // into a brand's research history. Prefer exact/near advertiser-name matches.
+  // Store-first brands stay unresolved until a strong website/social match or an explicit user choice.
+  // A similar advertiser name alone is never treated as proof that it is the same business.
   if (!brand.meta_page_id && !brand.ad_library_url) {
-    const target = normalizeAdvertiser(brand.competitor_name);
-    const exact = sourceAds.filter(a => normalizeAdvertiser(a.advertiser_name) === target);
-    const close = sourceAds.filter(a => {
-      const n = normalizeAdvertiser(a.advertiser_name);
-      return n && target && (n.includes(target) || target.includes(n));
-    });
-    if (exact.length) sourceAds = exact;
-    else if (close.length) sourceAds = close;
-    else if (sourceAds.length) throw new Error("No matching advertiser found. Set the correct Meta page ID in brand settings.");
+    const data = brand.brand_data && typeof brand.brand_data === "object" ? brand.brand_data : {};
+    const selectedName = String(data.selected_advertiser_name || "").trim();
+
+    if (selectedName) {
+      sourceAds = sourceAds.filter(a => normalizeAdvertiser(a.advertiser_name) === normalizeAdvertiser(selectedName));
+      if (!sourceAds.length) {
+        await updateBrand(brand.id, {
+          resolution_status:"unresolved",
+          last_scan_status:"completed",
+          last_scan_message:"The previously selected advertiser was not found in this sample. Review advertiser candidates.",
+          last_scan_complete:false
+        });
+        return;
+      }
+    } else {
+      const candidates = advertiserCandidates(sourceAds, brand);
+      const strong = candidates.filter(item => item.website_match || item.facebook_match);
+
+      if (strong.length === 1) {
+        const chosen = strong[0];
+        const adLibraryUrl = chosen.meta_page_id
+          ? "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=US&view_all_page_id=" + encodeURIComponent(chosen.meta_page_id) + "&search_type=page"
+          : "";
+        const nextData = {
+          ...data,
+          advertiser_candidates:candidates,
+          selected_advertiser_name:chosen.advertiser_name,
+          advertiser_resolution_evidence:chosen.website_match ? "landing_domain_matches_store" : "facebook_page_matches_store_link",
+          advertiser_resolved_at:new Date().toISOString()
+        };
+        const patch = {
+          competitor_name:chosen.advertiser_name || brand.competitor_name,
+          logo_url:chosen.logo_url || brand.logo_url || "",
+          facebook_page_url:chosen.facebook_page_url || brand.facebook_page_url || "",
+          resolution_status:chosen.meta_page_id ? "verified_website_match" : "verified_store_social_match",
+          brand_data:nextData,
+          ...(chosen.meta_page_id ? {meta_page_id:chosen.meta_page_id,ad_library_url:adLibraryUrl} : {})
+        };
+        await updateBrand(brand.id, patch);
+        Object.assign(brand, patch);
+        sourceAds = sourceAds.filter(ad => sourceMatchesCandidate(ad, chosen));
+      } else {
+        const nextData = {...data, advertiser_candidates:candidates, advertiser_candidates_updated_at:new Date().toISOString()};
+        await updateBrand(brand.id, {
+          resolution_status:candidates.length ? "ambiguous" : "unresolved",
+          brand_data:nextData,
+          last_scanned_at:new Date().toISOString(),
+          last_scan_status:"completed",
+          last_scan_message:candidates.length
+            ? "Advertiser match needs confirmation before ads are imported."
+            : "No trustworthy Facebook advertiser match was found in this sample.",
+          last_scan_complete:Boolean(result.sample_complete)
+        });
+        console.log("[" + brand.competitor_name + "] advertiser unresolved; " + candidates.length + " candidate(s)");
+        return;
+      }
+    }
   }
 
   const now = new Date().toISOString();
@@ -183,6 +294,7 @@ async function collectBrand(brand) {
   await updateBrand(brand.id, {
     logo_url: logo,
     website_url: site,
+    resolution_status: brand.meta_page_id || brand.ad_library_url ? (brand.resolution_status === "legacy_name_search" ? "configured_meta" : brand.resolution_status) : (brand.resolution_status || "user_selected"),
     ...(/^(Linked Meta ad |Meta advertiser )/.test(brand.competitor_name) && rows[0]?.advertiser_name ? {competitor_name:rows[0].advertiser_name} : {}),
     last_scanned_at: now,
     last_scan_status: "completed",
