@@ -225,7 +225,7 @@
         '</div>' +
         '<details class="brand-card-settings"><summary>Settings · optional overrides</summary>' +
           '<label>Brand name override<input data-brand-name value="' + esc(w.competitor_name) + '" maxlength="120"></label>' +
-          '<label>Facebook page or Ad Library link<input data-brand-link type="url" value="' + esc(w.ad_library_url || w.facebook_page_url || "") + '" placeholder="Optional"></label>' +
+          '<label>Facebook page or Ad Library link<input data-brand-link type="url" value="' + esc(w.ad_library_url || w.facebook_page_url || (w.meta_page_id ? "https://www.facebook.com/ads/library/?view_all_page_id=" + encodeURIComponent(w.meta_page_id) : "")) + '" placeholder="Optional"></label>' +
           '<label>Store URL<input data-brand-website type="url" value="' + esc(w.website_url || "") + '"></label>' +
           '<label>Logo URL (optional)<input data-brand-logo type="url" value="' + esc(w.logo_url || "") + '"></label>' +
           '<button class="button secondary mini" type="button" data-save-brand="' + esc(w.id) + '">Save brand settings</button>' +
@@ -656,12 +656,13 @@
             const current = watchlist.find(w => w.id === save.dataset.saveBrand) || {};
             const data = current.brand_data && typeof current.brand_data === "object" ? current.brand_data : {};
             save.disabled = true;
+            const keepExistingMeta = !card.querySelector("[data-brand-link]").value.trim();
             const resolution = ref.adId ? "user_configured_ad" : ref.pageId ? "user_configured" : ref.pageUrl ? "user_page_link_unresolved" : current.resolution_status;
             const result = await db.from("competitor_watchlist").update({
               competitor_name:name.slice(0,120),
-              ad_library_url:ref.adLibraryUrl,
-              meta_page_id:ref.pageId,
-              facebook_page_url:ref.pageUrl || current.facebook_page_url || "",
+              ad_library_url:keepExistingMeta ? (current.ad_library_url || "") : ref.adLibraryUrl,
+              meta_page_id:keepExistingMeta ? (current.meta_page_id || "") : ref.pageId,
+              facebook_page_url:keepExistingMeta ? (current.facebook_page_url || "") : (ref.pageUrl || current.facebook_page_url || ""),
               website_url:website,
               logo_url:logo,
               resolution_status:resolution,
