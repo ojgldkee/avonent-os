@@ -59,3 +59,35 @@ test("research generation accepts younger ads with copy", () => {
   assert.equal(globalThis.AVONENT_RESEARCH_UTILS.researchSources(rows).length,1);
   assert.equal(globalThis.AVONENT_RESEARCH_UTILS.researchSources(rows)[0].id,"new");
 });
+
+test("store URLs are canonicalized and Facebook page links can remain unresolved", () => {
+  const utils = globalThis.AVONENT_RESEARCH_UTILS;
+  assert.equal(utils.normalizeStoreUrl("resilia.shop/products/test"), "https://resilia.shop/");
+  const page = utils.parseFacebookReference("https://www.facebook.com/resiliahealth/");
+  assert.equal(page.pageUrl, "https://www.facebook.com/resiliahealth/");
+  assert.equal(page.pageId, "");
+  assert.equal(page.adLibraryUrl, "");
+  const numeric = utils.parseFacebookReference("https://www.facebook.com/profile.php?id=12345678");
+  assert.equal(numeric.pageId, "12345678");
+  assert.match(numeric.adLibraryUrl, /view_all_page_id=12345678/);
+});
+
+test("a poster without captured image/video remains unknown media", () => {
+  const ad = parser.normalizeCard({
+    ad_archive_id:"123456789",
+    text:"Active\nLibrary ID: 123456789\nStarted running on Oct 20, 2026\nBrand\nSponsored\nThis is enough primary copy to parse.",
+    links:[], link_meta:[], images:[], videos:[], posters:["https://example.com/poster.jpg"], image_meta:[]
+  });
+  assert.equal(ad.media_url, "https://example.com/poster.jpg");
+  assert.equal(ad.media_thumbnail_url, "https://example.com/poster.jpg");
+  assert.equal(ad.media_kind, "");
+});
+
+test("frontend exposes combined media, age, keyword and sort filtering", () => {
+  assert.match(frontend, /media-filter/);
+  assert.match(frontend, /age-filter/);
+  assert.match(frontend, /keyword-filter/);
+  assert.match(frontend, /sort-filter/);
+  assert.match(frontend, /function mediaKind/);
+  assert.doesNotMatch(frontend, /\$\("ad-filter"\)/);
+});
