@@ -13,6 +13,63 @@
   let ideas = [];
   let sourceAds = [];
   let workspaceMode = "concepts";
+  let progressTimer = null;
+  let progressStartedAt = 0;
+
+  function progressStage(seconds) {
+    if (seconds < 5) return "Preparing product facts and research…";
+    if (seconds < 14) return "Selecting the strongest competitor patterns…";
+    if (seconds < 30) return "Writing five differentiated concepts and hooks…";
+    if (seconds < 48) return "Building scripts, shot plans and animation directions…";
+    if (seconds < 68) return "Ranking concepts and checking source support…";
+    return "Validating and packaging the final creative set…";
+  }
+
+  function progressPercent(seconds) {
+    if (seconds <= 3) return 5 + seconds * 3;
+    if (seconds <= 15) return 14 + Math.round((seconds - 3) * 1.8);
+    if (seconds <= 35) return 36 + Math.round((seconds - 15) * 1.5);
+    if (seconds <= 60) return 66 + Math.round((seconds - 35) * 0.8);
+    if (seconds <= 90) return 86 + Math.round((seconds - 60) * 0.2);
+    return 94;
+  }
+
+  function updateProgress() {
+    const panel = $("ideas-progress");
+    if (!panel || !progressStartedAt) return;
+    const seconds = Math.floor((Date.now() - progressStartedAt) / 1000);
+    const pct = Math.min(94, progressPercent(seconds));
+    $("ideas-progress-percent").textContent = pct + "%";
+    $("ideas-progress-fill").style.width = pct + "%";
+    $("ideas-progress-stage").textContent = progressStage(seconds);
+    $("ideas-progress-note").textContent = "Estimated progress · " + seconds + "s elapsed. Keep this page open until it reaches 100%.";
+  }
+
+  function startProgress(sourceCount) {
+    const panel = $("ideas-progress");
+    if (!panel) return;
+    progressStartedAt = Date.now();
+    panel.classList.remove("hidden");
+    $("ideas-progress-label").textContent = "Generating 5 concepts from " + sourceCount + " source ads";
+    $("ideas-progress-percent").textContent = "5%";
+    $("ideas-progress-fill").style.width = "5%";
+    $("ideas-progress-stage").textContent = "Preparing product facts and research…";
+    $("ideas-progress-note").textContent = "Estimated progress. Keep this page open while the model works.";
+    clearInterval(progressTimer);
+    progressTimer = setInterval(updateProgress, 1000);
+  }
+
+  function endProgress(message, ok) {
+    clearInterval(progressTimer);
+    progressTimer = null;
+    const panel = $("ideas-progress");
+    if (!panel) return;
+    $("ideas-progress-percent").textContent = ok ? "100%" : "Stopped";
+    $("ideas-progress-fill").style.width = "100%";
+    $("ideas-progress-stage").textContent = message || (ok ? "Creative pack saved." : "Generation stopped.");
+    $("ideas-progress-note").textContent = ok ? "Done." : "The request did not complete.";
+    if (ok) setTimeout(() => panel.classList.add("hidden"), 2800);
+  }
 
   function today() {
     return new Date().toISOString().slice(0, 10);
@@ -217,7 +274,8 @@
     const btn = $("generate-more-ideas");
     btn.disabled = true;
     btn.textContent = "Generating…";
-    $("ideas-status").textContent = "Studying " + sources.length + " source ads (all ages eligible)…";
+    $("ideas-status").textContent = "Generation started. Do not refresh while it is running.";
+    startProgress(Math.min(sources.length, 16));
 
     try {
       const result = await cloud.invoke("creative-ai", { task: "ideas", product: p, competitor_ads: sources });
@@ -278,13 +336,15 @@
       const insert = await db.from("ai_ideas").insert(rows);
       if (insert.error) throw insert.error;
       $("ideas-status").textContent = rows.length + " new ideas generated.";
+      endProgress(rows.length + " concepts generated and saved.", true);
       await loadData();
     } catch (error) {
       if (error.data && error.data.setup_required) {
-        $("ideas-status").textContent = "AI setup required: add OPENAI_API_KEY in Supabase → Edge Functions → Secrets using the AI setup link.";
+        $("ideas-status").textContent = "AI connection is not configured correctly.";
       } else {
         $("ideas-status").textContent = error.message || String(error);
       }
+      endProgress(error.message || "Generation stopped.", false);
     } finally {
       btn.disabled = false;
       btn.textContent = "Generate from research";
