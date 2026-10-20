@@ -4,100 +4,134 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow">
-  <meta name="theme-color" content="#050506">
-  <title>Ad Research · Avonent</title>
+  <meta name="theme-color" content="#000000">
+  <title>Research · Avonent</title>
   <link rel="stylesheet" href="static/site.css?v=1">
-  <link rel="stylesheet" href="static/ui-v3.css?v=20">
+  <link rel="stylesheet" href="static/ui-v3.css?v=22">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="static/config.js?v=2"></script>
 </head>
-<body data-page="ads">
+<body data-page="research">
 <header class="topbar">
   <a class="logo" href="index.html">AVONENT</a>
   <nav class="nav">
-    <a href="index.html">Dashboard</a>
-    
+    <a href="index.html">Home</a>
     <a href="creatives.html">Ideas</a>
-    <a class="active" href="ads.html">Ad Library</a>
+    <a class="active" href="ads.html">Research</a>
     <a href="brands.html">Products</a>
-    
   </nav>
-  <div class="auth-nav">Local workspace</div>
+  <div class="auth-nav">
+    <a data-cloud-login class="text-button" href="auth.html?mode=login">Log in</a>
+    <span data-cloud-user class="account-email hidden"></span>
+    <button data-cloud-signout class="text-button hidden" type="button">Sign out</button>
+  </div>
 </header>
 
-<main>
+<main class="research-main">
   <section class="page-title compact-hero">
-    <p class="eyebrow">META AD RESEARCH</p>
-    <h1>Paste one link. Get the ad breakdown.</h1>
-    <p class="sub">Pull the public ad information, save it, and turn the pattern into an original creative.</p>
+    <p class="eyebrow">COMPETITOR INTELLIGENCE</p>
+    <h1>Find ads that keep running.</h1>
+    <p class="sub">Avonent watches competitors, stores public Meta Ad Library creatives, and prioritizes active ads that have crossed your long-running threshold.</p>
   </section>
 
-  <section class="panel">
+  <section class="research-controlbar panel">
+    <div class="research-product-picker">
+      <label>Product
+        <select id="research-product"></select>
+      </label>
+    </div>
+    <div class="research-actions">
+      <button id="scan-now" class="button" type="button">Scan competitors</button>
+      <button id="generate-ideas" class="button secondary" type="button">Generate ideas</button>
+    </div>
+    <p id="research-status" class="helper span-2"></p>
+  </section>
+
+  <section class="research-stats">
+    <div class="research-stat">
+      <span>Competitors watched</span>
+      <strong id="stat-watchlist">—</strong>
+    </div>
+    <div class="research-stat">
+      <span>Active 30+ day ads</span>
+      <strong id="stat-proven">—</strong>
+    </div>
+    <div class="research-stat">
+      <span>Ads stored</span>
+      <strong id="stat-ads">—</strong>
+    </div>
+    <div class="research-stat">
+      <span>Last scan</span>
+      <strong id="stat-last-scan">—</strong>
+    </div>
+  </section>
+
+  <section class="research-grid">
+    <aside class="panel watchlist-panel">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">WATCHLIST</p>
+          <h2>Competitors</h2>
+        </div>
+      </div>
+
+      <form id="competitor-form" class="competitor-form">
+        <label>Competitor
+          <input id="competitor-name" required placeholder="Resilia">
+        </label>
+        <label>Long-running threshold
+          <div class="number-field">
+            <input id="competitor-days" type="number" min="1" max="3650" value="30">
+            <span>days</span>
+          </div>
+        </label>
+        <button class="button" type="submit">Add competitor</button>
+      </form>
+
+      <div id="watchlist-list" class="watchlist-list">
+        <div class="empty">Loading competitors…</div>
+      </div>
+    </aside>
+
+    <section class="panel long-running-panel">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">LONG-RUNNING</p>
+          <h2>30+ day source ads</h2>
+          <p class="helper">Long-running is a research signal, not proof of profitability.</p>
+        </div>
+        <div class="research-filters">
+          <select id="ad-filter">
+            <option value="long">30+ days</option>
+            <option value="all">All active ads</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="research-ads" class="research-ad-grid">
+        <div class="empty wide">No ads loaded yet.</div>
+      </div>
+    </section>
+  </section>
+
+  <section class="panel research-automation-panel">
     <div class="section-head">
       <div>
-        <p class="eyebrow">FACEBOOK AD LIBRARY</p>
-        <h2>Paste an ad link</h2>
+        <p class="eyebrow">AUTOMATION</p>
+        <h2>Research pipeline</h2>
       </div>
     </div>
-    <div class="download-tool">
-      <input id="meta-link-input" type="url" placeholder="https://www.facebook.com/ads/library/?id=...">
-      <button id="inspect-meta-link" class="button" type="button">Pull ad</button>
-    </div>
-    <p id="meta-link-status" class="helper">Brand, primary text, headline, description and media appear below when Meta exposes them.</p>
-
-    <div id="meta-preview" class="ad-import-preview compact-preview">
-      <div class="preview-empty">
-        <span class="preview-icon">↓</span>
-        <strong>Your pulled ad will appear here</strong>
-        <p>Paste a Meta Ad Library URL above.</p>
-      </div>
-    </div>
-  </section>
-
-  <form id="ad-form" class="hidden" aria-hidden="true">
-    <input id="ad-source-url" type="url">
-    <input id="ad-library-id">
-    <select id="ad-brand-select"><option value="">No saved brand</option></select>
-    <input id="ad-advertiser">
-    <input id="ad-product">
-    <textarea id="ad-primary-text"></textarea>
-    <textarea id="ad-hook"></textarea>
-    <textarea id="ad-angle"></textarea>
-    <textarea id="ad-description"></textarea>
-    <input id="ad-media-url" type="url">
-    <input id="ad-file" type="file" accept="image/*,video/*">
-    <input id="ad-date" type="date">
-    <select id="ad-status"><option>Saved</option><option>Reviewing</option><option>Referenced</option><option>Archived</option></select>
-    <button type="submit">Save research card</button>
-    <button id="download-current-package" type="button">Download all</button>
-    <button id="create-from-ad" type="button">Create original concept</button>
-    <button id="clear-ad-form" type="button">Clear</button>
-  </form>
-  <p id="ad-save-status" class="helper"></p>
-
-  <section class="panel">
-    <div class="section-head">
-      <div><p class="eyebrow">SAVED RESEARCH</p><h2>Competitor ads</h2></div>
-      <input id="ad-search" class="compact-search" type="search" placeholder="Search brand, hook, copy...">
-    </div>
-    <div id="ad-grid" class="ad-grid compact-ad-grid"><div class="empty wide">No saved competitor ads yet.</div></div>
-  </section>
-
-  <section class="panel">
-    <div class="section-head">
-      <div><p class="eyebrow">INSPIRATION</p><h2>Patterns worth studying</h2><p class="helper">Use the structure, not exact wording or unsupported claims.</p></div>
-    </div>
-    <div class="inspiration-grid">
-      <article class="inspiration-card"><span class="pill">Resilia</span><h3>Ingredient specificity</h3><p>Concrete botanicals + research framing instead of vague wellness copy.</p><a class="button secondary mini" href="https://www.facebook.com/ads/library/?id=29078813375069313" target="_blank" rel="noopener">View example</a></article>
-      <article class="inspiration-card"><span class="pill">Rosabella</span><h3>Personal story</h3><p>Frustration → discovery → believable outcome → CTA.</p><a class="button secondary mini" href="https://www.facebook.com/ads/library/?id=28955370840765281" target="_blank" rel="noopener">View example</a></article>
-      <article class="inspiration-card"><span class="pill">Metabolae</span><h3>Product fact first</h3><p>Specific ingredient/formulation details instead of generic benefits.</p><a class="button secondary mini" href="https://www.facebook.com/ads/library/?id=1644145337372898" target="_blank" rel="noopener">View example</a></article>
-      <article class="inspiration-card"><span class="pill">Resia</span><h3>Detail → mechanism → proof</h3><p>Make a concrete product fact the centerpiece of the creative.</p><a class="button secondary mini" href="https://www.facebook.com/ads/library/?id=2030369877676530" target="_blank" rel="noopener">View example</a></article>
+    <div class="automation-flow">
+      <div><span>1</span><strong>Watch</strong><p>Track competitor names and page searches.</p></div>
+      <div><span>2</span><strong>Scan</strong><p>Your self-hosted browser reads public Meta Ad Library pages.</p></div>
+      <div><span>3</span><strong>Filter</strong><p>Active ads crossing the configured threshold become long-running source ads.</p></div>
+      <div><span>4</span><strong>Generate</strong><p>AI studies the patterns and creates original product-specific ideas.</p></div>
     </div>
   </section>
 </main>
 
-<script>window.AVONENT_CONFIG={supabaseUrl:"https://rycaylyhgjgovyxwhgjg.supabase.co"};</script>
-<script src="static/local-workspace.js?v=2"></script>
-<script src="static/strategist-v1.js?v=4"></script>
-<script src="static/ads-v4.js?v=7"></script>
+<script src="static/cloud-v1.js?v=1"></script>
+<script src="static/research-v1.js?v=1"></script>
 <script src="static/ui-v3.js?v=10"></script>
 </body>
 </html>
