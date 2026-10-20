@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+  if (document.body.dataset.page === "auth") return;
   const current = location.pathname.split("/").pop() || "index.html";
   const tabs = [
     ["index.html","Home"],

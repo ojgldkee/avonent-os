@@ -2,7 +2,15 @@
   "use strict";
 
   const cfg = window.AVONENT_CONFIG || {};
-  if (!window.supabase || !cfg.supabaseUrl || !cfg.supabasePublishableKey) return;
+  if (!window.supabase || !cfg.supabaseUrl || !cfg.supabasePublishableKey) {
+    document.addEventListener("DOMContentLoaded", () => {
+      const box = document.getElementById("auth-message");
+      box.textContent = "Account services could not load. Check your connection and reload this page.";
+      box.classList.remove("hidden");
+      document.getElementById("auth-submit").disabled = true;
+    });
+    return;
+  }
 
   const db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabasePublishableKey, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
@@ -24,11 +32,16 @@
 
   async function init() {
     const p = new URLSearchParams(location.search);
-    let mode = p.get("mode") || "login";
+    let mode = new URLSearchParams(location.hash.slice(1)).get("type") === "recovery" ? "recovery" : p.get("mode") || "login";
     if (!["login","signup","recovery"].includes(mode)) mode = "login";
 
     const sessionResult = await db.auth.getSession();
-    const session = sessionResult.data.session || null;
+    if (sessionResult.error) throw sessionResult.error;
+    let session = sessionResult.data.session || null;
+    db.auth.onAuthStateChange((event, next) => {
+      session = next;
+      if (event === "PASSWORD_RECOVERY") { mode = "recovery"; render(); }
+    });
 
     if (session && mode !== "recovery") {
       location.replace("index.html");
@@ -61,6 +74,10 @@
 
     function render() {
       hide($("auth-message"));
+      hide(inlineCreate);
+      emailInput.required = mode !== "recovery";
+      emailInput.disabled = mode === "recovery";
+      passwordInput.minLength = mode === "login" ? 1 : 8;
 
       if (mode === "signup") {
         title.textContent = "Create account";
@@ -118,14 +135,6 @@
             }
           });
 
-          if (result.error && /redirect/i.test(result.error.message || "")) {
-            result = await db.auth.signUp({
-              email,
-              password,
-              options: { data: { display_name: $("display-name").value.trim() } }
-            });
-          }
-
           if (result.error) throw result.error;
 
           if (result.data.session) {
@@ -133,7 +142,7 @@
             return;
           }
 
-          message("Account created", "Check your email to confirm the account, then come back and log in.");
+          message("Check your email", "If signup was accepted, a confirmation link was sent to your email. Open it before logging in. If you already have an account, use Log in or Forgot password.");
           return;
         }
 
@@ -153,7 +162,7 @@
         const result = await db.auth.signInWithPassword({ email, password });
         if (result.error) {
           if (/invalid login credentials/i.test(result.error.message || "")) {
-            message("No account yet", "That email has not been registered yet. Create it now using the same email and password.", true);
+            message("Login unsuccessful", "The email or password is incorrect. Try again, reset your password, or sign up if you have not created an account.", true);
             show(inlineCreate);
             return;
           }
@@ -192,17 +201,18 @@
       }
 
       const redirect = location.origin + location.pathname + "?mode=recovery";
-      let result = await db.auth.resetPasswordForEmail(email, { redirectTo: redirect });
-
-      if (result.error && /redirect/i.test(result.error.message || "")) {
-        result = await db.auth.resetPasswordForEmail(email);
-      }
+      forgot.disabled = true;
+      try {
+      const result = await db.auth.resetPasswordForEmail(email, { redirectTo: redirect });
 
       if (result.error) {
         message("Reset failed", result.error.message, true);
       } else {
-        message("Check your email", "A password-reset email was requested.");
+        message("Check your email", "If this email has an account, you will receive a password-reset link.");
       }
+      } catch (error) {
+        message("Reset failed", error.message || "Please try again.", true);
+      } finally { forgot.disabled = false; }
     };
   }
 
