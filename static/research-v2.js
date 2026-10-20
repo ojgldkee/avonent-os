@@ -50,16 +50,15 @@
     const peers = brandAds.filter(x => x.is_active);
     const fingerprint = creativeFingerprint(ad);
     const recurrence = peers.filter(x => creativeFingerprint(x) === fingerprint).length;
-    const longevity = age === null ? 0 : Math.min(35, Math.round(Math.min(age, 90) / 90 * 35));
+    const longevity = age === null ? 0 : Math.min(40, Math.round(Math.min(age, 90) / 90 * 40));
     const repeated = recurrence <= 1 ? 0 : Math.min(20, 8 + (recurrence - 2) * 4);
     const copy = ad.primary_text ? 10 : 0;
-    const headline = ad.headline ? 4 : 0;
-    const destination = ad.landing_url ? 4 : 0;
-    const cta = ad.cta_text ? 2 : 0;
+    const headline = ad.headline ? 5 : 0;
+    const destination = ad.landing_url ? 5 : 0;
+    const cta = ad.cta_text ? 5 : 0;
     const media = mediaKind(ad) === "unknown" ? 0 : 10;
     const active = ad.is_active ? 5 : 0;
-    const analyzed = ad.analyzed_at ? 5 : 0;
-    return Math.max(0, Math.min(100, longevity + repeated + copy + headline + destination + cta + media + active + analyzed));
+    return Math.max(0, Math.min(100, longevity + repeated + copy + headline + destination + cta + media + active));
   }
   function adRank(ad, brandAds) {
     const ranked = brandAds.filter(x => x.is_active)
