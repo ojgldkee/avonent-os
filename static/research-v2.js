@@ -253,7 +253,16 @@
       $("research-status").textContent =
         "Research complete. " + Number(result.stored || 0) + " ads stored; " + Number(result.long_running || 0) + " reached the long-running threshold.";
     } catch (error) {
-      $("research-status").textContent = error.message || String(error);
+      const saved = competitorId ? ads.filter(a => a.competitor_id === competitorId && a.is_active) : ads.filter(a => a.is_active);
+      if (saved.length) {
+        if (competitorId && $("brand-filter")) $("brand-filter").value = competitorId;
+        if ($("ad-filter")) $("ad-filter").value = "all";
+        renderAds();
+        activateTab("ads");
+        $("research-status").textContent = "Showing " + saved.length + " saved ads. Refresh failed: " + (error.message || String(error));
+      } else {
+        $("research-status").textContent = error.message || String(error);
+      }
     } finally {
       if (btn) {
         btn.disabled = false;
