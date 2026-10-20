@@ -149,7 +149,8 @@ async function collectBrand(brand) {
 
   await updateBrand(brand.id, {
     last_scan_status: "running",
-    last_scan_message: "Research in progress"
+    last_scan_message: "Research in progress",
+    scan_request_status: "running"
   });
 
   const response = await fetch(SCRAPER_URL + "/v1/meta/search", {
@@ -308,7 +309,9 @@ async function collectBrand(brand) {
       " with primary text · " +
       mediaCount +
       " with media · oldest " +
-      (result.oldest_started_at || "unknown")
+      (result.oldest_started_at || "unknown"),
+    scan_request_status: "",
+    scan_requested_at: null
   });
 
   console.log(
@@ -324,13 +327,26 @@ async function main() {
   let query = "competitor_watchlist?active=eq.true&select=*";
   if (COMPETITOR_ID) query += "&id=eq." + encodeURIComponent(COMPETITOR_ID);
 
-  const brands = await rest(query, { method: "GET" });
-  if (!Array.isArray(brands) || !brands.length) {
+  const allBrands = await rest(query, { method: "GET" });
+  if (!Array.isArray(allBrands) || !allBrands.length) {
     console.log("No active tracked brands to research.");
     return;
   }
 
-  console.log("Researching " + brands.length + " tracked brand(s).");
+  const staleBefore = Date.now() - 12 * 60 * 60 * 1000;
+  const brands = COMPETITOR_ID ? allBrands : allBrands.filter(brand => {
+    if (String(brand.scan_request_status || "") === "queued") return true;
+    if (!brand.last_scanned_at) return true;
+    const last = Date.parse(brand.last_scanned_at);
+    return Number.isFinite(last) && last <= staleBefore;
+  });
+
+  if (!brands.length) {
+    console.log("No queued or stale brands need research.");
+    return;
+  }
+
+  console.log("Researching " + brands.length + " queued/stale brand(s).");
 
   let failures = 0;
   for (const brand of brands) {
@@ -343,7 +359,8 @@ async function main() {
       await updateBrand(brand.id, {
         last_scan_status: "error",
         last_scan_message: message.slice(0, 500),
-        last_scan_complete: false
+        last_scan_complete: false,
+        scan_request_status: "error"
       }).catch(() => {});
     }
   }
