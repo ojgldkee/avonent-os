@@ -137,6 +137,47 @@
     };
   }
 
+  function applyCompetitorResearch(pack, brand, ref) {
+    if (!ref) return pack;
+    const source = String(ref.hook || ref.headline || ref.primary_text || "").trim();
+    if (!source) return pack;
+
+    const lower = source.toLowerCase();
+    const pain = firstLine(brand.pain_points, "the problem you are trying to solve");
+    const benefit = firstLine(brand.benefits, "the outcome you want");
+    const product = productName(brand);
+    let pattern = "Competitor message structure";
+    let hook = pack.hook;
+
+    if (/\b\d+(?:\.\d+)?\s*(?:mg|mcg|g|%|x)\b/i.test(source)) {
+      pattern = "Specific product detail";
+      hook = "Before you compare another option for " + pain + ", check the actual product details first.";
+    } else if (/\b(i|my|we|our)\b/i.test(lower)) {
+      pattern = "Personal story";
+      hook = "I was skeptical of another product like " + product + " until I looked at what was actually different.";
+    } else if (/pattern|nobody|secret|missing|overlook/i.test(lower)) {
+      pattern = "Hidden pattern / curiosity";
+      hook = "The part most people overlook when they are trying to improve " + benefit.toLowerCase() + ".";
+    } else if (/why|how|what|before/i.test(lower)) {
+      pattern = "Question / explanation";
+      hook = "What I would check before buying another product for " + pain + ".";
+    } else if (/support|feel|reclaim|again/i.test(lower)) {
+      pattern = "Desired outcome";
+      hook = "If " + benefit.toLowerCase() + " is the goal, this is what I would look at first.";
+    }
+
+    pack.hook = hook;
+    pack.inspiration_pattern = pattern;
+    pack.research_source = {
+      advertiser_name: ref.advertiser_name || "",
+      headline: ref.headline || "",
+      hook: ref.hook || "",
+      source_url: ref.source_url || ""
+    };
+    pack.why = "Pattern learned from saved competitor research: " + pattern + ". Use the structure, not the wording. " + pack.why;
+    return pack;
+  }
+
   function contentFromPackage(p) {
     return [
       "HOOK", p.hook, "",
@@ -185,14 +226,24 @@
     const runSalt = force ? Date.now().toString(36) : "daily";
     const generationSeed = date + ":" + runSalt;
     const existingResult = await db.from("creative_items").select("*");
+    const researchResult = await db.from("ad_references").select("*").order("created_at", {ascending:false}).limit(60);
     const existing = existingResult.data || [];
+    const research = researchResult.data || [];
     const created = [];
 
     for (let i = 0; i < count; i += 1) {
       const key = "daily-v2:" + date + ":" + brand.id + ":" + runSalt + ":" + i;
       if (!force && existing.some(function(x){ return x.metadata && x.metadata.daily_key === key; })) continue;
 
-      const pack = buildPackage(brand, generationSeed, i);
+      let pack = buildPackage(brand, generationSeed, i);
+      if (research.length) {
+        const relevant = research.filter(function(ref) {
+          return !ref.brand_id || ref.brand_id === brand.id;
+        });
+        const pool = relevant.length ? relevant : research;
+        const ref = pool[(hash(key) + i) % pool.length];
+        pack = applyCompetitorResearch(pack, brand, ref);
+      }
       const result = await db.from("creative_items").insert({
         user_id:"device-workspace",
         kind:"concept",
@@ -208,7 +259,8 @@
           generated_date:date,
           brand_id:brand.id,
           brand_name:brand.name,
-          package:pack
+          package:pack,
+          research_source:pack.research_source || null
         }
       }).select("*").single();
 
