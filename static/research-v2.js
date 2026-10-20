@@ -4,7 +4,7 @@
   const cloud = window.AVONENT_CLOUD;
   if (!cloud) return;
   const db = cloud.db;
-  const {parseMetaLink,researchSources} = window.AVONENT_RESEARCH_UTILS;
+  const {parseMetaLink,parseFacebookReference,normalizeStoreUrl,researchSources} = window.AVONENT_RESEARCH_UTILS;
   const $ = id => document.getElementById(id);
   const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 
@@ -28,6 +28,16 @@
   }
   function safeUrl(value) {
     try { const url = new URL(value); return ["https:", "http:"].includes(url.protocol) ? url.href : ""; } catch { return ""; }
+  }
+  function mediaKind(ad) {
+    const kind = String(ad?.media_kind || "").toLowerCase();
+    if (kind === "video") return "video";
+    if (kind === "image") return "image";
+    return "unknown";
+  }
+  function sortTime(value) {
+    const t = Date.parse(value || "");
+    return Number.isFinite(t) ? t : null;
   }
   function copyExcerpt(text) {
     return text.length > 200 ? text.slice(0,200).trimEnd() + "…" : text;
@@ -147,10 +157,37 @@
   }
 
   function scanState(w) {
+    if (w.resolution_status === "ambiguous") return "Choose the matching Facebook advertiser";
+    if (w.resolution_status === "unresolved" || w.resolution_status === "needs_meta_resolution" || w.resolution_status === "user_page_link_unresolved") return "Facebook advertiser not resolved";
     if (w.last_scan_status === "running") return "Research in progress";
     if (w.last_scan_status === "error") return "Research error";
     if (w.last_scan_status === "completed") return w.last_scan_complete ? "Research complete" : "Research sampled";
     return "Not researched";
+  }
+
+  function candidateMarkup(w) {
+    const candidates = Array.isArray(w.brand_data?.advertiser_candidates) ? w.brand_data.advertiser_candidates : [];
+    if (!["ambiguous","unresolved","needs_meta_resolution","user_page_link_unresolved"].includes(w.resolution_status) || !candidates.length) return "";
+    return '<div class="advertiser-candidates"><strong>Choose the matching Facebook advertiser</strong><p class="helper">Names alone are not treated as proof. Pick the advertiser only when the page/domain details match the store.</p>' +
+      candidates.slice(0,6).map((candidate,index) =>
+        '<button type="button" class="advertiser-candidate" data-select-candidate="' + esc(w.id) + '" data-candidate-index="' + index + '">' +
+          '<span><b>' + esc(candidate.advertiser_name || "Unknown advertiser") + '</b><small>' + Number(candidate.ad_count || 0) + ' sampled ads' +
+          (candidate.landing_domains?.length ? ' · ' + esc(candidate.landing_domains.join(", ")) : '') + '</small></span>' +
+          '<em>' + (candidate.website_match ? 'Store match' : candidate.facebook_match ? 'Facebook match' : 'Review') + '</em>' +
+        '</button>'
+      ).join("") + '</div>';
+  }
+
+  function storeSummary(w) {
+    const discovery = w.brand_data?.store_discovery || {};
+    const products = Array.isArray(discovery.products) ? discovery.products : [];
+    const categories = Array.isArray(discovery.categories) ? discovery.categories : [];
+    if (!products.length && !categories.length) return "";
+    const productNames = products.slice(0,4).map(p => p?.name).filter(Boolean);
+    return '<div class="store-summary">' +
+      (categories.length ? '<span>Categories: ' + esc(categories.slice(0,4).join(", ")) + '</span>' : '') +
+      (productNames.length ? '<span>Products: ' + esc(productNames.join(", ")) + (products.length > 4 ? ' +' + (products.length-4) : '') + '</span>' : '') +
+    '</div>';
   }
 
   function renderBrands() {
@@ -175,6 +212,7 @@
         (w.last_scan_message ? '<p class="helper">' + esc(w.last_scan_message) + '</p>' : '') +
         (w.brand_description ? '<p class="brand-description">' + esc(w.brand_description) + '</p>' : '') +
         (w.website_url ? '<a class="brand-site-link" target="_blank" rel="noopener" href="' + esc(w.website_url) + '">' + esc((()=>{try{return new URL(w.website_url).hostname.replace(/^www\./,"")}catch{return "Brand website"}})()) + '</a>' : '') +
+        storeSummary(w) + candidateMarkup(w) +
         '<div class="brand-card-stats">' +
           '<div><span>Ads sampled</span><strong>' + Number(w.last_scan_ads || brandAds.length || 0) + '</strong></div>' +
           '<div><span>' + Number(w.min_days_running || 30) + '+ day ads found</span><strong>' + longCount + '</strong></div>' +
@@ -185,10 +223,10 @@
           '<button class="button secondary mini" type="button" data-view-brand="' + esc(w.id) + '">View ads</button>' +
           '<button class="text-button danger" type="button" data-watch-delete="' + esc(w.id) + '">Remove</button>' +
         '</div>' +
-        '<details class="brand-card-settings"><summary>Settings · Facebook link & brand details</summary>' +
-          '<label>Brand name<input data-brand-name value="' + esc(w.competitor_name) + '" maxlength="120"></label>' +
-          '<label>Facebook Ad Library link<input data-brand-link type="url" value="' + esc(w.ad_library_url || "") + '" placeholder="https://www.facebook.com/ads/library/…"></label>' +
-          '<label>Website (optional)<input data-brand-website type="url" value="' + esc(w.website_url || "") + '"></label>' +
+        '<details class="brand-card-settings"><summary>Settings · optional overrides</summary>' +
+          '<label>Brand name override<input data-brand-name value="' + esc(w.competitor_name) + '" maxlength="120"></label>' +
+          '<label>Facebook page or Ad Library link<input data-brand-link type="url" value="' + esc(w.ad_library_url || w.facebook_page_url || "") + '" placeholder="Optional"></label>' +
+          '<label>Store URL<input data-brand-website type="url" value="' + esc(w.website_url || "") + '"></label>' +
           '<label>Logo URL (optional)<input data-brand-logo type="url" value="' + esc(w.logo_url || "") + '"></label>' +
           '<button class="button secondary mini" type="button" data-save-brand="' + esc(w.id) + '">Save brand settings</button>' +
           '<label>Long-running threshold<div class="number-field compact"><input type="number" min="1" max="3650" value="' + Number(w.min_days_running || 30) + '" data-watch-days="' + esc(w.id) + '"><span>days</span></div></label>' +
@@ -213,39 +251,53 @@
     const box = $("research-ads");
     if (!box) return;
 
-    const mode = $("ad-filter")?.value || "all";
     const brand = $("brand-filter")?.value || "all";
+    const media = $("media-filter")?.value || "all";
+    const age = $("age-filter")?.value || "all";
+    const keyword = ($("keyword-filter")?.value || "").trim().toLowerCase();
+    const sort = $("sort-filter")?.value || "newest";
 
     let rows = ads.filter(a => a.is_active);
     if (brand !== "all") rows = rows.filter(a => a.competitor_id === brand);
-    if (mode === "long") rows = rows.filter(a => qualifies(a));
-    if (mode === "unknown") rows = rows.filter(a => adAge(a) === null);
-    if (/^days-\d+$/.test(mode)) rows = rows.filter(a => qualifies(a, Number(mode.slice(5))));
+    if (media !== "all") rows = rows.filter(a => mediaKind(a) === media);
+    if (age === "unknown") rows = rows.filter(a => adAge(a) === null);
+    if (/^days-\d+$/.test(age)) rows = rows.filter(a => qualifies(a, Number(age.slice(5))));
+    if (keyword) rows = rows.filter(a => [a.primary_text,a.headline,a.advertiser_name].some(value => String(value || "").toLowerCase().includes(keyword)));
+
+    rows.sort((a,b) => {
+      if (sort === "collected") return (sortTime(b.last_seen_at || b.created_at || b.updated_at) || 0) - (sortTime(a.last_seen_at || a.created_at || a.updated_at) || 0);
+      const at = sortTime(a.started_at), bt = sortTime(b.started_at);
+      if (at === null && bt === null) return 0;
+      if (at === null) return 1;
+      if (bt === null) return -1;
+      return sort === "oldest" ? at - bt : bt - at;
+    });
 
     const total = rows.length;
-    if ($("ad-sample-count")) $("ad-sample-count").textContent = total + " matching sampled ads · " + rows.filter(a => adAge(a) === null).length + " unknown age · up to 500 stored ads loaded";
+    const unknownAge = rows.filter(a => adAge(a) === null).length;
+    if ($("ad-sample-count")) $("ad-sample-count").textContent = total + " matching sampled ads · " + unknownAge + " unknown age · up to 500 stored ads loaded";
     rows = rows.slice(0, visibleLimit);
     if ($("load-more-ads")) $("load-more-ads").hidden = visibleLimit >= total;
     if (!rows.length) {
-      box.innerHTML = '<div class="empty wide">' +
-        (mode === "long" ? 'No 30+ day ads in the collected sample. This does not mean the brand has none.' : 'No collected ads for this view yet. Research a tracked brand first.') +
-      '</div>';
+      box.innerHTML = '<div class="empty wide">No collected ads match these filters. Clear filters or research a tracked brand.</div>';
       return;
     }
 
     box.innerHTML = rows.map(a => {
       const expanded = expandedAdId === String(a.id);
-      const age = adAge(a);
-      const brand = watchlist.find(w => w.id === a.competitor_id) || {};
-      const avatar = brandAvatar({competitor_name:a.advertiser_name, logo_url:safeUrl(a.advertiser_logo_url || brand.logo_url), website_url:brand.website_url});
+      const adKind = mediaKind(a);
+      const ageDays = adAge(a);
+      const brandRow = watchlist.find(w => w.id === a.competitor_id) || {};
+      const avatar = brandAvatar({competitor_name:a.advertiser_name, logo_url:safeUrl(a.advertiser_logo_url || brandRow.logo_url), website_url:brandRow.website_url});
       const mediaUrl = safeUrl(a.media_url), poster = safeUrl(a.media_thumbnail_url);
-      const media = mediaUrl
-        ? '<div class="source-ad-media">' +
-            (a.media_kind === "video"
-              ? '<video controls playsinline preload="none" ' + (poster ? 'poster="' + esc(poster) + '" ' : '') + 'src="' + esc(mediaUrl) + '"></video>'
-              : '<img loading="lazy" src="' + esc(mediaUrl) + '" alt="">') +
-          '</div>'
-        : '<div class="ad-media-empty"><span>Creative preview</span><p>Media was not captured by this source yet.</p></div>';
+      let mediaHtml = '<div class="ad-media-empty"><span>Creative preview</span><p>Media was not captured by this source yet.</p></div>';
+      if (adKind === "video" && mediaUrl) {
+        mediaHtml = '<div class="source-ad-media"><video controls playsinline preload="none" ' + (poster ? 'poster="' + esc(poster) + '" ' : '') + 'src="' + esc(mediaUrl) + '"></video></div>';
+      } else if (adKind === "image" && mediaUrl) {
+        mediaHtml = '<div class="source-ad-media"><img loading="lazy" src="' + esc(mediaUrl) + '" alt=""></div>';
+      } else if (adKind === "unknown" && poster) {
+        mediaHtml = '<div class="source-ad-media media-unknown"><img loading="lazy" src="' + esc(poster) + '" alt=""><span>Media type unknown</span></div>';
+      }
 
       const primary = a.primary_text
         ? '<div class="source-copy"><div class="source-copy-head"><span>Primary text</span><button class="copy-inline" type="button" data-copy-text="' + esc(a.id) + '">Copy</button></div><p id="copy-' + esc(a.id) + '" style="white-space:pre-wrap;overflow-wrap:anywhere">' + esc(expanded ? a.primary_text : copyExcerpt(a.primary_text)) + '</p>' +
@@ -263,9 +315,10 @@
 
       return '<article class="source-ad-card">' +
         '<div class="source-ad-top">' + avatar + '<div><span class="pill">' + esc(a.advertiser_name || "Tracked brand") + '</span><h3>Ad ' + esc(a.ad_archive_id || "") + '</h3></div>' +
-        '<div class="days-badge ' + (qualifies(a) ? 'qualified' : '') + '"><strong>' + (age === null ? '—' : age) + '</strong><span>' + (age === null ? 'unknown' : 'days') + '</span></div></div>' +
-        media + (a.media_kind === "video" && !poster ? '<p class="helper">Preview unavailable · press play to view video.</p>' : '') + headline + primary + '<p class="helper">Impressions: ' + esc(impressionLabel(a)) + '</p>' +
+        '<div class="days-badge ' + (qualifies(a) ? 'qualified' : '') + '"><strong>' + (ageDays === null ? '—' : ageDays) + '</strong><span>' + (ageDays === null ? 'unknown' : 'days') + '</span></div></div>' +
+        mediaHtml + (adKind === "video" && !poster ? '<p class="helper">Preview unavailable · press play to view video.</p>' : '') + headline + primary + '<p class="helper">Impressions: ' + esc(impressionLabel(a)) + '</p>' +
         '<div class="source-meta"><span>' + (a.started_at ? 'Started ' + esc(new Date(a.started_at + 'T00:00:00Z').toLocaleDateString(undefined, {month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})) : 'Start date unavailable') + '</span>' +
+          '<span>' + esc(adKind === "unknown" ? "Unknown media" : adKind === "video" ? "Video" : "Image") + '</span>' +
           (qualifies(a) ? '<span class="qualified-label">Long-running</span>' : '') +
           (a.analyzed_at ? '<span class="qualified-label">AI analyzed</span>' : '') +
         '</div>' +
@@ -282,38 +335,80 @@
 
   async function addCompetitor(event) {
     event.preventDefault();
-    const input = $("competitor-name").value.trim();
-    let link;
-    try { link = parseMetaLink($("competitor-link").value || (/^(https?:\/\/|(?:www\.)?facebook\.com\/)/i.test(input) ? input : "")); }
-    catch(error) { $("research-status").textContent = error.message; return; }
-    const name = (/^(https?:\/\/|(?:www\.)?facebook\.com\/)/i.test(input) ? "" : input).slice(0,120) || (link.adId ? "Linked Meta ad " + link.adId : link.pageId ? "Meta advertiser " + link.pageId : "");
-    if (!name || !productId()) { $("research-status").textContent = "Add a brand name or a specific Meta ad/advertiser link."; return; }
+    const button = event.submitter || event.currentTarget.querySelector('button[type="submit"]');
+    if (button) button.disabled = true;
+    try {
+      const store = normalizeStoreUrl($("competitor-store").value);
+      if (!productId()) throw new Error("Choose a product first.");
+      if (watchlist.some(w => {
+        try { return normalizeStoreUrl(w.website_url || "") === store; } catch { return false; }
+      })) throw new Error("That store is already tracked.");
 
-    if (watchlist.some(w => w.competitor_name.toLowerCase() === name.toLowerCase())) {
-      $("research-status").textContent = "That brand is already tracked.";
-      return;
+      const optionalFacebook = parseFacebookReference($("competitor-link").value);
+      const logoOverride = $("competitor-logo").value.trim();
+      if (logoOverride && !safeUrl(logoOverride)) throw new Error("Logo override must be an http or https URL.");
+
+      $("research-status").textContent = "Reading the store and brand details…";
+      let discovery = {};
+      try {
+        discovery = await cloud.invoke("enrich-competitor-brand", { site: store });
+      } catch (error) {
+        discovery = {canonical_url:store,brand_name:"",logo_url:"",brand_description:"",products:[],categories:[],facebook_candidates:[],resolution_status:"needs_meta_resolution"};
+        $("research-status").textContent = "The store will be saved, but automatic brand enrichment failed: " + (error.message || String(error));
+      }
+
+      const canonical = discovery.canonical_url || store;
+      const hostName = (() => { try { return new URL(canonical).hostname.replace(/^www\./,"").split(".")[0].replace(/[-_]+/g," "); } catch { return "Competitor"; } })();
+      const name = ($("competitor-name").value.trim() || discovery.brand_name || hostName).slice(0,120);
+      const metaPageId = optionalFacebook.pageId || discovery.meta_page_id || "";
+      const adLibraryUrl = optionalFacebook.adLibraryUrl || discovery.ad_library_url || "";
+      const facebookPageUrl = optionalFacebook.pageUrl || discovery.facebook_page_url || "";
+      const resolutionStatus = optionalFacebook.adId ? "user_configured_ad" :
+        metaPageId ? (optionalFacebook.pageId ? "user_configured" : "verified_store_link") :
+        facebookPageUrl ? "user_page_link_unresolved" : (discovery.resolution_status || "needs_meta_resolution");
+
+      const brandData = {
+        manual_name_override:Boolean($("competitor-name").value.trim()),
+        manual_logo_override:Boolean(logoOverride),
+        store_discovery:{
+          products:Array.isArray(discovery.products)?discovery.products:[],
+          categories:Array.isArray(discovery.categories)?discovery.categories:[],
+          facebook_candidates:Array.isArray(discovery.facebook_candidates)?discovery.facebook_candidates:[],
+          page_title:discovery.page_title || "",
+          discovered_at:new Date().toISOString()
+        }
+      };
+
+      const r = await db.from("competitor_watchlist").insert({
+        user_id: session.user.id,
+        product_id: productId(),
+        competitor_name: name,
+        website_url: canonical,
+        logo_url: logoOverride || discovery.logo_url || "",
+        brand_description: discovery.brand_description || "",
+        facebook_page_url: facebookPageUrl,
+        ad_library_url: adLibraryUrl,
+        meta_page_id: metaPageId,
+        resolution_status: resolutionStatus,
+        brand_data: brandData,
+        min_days_running: Math.max(1, Number($("competitor-days").value || 30)),
+        active: true
+      });
+      if (r.error) throw r.error;
+
+      $("competitor-store").value = "";
+      $("competitor-name").value = "";
+      $("competitor-link").value = "";
+      $("competitor-logo").value = "";
+      await loadResearch();
+      $("research-status").textContent = metaPageId || adLibraryUrl
+        ? name + " saved with a resolved Facebook source. The collector can now research it."
+        : name + " saved from the store URL. Facebook is still unresolved; the collector can discover candidates for you to confirm.";
+    } catch (error) {
+      $("research-status").textContent = error.message || String(error);
+    } finally {
+      if (button) button.disabled = false;
     }
-
-    $("research-status").textContent = "Adding brand…";
-    const r = await db.from("competitor_watchlist").insert({
-      user_id: session.user.id,
-      product_id: productId(),
-      competitor_name: name,
-      ad_library_url: link.url,
-      meta_page_id: link.pageId,
-      min_days_running: Math.max(1, Number($("competitor-days").value || 30)),
-      active: true
-    });
-
-    if (r.error) {
-      $("research-status").textContent = r.error.message;
-      return;
-    }
-
-    $("competitor-name").value = "";
-    $("competitor-link").value = "";
-    $("research-status").textContent = name + " saved. Research runs on the collector schedule; you can also start it from GitHub Actions.";
-    await loadResearch();
   }
 
   async function runResearch(competitorId = null) {
@@ -350,7 +445,7 @@
       await loadResearch();
 
       if (competitorId && $("brand-filter")) $("brand-filter").value = competitorId;
-      if ($("ad-filter")) $("ad-filter").value = "all";
+      if ($("age-filter")) $("age-filter").value = "all";
       renderAds();
       activateTab("ads");
 
@@ -360,7 +455,7 @@
       const saved = competitorId ? ads.filter(a => a.competitor_id === competitorId && a.is_active) : ads.filter(a => a.is_active);
       if (saved.length) {
         if (competitorId && $("brand-filter")) $("brand-filter").value = competitorId;
-        if ($("ad-filter")) $("ad-filter").value = "all";
+        if ($("age-filter")) $("age-filter").value = "all";
         renderAds();
         activateTab("ads");
         $("research-status").textContent = "Showing " + saved.length + " previously saved ads, not the full advertiser library. Refresh failed: " + (error.message || String(error));
@@ -478,10 +573,20 @@
       $("scan-now").onclick = () => runResearch();
       $("analyze-ads").onclick = analyzeResearch;
       $("generate-ideas").onclick = generateIdeas;
-      $("ad-filter").innerHTML = '<option value="all">All active ads</option><option value="days-7">7+ days</option><option value="days-14">14+ days</option><option value="days-30">30+ days</option><option value="days-60">60+ days</option><option value="days-90">90+ days</option><option value="unknown">Unknown age</option>';
-      $("ad-filter").onchange = () => { visibleLimit = 24; renderAds(); };
       if ($("load-more-ads")) $("load-more-ads").onclick = () => { visibleLimit += 24; renderAds(); };
-      if ($("brand-filter")) $("brand-filter").onchange = () => { visibleLimit = 24; renderAds(); };
+      ["brand-filter","media-filter","age-filter","sort-filter"].forEach(id => {
+        if ($(id)) $(id).onchange = () => { visibleLimit = 24; renderAds(); };
+      });
+      if ($("keyword-filter")) $("keyword-filter").oninput = () => { visibleLimit = 24; renderAds(); };
+      if ($("clear-filters")) $("clear-filters").onclick = () => {
+        $("brand-filter").value = "all";
+        $("media-filter").value = "all";
+        $("age-filter").value = "all";
+        $("keyword-filter").value = "";
+        $("sort-filter").value = "newest";
+        visibleLimit = 24;
+        renderAds();
+      };
 
       $("watchlist-list").onchange = async event => {
         const activeId = event.target.getAttribute("data-watch-active");
@@ -506,20 +611,66 @@
       };
 
       $("watchlist-list").onclick = async event => {
+        const selectCandidate = event.target.closest("[data-select-candidate]");
+        if (selectCandidate) {
+          const brand = watchlist.find(w => w.id === selectCandidate.dataset.selectCandidate);
+          const candidates = Array.isArray(brand?.brand_data?.advertiser_candidates) ? brand.brand_data.advertiser_candidates : [];
+          const candidate = candidates[Number(selectCandidate.dataset.candidateIndex)];
+          if (!brand || !candidate) return;
+          selectCandidate.disabled = true;
+          try {
+            const pageId = String(candidate.meta_page_id || "");
+            const adLibraryUrl = pageId ? parseMetaLink("https://www.facebook.com/profile.php?id=" + encodeURIComponent(pageId)).url : "";
+            const data = {...(brand.brand_data || {}),selected_advertiser_name:candidate.advertiser_name || "",advertiser_resolution_evidence:"user_selection",advertiser_resolved_at:new Date().toISOString()};
+            const patch = {
+              meta_page_id:pageId,
+              ad_library_url:adLibraryUrl,
+              facebook_page_url:candidate.facebook_page_url || brand.facebook_page_url || "",
+              logo_url:brand.logo_url || candidate.logo_url || "",
+              resolution_status:pageId ? "user_selected" : "user_selected_name",
+              brand_data:data,
+              updated_at:new Date().toISOString()
+            };
+            const result = await db.from("competitor_watchlist").update(patch).eq("id",brand.id);
+            if (result.error) throw result.error;
+            $("research-status").textContent = "Advertiser selected. The next collector scan will use this choice instead of guessing from the brand name.";
+            await loadResearch();
+          } catch(error) {
+            $("research-status").textContent = error.message || String(error);
+          } finally {
+            selectCandidate.disabled = false;
+          }
+          return;
+        }
+
         const save = event.target.closest("[data-save-brand]");
         if (save) {
           const card = save.closest("[data-brand-card]");
           try {
-            const link = parseMetaLink(card.querySelector("[data-brand-link]").value);
+            const ref = parseFacebookReference(card.querySelector("[data-brand-link]").value);
             const name = card.querySelector("[data-brand-name]").value.trim();
             if (!name) throw new Error("Enter a brand name.");
-            const website = card.querySelector("[data-brand-website]").value.trim();
+            const website = normalizeStoreUrl(card.querySelector("[data-brand-website]").value);
             const logo = card.querySelector("[data-brand-logo]").value.trim();
-            if ((website && !safeUrl(website)) || (logo && !safeUrl(logo))) throw new Error("Website and logo must be http or https URLs.");
+            if (logo && !safeUrl(logo)) throw new Error("Logo must be an http or https URL.");
+            const current = watchlist.find(w => w.id === save.dataset.saveBrand) || {};
+            const data = current.brand_data && typeof current.brand_data === "object" ? current.brand_data : {};
             save.disabled = true;
-            const result = await db.from("competitor_watchlist").update({competitor_name:name.slice(0,120),ad_library_url:link.url,meta_page_id:link.pageId,website_url:website,logo_url:logo,updated_at:new Date().toISOString()}).eq("id",save.dataset.saveBrand);
+            const resolution = ref.adId ? "user_configured_ad" : ref.pageId ? "user_configured" : ref.pageUrl ? "user_page_link_unresolved" : current.resolution_status;
+            const result = await db.from("competitor_watchlist").update({
+              competitor_name:name.slice(0,120),
+              ad_library_url:ref.adLibraryUrl,
+              meta_page_id:ref.pageId,
+              facebook_page_url:ref.pageUrl || current.facebook_page_url || "",
+              website_url:website,
+              logo_url:logo,
+              resolution_status:resolution,
+              brand_data:{...data,manual_name_override:true,manual_logo_override:Boolean(logo)},
+              updated_at:new Date().toISOString()
+            }).eq("id",save.dataset.saveBrand);
             if (result.error) throw result.error;
-            $("research-status").textContent = "Brand settings saved. The next scan will use this Facebook link.";
+            try { await cloud.invoke("enrich-competitor-brand", { competitor_id:save.dataset.saveBrand, site:website }); } catch {}
+            $("research-status").textContent = ref.pageId || ref.adId ? "Brand settings saved with a Facebook source." : "Brand settings saved. Facebook remains unresolved until a trustworthy match is found or selected.";
             await loadResearch();
           } catch(error) { $("research-status").textContent = error.message; }
           finally { save.disabled = false; }
@@ -534,7 +685,7 @@
         const view = event.target.closest("[data-view-brand]");
         if (view) {
           if ($("brand-filter")) $("brand-filter").value = view.getAttribute("data-view-brand");
-          if ($("ad-filter")) $("ad-filter").value = "all";
+          if ($("age-filter")) $("age-filter").value = "all";
           renderAds();
           activateTab("ads");
           return;
