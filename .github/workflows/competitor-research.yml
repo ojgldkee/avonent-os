@@ -1,6 +1,9 @@
 name: Avonent competitor research
 
 on:
+  push:
+    paths:
+      - '.github/workflows/competitor-research.yml'
   workflow_dispatch:
     inputs:
       competitor_id:
