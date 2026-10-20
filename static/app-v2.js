@@ -36,35 +36,55 @@
     const p = item.metadata && item.metadata.package;
     if (!p) return "";
 
-    function section(label, value) {
-      return '<div class="package-section"><span class="package-label">' + escapeHtml(label) + '</span><p>' + escapeHtml(value || "") + '</p></div>';
+    function panel(name,label,html,active) {
+      return '<section class="package-tab-panel' + (active ? ' active' : '') + '" data-package-panel="' + name + '">' +
+        '<div class="package-panel-head"><span class="package-label">' + escapeHtml(label) + '</span></div>' +
+        html +
+      '</section>';
     }
 
-    return '<article class="library-card package-card">' +
+    function copyBlock(label,value,field) {
+      return '<div class="package-copy-block">' +
+        '<div class="package-copy-head"><span>' + escapeHtml(label) + '</span>' +
+        '<button class="copy-inline" data-copy-package="' + item.id + '" data-copy-field="' + field + '" type="button">Copy</button></div>' +
+        '<p>' + escapeHtml(value || "") + '</p></div>';
+    }
+
+    const tabs = [
+      ["hook","Hook"],
+      ["primary","Primary"],
+      ["headlines","Headlines"],
+      ["video","Video"],
+      ["script","Script"]
+    ].map(function (entry,index) {
+      return '<button class="package-tab' + (index === 0 ? ' active' : '') + '" type="button" data-package-tab="' +
+        entry[0] + '" data-package-id="' + item.id + '">' + escapeHtml(entry[1]) + '</button>';
+    }).join("");
+
+    return '<article class="library-card package-card" data-package-card="' + item.id + '">' +
       '<div class="card-top"><div><span class="pill">' + escapeHtml(item.metadata.brand_name || "Daily package") + '</span>' +
-      '<h3>' + escapeHtml(item.title || "Creative package") + '</h3></div>' +
+      '<h3>' + escapeHtml(item.title || "Creative package") + '</h3>' +
+      '<div class="meta">' +
+        escapeHtml(p.inspiration_pattern ? "Pattern: " + p.inspiration_pattern : (p.angle || item.angle || "")) +
+        (p.format ? " · " + escapeHtml(p.format) : "") +
+      '</div></div>' +
       '<button class="text-button mini" data-favorite="' + item.id + '">' + (item.favorite ? "★" : "☆") + '</button></div>' +
-      '<div class="meta">' + escapeHtml(p.angle || item.angle || "") + (p.format ? " · " + escapeHtml(p.format) : "") + '</div>' +
-      '<div class="package-sections">' +
-        section("Hook", p.hook) +
-        section("Primary text A", p.primary_texts && p.primary_texts[0]) +
-        section("Primary text B", p.primary_texts && p.primary_texts[1]) +
-        section("Headline A", p.headlines && p.headlines[0]) +
-        section("Headline B", p.headlines && p.headlines[1]) +
-        section("Video idea", p.video_idea) +
-        section("30-second script", p.script) +
+      '<div class="package-tabs" role="tablist">' + tabs + '</div>' +
+      '<div class="package-tab-body">' +
+        panel("hook","Hook",copyBlock("Hook",p.hook,"hook"),true) +
+        panel("primary","Primary text",
+          copyBlock("Primary A",p.primary_texts && p.primary_texts[0],"primary0") +
+          copyBlock("Primary B",p.primary_texts && p.primary_texts[1],"primary1"),false) +
+        panel("headlines","Headlines",
+          copyBlock("Headline A",p.headlines && p.headlines[0],"headline0") +
+          copyBlock("Headline B",p.headlines && p.headlines[1],"headline1"),false) +
+        panel("video","Video idea",copyBlock("Video concept",p.video_idea,"video"),false) +
+        panel("script","30-second script",copyBlock("Script",p.script,"script"),false) +
       '</div>' +
-      '<div class="package-copy-row">' +
-        '<button class="button secondary mini" data-copy-package="' + item.id + '" data-copy-field="hook">Copy hook</button>' +
-        '<button class="button secondary mini" data-copy-package="' + item.id + '" data-copy-field="primary0">Copy primary A</button>' +
-        '<button class="button secondary mini" data-copy-package="' + item.id + '" data-copy-field="primary1">Copy primary B</button>' +
-        '<button class="button secondary mini" data-copy-package="' + item.id + '" data-copy-field="video">Copy video idea</button>' +
-        '<button class="button secondary mini" data-copy-package="' + item.id + '" data-copy-field="script">Copy script</button>' +
-      '</div>' +
-      '<label>Status<select data-item-status="' + item.id + '">' +
-        STATUS_FLOW.map(function (status) { return '<option' + (status === item.status ? " selected" : "") + '>' + escapeHtml(status) + '</option>'; }).join("") +
-      '</select></label>' +
-      '<div class="card-actions">' +
+      '<div class="package-footer">' +
+        '<label>Status<select data-item-status="' + item.id + '">' +
+          STATUS_FLOW.map(function (status) { return '<option' + (status === item.status ? " selected" : "") + '>' + escapeHtml(status) + '</option>'; }).join("") +
+        '</select></label>' +
         '<button class="button secondary mini" data-delete="' + item.id + '">Delete</button>' +
       '</div></article>';
   }
@@ -620,6 +640,20 @@
     };
 
     grid.addEventListener("click", async function (event) {
+      const packageTab = event.target.getAttribute("data-package-tab");
+      if (packageTab) {
+        const card = event.target.closest("[data-package-card]");
+        if (card) {
+          card.querySelectorAll("[data-package-tab]").forEach(function (tab) {
+            tab.classList.toggle("active", tab.getAttribute("data-package-tab") === packageTab);
+          });
+          card.querySelectorAll("[data-package-panel]").forEach(function (panel) {
+            panel.classList.toggle("active", panel.getAttribute("data-package-panel") === packageTab);
+          });
+        }
+        return;
+      }
+
       const copyPackageId = event.target.getAttribute("data-copy-package");
       if (copyPackageId) {
         const item = items.find(function (x) { return x.id === copyPackageId; });
