@@ -4,6 +4,7 @@
   const cloud = window.AVONENT_CLOUD;
   if (!cloud) return;
   const db = cloud.db;
+  const {parseMetaLink,researchSources} = window.AVONENT_RESEARCH_UTILS;
   const $ = id => document.getElementById(id);
   const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 
@@ -146,6 +147,7 @@
   }
 
   function scanState(w) {
+    if (w.last_scan_status === "running") return "Research in progress";
     if (w.last_scan_status === "error") return "Research error";
     if (w.last_scan_status === "completed") return w.last_scan_complete ? "Research complete" : "Research sampled";
     return "Not researched";
@@ -170,6 +172,7 @@
           '</div>' +
           '<label class="watch-toggle"><input type="checkbox" data-watch-active="' + esc(w.id) + '" ' + (w.active ? 'checked' : '') + '><span>' + (w.active ? 'On' : 'Off') + '</span></label>' +
         '</div>' +
+        (w.last_scan_message ? '<p class="helper">' + esc(w.last_scan_message) + '</p>' : '') +
         (w.brand_description ? '<p class="brand-description">' + esc(w.brand_description) + '</p>' : '') +
         (w.website_url ? '<a class="brand-site-link" target="_blank" rel="noopener" href="' + esc(w.website_url) + '">' + esc((()=>{try{return new URL(w.website_url).hostname.replace(/^www\./,"")}catch{return "Brand website"}})()) + '</a>' : '') +
         '<div class="brand-card-stats">' +
@@ -182,7 +185,12 @@
           '<button class="button secondary mini" type="button" data-view-brand="' + esc(w.id) + '">View ads</button>' +
           '<button class="text-button danger" type="button" data-watch-delete="' + esc(w.id) + '">Remove</button>' +
         '</div>' +
-        '<details class="brand-card-settings"><summary>Settings</summary>' +
+        '<details class="brand-card-settings"><summary>Settings · Facebook link & brand details</summary>' +
+          '<label>Brand name<input data-brand-name value="' + esc(w.competitor_name) + '" maxlength="120"></label>' +
+          '<label>Facebook Ad Library link<input data-brand-link type="url" value="' + esc(w.ad_library_url || "") + '" placeholder="https://www.facebook.com/ads/library/…"></label>' +
+          '<label>Website (optional)<input data-brand-website type="url" value="' + esc(w.website_url || "") + '"></label>' +
+          '<label>Logo URL (optional)<input data-brand-logo type="url" value="' + esc(w.logo_url || "") + '"></label>' +
+          '<button class="button secondary mini" type="button" data-save-brand="' + esc(w.id) + '">Save brand settings</button>' +
           '<label>Long-running threshold<div class="number-field compact"><input type="number" min="1" max="3650" value="' + Number(w.min_days_running || 30) + '" data-watch-days="' + esc(w.id) + '"><span>days</span></div></label>' +
         '</details>' +
       '</article>';
@@ -274,13 +282,12 @@
 
   async function addCompetitor(event) {
     event.preventDefault();
-    const name = $("competitor-name").value.trim().slice(0, 120);
-    if (!name || !productId()) return;
-
-    if (/^https?:\/\//i.test(name)) {
-      $("research-status").textContent = "Enter the brand name only. Avonent handles Meta links in the background.";
-      return;
-    }
+    const input = $("competitor-name").value.trim();
+    let link;
+    try { link = parseMetaLink($("competitor-link").value || (/^(https?:\/\/|(?:www\.)?facebook\.com\/)/i.test(input) ? input : "")); }
+    catch(error) { $("research-status").textContent = error.message; return; }
+    const name = (/^(https?:\/\/|(?:www\.)?facebook\.com\/)/i.test(input) ? "" : input).slice(0,120) || (link.adId ? "Linked Meta ad " + link.adId : link.pageId ? "Meta advertiser " + link.pageId : "");
+    if (!name || !productId()) { $("research-status").textContent = "Add a brand name or a specific Meta ad/advertiser link."; return; }
 
     if (watchlist.some(w => w.competitor_name.toLowerCase() === name.toLowerCase())) {
       $("research-status").textContent = "That brand is already tracked.";
@@ -292,6 +299,8 @@
       user_id: session.user.id,
       product_id: productId(),
       competitor_name: name,
+      ad_library_url: link.url,
+      meta_page_id: link.pageId,
       min_days_running: Math.max(1, Number($("competitor-days").value || 30)),
       active: true
     });
@@ -302,7 +311,8 @@
     }
 
     $("competitor-name").value = "";
-    $("research-status").textContent = name + " added.";
+    $("competitor-link").value = "";
+    $("research-status").textContent = name + " saved. Research runs on the collector schedule; you can also start it from GitHub Actions.";
     await loadResearch();
   }
 
@@ -327,7 +337,7 @@
 
       if (Array.isArray(result.errors) && result.errors.length) {
         const useful = result.errors.map(e => e.error || "").filter(Boolean);
-        if (useful.length) throw new Error(useful.join(" · "));
+        if (useful.length) throw new Error(useful.some(message => /No scraper is configured/i.test(message)) ? "On-demand scanning is not connected. Open Run collector below, choose Run workflow, then refresh this page. Scheduled scans still run twice daily." : useful.join(" · "));
       }
 
       if (competitorId) {
@@ -370,14 +380,15 @@
     btn.disabled = true;
     btn.textContent = "Analyzing…";
     try {
-      const result = await cloud.invoke("analyze-competitor-ads", { product_id: productId(), limit: 20 });
+      const result = await cloud.invoke("analyze-competitor-ads", { product_id: productId(), limit: 5 });
+      if (result.errors?.length) throw new Error("Analyzed " + Number(result.analyzed || 0) + " ads. " + result.errors.map(e => e.error).join(" · "));
       $("research-status").textContent = result.analyzed
         ? "Analyzed " + result.analyzed + " ads. Their hooks and patterns are now saved for the strategist."
-        : "Nothing new needed analysis.";
+        : "No new ads with captured copy to analyze.";
       await loadResearch();
     } catch (error) {
       $("research-status").textContent = error.data?.setup_required
-        ? "Connect the AI API key to analyze ad patterns."
+        ? "AI setup required: add OPENAI_API_KEY in Supabase → Edge Functions → Secrets. Use the AI setup link below."
         : (error.message || String(error));
     } finally {
       btn.disabled = false;
@@ -389,8 +400,7 @@
     const p = currentProduct();
     if (!p) return;
 
-    const longRunning = ads.filter(a => qualifies(a));
-    const sources = (longRunning.length ? longRunning : ads.filter(a => a.is_active)).slice(0, 30);
+    const sources = researchSources(ads);
 
     if (!sources.length) {
       $("research-status").textContent = "Research at least one tracked brand first.";
@@ -427,6 +437,7 @@
           ? idea.source_ad_ids.map(String).filter(id => available.has(id)).slice(0, 4)
           : [],
         strategy: {
+          hooks: idea.hooks || [], primary_text: idea.primary_text || "", headline: idea.headline || "", description: idea.description || "", video_structure: idea.video_structure || "",
           hypothesis: idea.hypothesis || "",
           risk: idea.risk || "",
           scores: idea.scores || {},
@@ -441,7 +452,7 @@
       location.href = "creatives.html?cloud=1";
     } catch (error) {
       $("research-status").textContent = error.data?.setup_required
-        ? "Connect the AI API key before generating ideas."
+        ? "AI setup required: add OPENAI_API_KEY in Supabase → Edge Functions → Secrets. Use the AI setup link below."
         : (error.message || String(error));
     } finally {
       btn.disabled = false;
@@ -495,6 +506,25 @@
       };
 
       $("watchlist-list").onclick = async event => {
+        const save = event.target.closest("[data-save-brand]");
+        if (save) {
+          const card = save.closest("[data-brand-card]");
+          try {
+            const link = parseMetaLink(card.querySelector("[data-brand-link]").value);
+            const name = card.querySelector("[data-brand-name]").value.trim();
+            if (!name) throw new Error("Enter a brand name.");
+            const website = card.querySelector("[data-brand-website]").value.trim();
+            const logo = card.querySelector("[data-brand-logo]").value.trim();
+            if ((website && !safeUrl(website)) || (logo && !safeUrl(logo))) throw new Error("Website and logo must be http or https URLs.");
+            save.disabled = true;
+            const result = await db.from("competitor_watchlist").update({competitor_name:name.slice(0,120),ad_library_url:link.url,meta_page_id:link.pageId,website_url:website,logo_url:logo,updated_at:new Date().toISOString()}).eq("id",save.dataset.saveBrand);
+            if (result.error) throw result.error;
+            $("research-status").textContent = "Brand settings saved. The next scan will use this Facebook link.";
+            await loadResearch();
+          } catch(error) { $("research-status").textContent = error.message; }
+          finally { save.disabled = false; }
+          return;
+        }
         const research = event.target.closest("[data-research-brand]");
         if (research) {
           await runResearch(research.getAttribute("data-research-brand"));

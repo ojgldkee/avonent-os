@@ -3,6 +3,8 @@ on:
   push:
     paths:
       - 'static/research-v2.js'
+      - 'static/research-utils.js'
+      - 'static/cloud-ideas-v1.js'
       - 'services/meta-scraper/**'
       - '.github/workflows/research-tests.yml'
   workflow_dispatch:
@@ -17,6 +19,8 @@ jobs:
         with:
           node-version: '22'
       - run: node --check static/research-v2.js
+      - run: node --check static/research-utils.js
+      - run: node --check static/cloud-ideas-v1.js
       - run: node --check services/meta-scraper/src/server.js
       - run: node --check services/meta-scraper/src/github-runner.js
       - run: node --test services/meta-scraper/tests/research.test.mjs

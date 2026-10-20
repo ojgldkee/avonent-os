@@ -4,6 +4,7 @@
   const cloud = window.AVONENT_CLOUD;
   if (!cloud) return;
   const db = cloud.db;
+  const {researchSources} = window.AVONENT_RESEARCH_UTILS;
   const $ = id => document.getElementById(id);
   const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 
@@ -75,7 +76,7 @@
     $("ideas-today-count").textContent = String(ideas.filter(i => i.generated_for_date === today()).length);
     $("ideas-approved-count").textContent = String(ideas.filter(i => i.approved || i.status === "Approved").length);
     $("ideas-script-count").textContent = String(ideas.filter(i => i.ai_script).length);
-    $("ideas-source-count").textContent = String(sourceCount());
+    $("ideas-source-count").textContent = String(sourceAds.length);
 
     const rows = filteredIdeas();
     if (!rows.length) {
@@ -111,6 +112,13 @@
 
         '<section class="idea-hook-block"><div class="idea-section-head"><span>Hook</span><button class="copy-inline" type="button" data-copy-hook="' + idea.id + '">Copy</button></div><p>' + esc(idea.hook || "") + '</p></section>' +
 
+        '<details class="idea-copy-pack"><summary>Hook variations & ad copy</summary>' +
+        (Array.isArray(strategy.hooks) ? strategy.hooks.map((hook,n) => '<p><strong>Hook ' + (n+1) + '</strong><br>' + esc(hook) + '</p>').join("") : '') +
+        (strategy.primary_text ? '<h4>Primary text</h4><p style="white-space:pre-wrap">' + esc(strategy.primary_text) + '</p>' : '') +
+        (strategy.headline ? '<h4>Headline</h4><p>' + esc(strategy.headline) + '</p>' : '') +
+        (strategy.description ? '<h4>Description</h4><p>' + esc(strategy.description) + '</p>' : '') +
+        (strategy.video_structure ? '<h4>Video plan</h4><p>' + esc(typeof strategy.video_structure === "string" ? strategy.video_structure : JSON.stringify(strategy.video_structure)) + '</p>' : '') +
+        '<button type="button" class="button secondary mini" data-copy-pack="' + idea.id + '">Copy creative brief</button></details>' +
         '<div class="idea-execution-grid">' +
           '<section><span>First frame</span><p>' + esc(idea.first_frame || "Not specified") + '</p></section>' +
           '<section><span>Angle</span><p>' + esc(idea.angle || "Not specified") + '</p></section>' +
@@ -152,16 +160,16 @@
     const p = currentProduct();
     if (!p) return;
 
-    const sources = sourceAds.filter(a => a.is_active && a.qualifies_long_running).slice(0, 30);
+    const sources = researchSources(sourceAds);
     if (!sources.length) {
-      $("ideas-status").textContent = "No long-running source ads yet. Open Research and scan competitors first.";
+      $("ideas-status").textContent = "No captured ad copy yet. Open Research and collect a brand’s ads first. Ads of any age can be used.";
       return;
     }
 
     const btn = $("generate-more-ideas");
     btn.disabled = true;
     btn.textContent = "Generating…";
-    $("ideas-status").textContent = "Studying " + sources.length + " long-running source ads…";
+    $("ideas-status").textContent = "Studying " + sources.length + " source ads (all ages eligible)…";
 
     try {
       const result = await cloud.invoke("creative-ai", { task: "ideas", product: p, competitor_ads: sources });
@@ -195,6 +203,7 @@
         inspiration: i.inspiration || "",
         source_ad_ids: requestedSources,
         strategy: {
+          hooks:i.hooks || [], primary_text:i.primary_text || "", headline:i.headline || "", description:i.description || "", video_structure:i.video_structure || "",
           hypothesis:i.hypothesis || "",
           scores:i.scores || {},
           overall_score:Number(i.overall_score || 0),
@@ -211,7 +220,7 @@
       await loadData();
     } catch (error) {
       if (error.data && error.data.setup_required) {
-        $("ideas-status").textContent = "OPENAI_API_KEY still needs to be connected in Supabase.";
+        $("ideas-status").textContent = "AI setup required: add OPENAI_API_KEY in Supabase → Edge Functions → Secrets using the AI setup link.";
       } else {
         $("ideas-status").textContent = error.message || String(error);
       }
@@ -281,7 +290,13 @@
       }
     });
 
-    const scriptText = result.text || (result.result ? JSON.stringify(result.result, null, 2) : "");
+    const script = result.result?.script;
+    const scriptText = result.text || (script ? [
+      script.title, "Duration: " + (script.recommended_duration_seconds || "—") + " seconds",
+      ...(Array.isArray(script.beats) ? script.beats.map(b => [b.time, "SAY: " + (b.spoken || ""), "SHOW: " + (b.shot || ""), "ON SCREEN: " + (b.on_screen_text || "")].join("\n")) : []),
+      "CTA: " + (script.cta || ""), "Alternative openings: " + JSON.stringify(script.three_alt_openings || []),
+      "Editor notes: " + JSON.stringify(script.editor_notes || ""), "Claims check: " + JSON.stringify(script.compliance_notes || "")
+    ].join("\n\n") : result.result ? JSON.stringify(result.result,null,2) : "");
     if (!scriptText) throw new Error("AI returned no script.");
 
     const r = await db.from("ai_ideas").update({
@@ -309,6 +324,13 @@
       document.querySelectorAll("[data-close-sources]").forEach(el => el.onclick = closeSources);
 
       $("cloud-ideas-grid").onclick = async event => {
+        const packId = event.target.getAttribute("data-copy-pack");
+        if (packId) {
+          const idea = ideas.find(i => i.id === packId), pack = idea?.strategy || {};
+          try { await navigator.clipboard.writeText([idea?.title, "Hooks", ...(pack.hooks || [idea?.hook]), "Primary text", pack.primary_text, "Headline", pack.headline, "Description",pack.description,"Video plan",typeof pack.video_structure === "string" ? pack.video_structure : JSON.stringify(pack.video_structure || "")].filter(Boolean).join("\n\n")); event.target.textContent = "Copied"; }
+          catch { $("ideas-status").textContent = "Copy unavailable. Select the text to copy it."; }
+          return;
+        }
         const approveId = event.target.getAttribute("data-approve");
         const rejectId = event.target.getAttribute("data-reject");
         const sourceId = event.target.getAttribute("data-sources");
@@ -360,7 +382,7 @@
           }
         } catch (error) {
           if (error.data && error.data.setup_required) {
-            $("ideas-status").textContent = "OPENAI_API_KEY still needs to be connected in Supabase.";
+            $("ideas-status").textContent = "AI setup required: add OPENAI_API_KEY in Supabase → Edge Functions → Secrets using the AI setup link.";
           } else {
             $("ideas-status").textContent = error.message || String(error);
           }

@@ -164,11 +164,13 @@ function normalizeCard(card) {
   const sourceUrl = card.links.find(x => /facebook\.com\/ads\/library\/.+id=/i.test(x)) ||
     "https://www.facebook.com/ads/library/?id=" + card.ad_archive_id;
 
-  const landingUrl = card.links.find(x => {
+  const landingUrl = card.links.map(x => {
+    try { const u = new URL(x); return ["l.facebook.com","lm.facebook.com"].includes(u.hostname) ? u.searchParams.get("u") || x : x; } catch { return ""; }
+  }).find(x => {
     try {
       const u = new URL(x);
       const h = u.hostname.replace(/^www\./, "").toLowerCase();
-      return !["facebook.com","fb.com","instagram.com"].includes(h);
+      return ["http:","https:"].includes(u.protocol) && !["facebook.com","fb.com","instagram.com"].some(domain => h === domain || h.endsWith("." + domain));
     } catch {
       return false;
     }
@@ -385,7 +387,7 @@ async function scrape(input) {
     let ads = Array.from(collected.values());
 
     const query = String(input.query || "").trim().toLowerCase();
-    if (!input.page_id && query) {
+    if (!input.page_id && !input.url && query) {
       const exact = ads.filter(ad => String(ad.advertiser_name || "").trim().toLowerCase() === query);
       if (exact.length) ads = exact;
       else {

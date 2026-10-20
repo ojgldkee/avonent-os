@@ -41,3 +41,21 @@ test("accordion changes text only and collapses previous card", () => {
   assert.equal(paragraphs.get("copy-b").textContent,ads[1].primary_text);
   toggle("b"); assert.equal(buttons[1].attributes["aria-expanded"],"false");
 });
+
+const utilities = readFileSync(new URL("static/research-utils.js", root), "utf8");
+new Function(utilities)();
+test("Meta links distinguish advertiser from individual ad and reject other hosts", () => {
+  const parse = globalThis.AVONENT_RESEARCH_UTILS.parseMetaLink;
+  assert.equal(parse("https://www.facebook.com/ads/library/?id=1620540869854919").adId,"1620540869854919");
+  assert.equal(parse("https://www.facebook.com/ads/library/?view_all_page_id=12345678").pageId,"12345678");
+  assert.equal(parse("https://www.facebook.com/profile.php?id=12345678").pageId,"12345678");
+  assert.throws(() => parse("https://facebook.com.evil.example/ads/library/?id=123456"));
+  assert.throws(() => parse("https://example.com"));
+  assert.throws(() => parse("javascript:alert(1)"));
+  assert.throws(() => parse("https://www.facebook.com/ads/library/"));
+});
+test("research generation accepts younger ads with copy", () => {
+  const rows = [{id:"new",is_active:true,primary_text:"Real copy",started_at:"2026-10-20",qualifies_long_running:false},{id:"empty",is_active:true},{id:"inactive",is_active:false,primary_text:"Old"}];
+  assert.equal(globalThis.AVONENT_RESEARCH_UTILS.researchSources(rows).length,1);
+  assert.equal(globalThis.AVONENT_RESEARCH_UTILS.researchSources(rows)[0].id,"new");
+});

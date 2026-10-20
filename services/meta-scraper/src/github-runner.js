@@ -66,10 +66,11 @@ async function upsertAds(rows) {
 
 function externalWebsite(url) {
   try {
-    const u = new URL(url);
+    let u = new URL(url);
+    if (["l.facebook.com","lm.facebook.com"].includes(u.hostname.toLowerCase()) && u.searchParams.get("u")) u = new URL(u.searchParams.get("u"));
     const h = u.hostname.replace(/^www\./, "").toLowerCase();
     if (u.protocol !== "https:") return "";
-    if (["facebook.com","fb.com","instagram.com"].includes(h)) return "";
+    if (["facebook.com","fb.com","instagram.com"].some(domain => h === domain || h.endsWith("." + domain))) return "";
     return u.origin + "/";
   } catch {
     return "";
@@ -97,6 +98,7 @@ async function collectBrand(brand) {
     body: JSON.stringify({
       query: brand.competitor_name,
       page_id: brand.meta_page_id || "",
+      url: brand.ad_library_url || "",
       country: "US",
       active_status: "active",
       max_ads: 500,
@@ -114,7 +116,7 @@ async function collectBrand(brand) {
 
   // If we do not yet know the Meta page ID, do not silently mix unrelated keyword matches
   // into a brand's research history. Prefer exact/near advertiser-name matches.
-  if (!brand.meta_page_id) {
+  if (!brand.meta_page_id && !brand.ad_library_url) {
     const target = normalizeAdvertiser(brand.competitor_name);
     const exact = sourceAds.filter(a => normalizeAdvertiser(a.advertiser_name) === target);
     const close = sourceAds.filter(a => {
@@ -181,6 +183,7 @@ async function collectBrand(brand) {
   await updateBrand(brand.id, {
     logo_url: logo,
     website_url: site,
+    ...(/^(Linked Meta ad |Meta advertiser )/.test(brand.competitor_name) && rows[0]?.advertiser_name ? {competitor_name:rows[0].advertiser_name} : {}),
     last_scanned_at: now,
     last_scan_status: "completed",
     last_scan_ads: rows.length,
