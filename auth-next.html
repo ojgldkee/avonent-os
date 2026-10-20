@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#000000">
+  <title>Account · Avonent</title>
+  <link rel="stylesheet" href="static/site.css?v=1">
+  <link rel="stylesheet" href="static/ui-v3.css?v=21">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="static/config.js?v=2"></script>
+</head>
+<body data-page="auth">
+<header class="topbar">
+  <a class="logo" href="index.html">AVONENT</a>
+</header>
+<main class="auth-main">
+  <section class="auth-card panel">
+    <p class="eyebrow">ACCOUNT</p>
+    <h1 id="auth-title">Log in</h1>
+    <p id="auth-subtitle" class="sub">Access your private Avonent workspace.</p>
+
+    <div id="auth-message" class="notice hidden"></div>
+
+    <form id="auth-form" class="auth-form">
+      <label id="display-name-label" class="hidden">Name
+        <input id="display-name" placeholder="Avonent Owner" autocomplete="name">
+      </label>
+      <label id="email-label">Email
+        <input id="auth-email" type="email" required autocomplete="email" placeholder="you@example.com">
+      </label>
+      <label>Password
+        <div class="password-wrap">
+          <input id="auth-password" type="password" required autocomplete="current-password">
+          <button id="toggle-password" type="button" class="text-button">Show</button>
+        </div>
+      </label>
+      <button id="auth-submit" class="button" type="submit">Log in</button>
+    </form>
+
+    <button id="create-account-inline" class="button secondary hidden" type="button">Create account with these details</button>
+
+    <div id="auth-switch-row" class="auth-switch">
+      <span id="auth-switch-text">Need an account?</span>
+      <a id="auth-switch-link" href="auth.html?mode=signup">Sign up</a>
+    </div>
+    <button id="forgot-password" class="text-button" type="button">Forgot password?</button>
+  </section>
+</main>
+<script src="static/auth-v3.js?v=4"></script>
+</body>
+</html>
