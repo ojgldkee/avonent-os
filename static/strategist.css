@@ -127,3 +127,27 @@ body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
 @media(max-width:600px){
   .timed-beat{grid-template-columns:64px minmax(0,1fr);padding:10px}
 }
+
+
+/* Research ad scoring + non-overlapping copy controls */
+.source-score-stack{display:flex;gap:7px;align-items:flex-start;flex:0 0 auto}
+.research-score{
+  min-width:62px;padding:9px 10px;border:1px solid #3b4b5f;border-radius:12px;text-align:center;
+  background:linear-gradient(180deg,#15202d,#0a1017)
+}
+.research-score strong{display:block;font-size:21px;line-height:1}
+.research-score span{display:block;margin-top:3px;color:#9daabc;font-size:9px;text-transform:uppercase;letter-spacing:.1em}
+.source-rank-line{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:9px 0 0;color:#8190a2;font-size:10px}
+.source-copy{display:flex;flex-direction:column;overflow:hidden}
+.source-copy-body{min-width:0}
+.source-copy .source-copy-body>p{max-height:none!important;overflow:visible!important;padding:12px!important}
+.source-copy-footer{display:flex;justify-content:flex-start;padding:0 12px 12px}
+.source-copy-footer [data-expand-ad]{position:static!important;inset:auto!important;margin:0!important;z-index:auto!important}
+.source-copy-note{display:block;padding:0 12px 12px;color:#7f8b9a;font-size:10px}
+@media(max-width:540px){
+  .source-ad-top{gap:8px}
+  .source-score-stack{gap:5px}
+  .research-score,.days-badge{min-width:56px;padding:8px}
+  .research-score strong,.days-badge strong{font-size:19px}
+  .source-rank-line{display:grid;gap:3px}
+}
