@@ -27,14 +27,20 @@ function metaLibraryUrl(input = {}) {
   }
 
   const q = String(input.query || "").trim();
-  if (!q) throw new Error("Provide either url or query.");
+  const pageId = String(input.page_id || "").trim();
+  if (!q && !pageId) throw new Error("Provide url, page_id, or query.");
   const u = new URL("https://www.facebook.com/ads/library/");
   u.searchParams.set("active_status", input.active_status || "active");
   u.searchParams.set("ad_type", "all");
   u.searchParams.set("country", input.country || "US");
   u.searchParams.set("media_type", "all");
-  u.searchParams.set("search_type", "keyword_unordered");
-  u.searchParams.set("q", q);
+  if (pageId) {
+    u.searchParams.set("search_type", "page");
+    u.searchParams.set("view_all_page_id", pageId);
+  } else {
+    u.searchParams.set("search_type", "keyword_unordered");
+    u.searchParams.set("q", q);
+  }
   return u.toString();
 }
 
@@ -199,7 +205,16 @@ async function scrape(input) {
       previousCount = current;
     }
 
-    const ads = await extractCards(page, maxAds);
+    let ads = await extractCards(page, maxAds);
+    const query = String(input.query || "").trim().toLowerCase();
+    if (!input.page_id && query) {
+      const exact = ads.filter(ad => String(ad.advertiser_name || "").trim().toLowerCase() === query);
+      if (exact.length) ads = exact;
+      else {
+        const close = ads.filter(ad => String(ad.advertiser_name || "").trim().toLowerCase().includes(query));
+        if (close.length) ads = close;
+      }
+    }
     return {
       ok: true,
       source_url: url,
