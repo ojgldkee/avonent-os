@@ -70,8 +70,14 @@
     </div>
 
     <div id="ai-status" class="ai-status">
-      <strong>AI generation:</strong> not connected yet. Your conversations still save to Supabase. We’ll connect a low-cost model next.
+      <strong>Creative strategist:</strong> brand-aware local engine active. Uses saved brand knowledge and competitor research on this device.
     </div>
+
+    <label class="chat-brand-picker">Brand / product context
+      <select id="chat-brand-select">
+        <option value="">Loading brands…</option>
+      </select>
+    </label>
 
     <form id="chat-form" class="composer">
       <textarea id="chat-input" rows="3" placeholder="Describe the product, angle, ad idea, or what you want written..." required></textarea>
@@ -96,7 +102,8 @@
 <script src="static/local-workspace.js?v=2"></script>
 
 <script src="static/strategist-v1.js?v=1"></script>
-<script src="static/app-v2.js?v=3"></script>
+<script src="static/chat-strategist-v1.js?v=1"></script>
+<script src="static/app-v2.js?v=4"></script>
 <script src="static/ui-v3.js?v=6"></script>
 </body>
 </html>
