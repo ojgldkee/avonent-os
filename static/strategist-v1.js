@@ -189,7 +189,7 @@
     const created = [];
 
     for (let i = 0; i < count; i += 1) {
-      const key = "daily:" + date + ":" + brand.id + ":" + runSalt + ":" + i;
+      const key = "daily-v2:" + date + ":" + brand.id + ":" + runSalt + ":" + i;
       if (!force && existing.some(function(x){ return x.metadata && x.metadata.daily_key === key; })) continue;
 
       const pack = buildPackage(brand, generationSeed, i);
