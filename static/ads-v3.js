@@ -1,12 +1,8 @@
 (() => {
   "use strict";
 
-  const cfg = window.AVONENT_CONFIG || {};
-  if (!window.supabase || !cfg.supabaseUrl || !cfg.supabasePublishableKey) return;
-
-  const db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabasePublishableKey, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-  });
+  const db = window.AVONENT_LOCAL_CLIENT;
+  if (!db) throw new Error("Local workspace failed to load. Reload this page.");
 
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({
@@ -22,6 +18,11 @@
   const hide = el => el && el.classList.add("hidden");
 
   function updateAuth(session) {
+    if (db.local) {
+      const nav = document.querySelector('.auth-nav');
+      if (nav) { nav.textContent = 'Local workspace'; nav.classList.add('local-account'); }
+      return;
+    }
     const login = $("login-link");
     const signup = $("signup-link");
     const email = $("account-email");
@@ -245,7 +246,7 @@
         if (saved.error) throw saved.error;
 
         event.target.reset();
-        saveStatus.textContent = "Saved to your private Ad Library.";
+        saveStatus.textContent = "Saved to this browser’s Ad Library.";
         await load();
       } catch (error) {
         if (uploadedPath) {

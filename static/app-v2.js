@@ -1,17 +1,8 @@
 (function () {
   "use strict";
 
-  const config = window.AVONENT_CONFIG || {};
-  if (!window.supabase || !config.supabaseUrl || !config.supabasePublishableKey) {
-    console.error("Avonent Supabase configuration is missing.");
-    return;
-  }
-
-  const db = window.supabase.createClient(
-    config.supabaseUrl,
-    config.supabasePublishableKey,
-    { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
-  );
+  const db = window.AVONENT_LOCAL_CLIENT;
+  if (!db) throw new Error("Local workspace failed to load. Reload this page.");
 
   const STATUS_FLOW = ["Idea","Research","Brief","Editing","Review","Approved","Launched","Winner","Loser","Retest"];
 
@@ -48,6 +39,11 @@
   }
 
   function updateAuthNav(session) {
+    if (db.local) {
+      const nav = document.querySelector('.auth-nav');
+      if (nav) { nav.textContent = 'Local workspace'; nav.classList.add('local-account'); }
+      return;
+    }
     const login = $("login-link");
     const signup = $("signup-link");
     const email = $("account-email");
