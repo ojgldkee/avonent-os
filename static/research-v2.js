@@ -108,8 +108,8 @@
           '<label class="watch-toggle"><input type="checkbox" data-watch-active="' + esc(w.id) + '" ' + (w.active ? 'checked' : '') + '><span>' + (w.active ? 'On' : 'Off') + '</span></label>' +
         '</div>' +
         '<div class="brand-card-stats">' +
-          '<div><span>Active ads</span><strong>' + brandAds.length + '</strong></div>' +
-          '<div><span>' + Number(w.min_days_running || 30) + '+ day ads</span><strong>' + longCount + '</strong></div>' +
+          '<div><span>Ads sampled</span><strong>' + brandAds.length + '</strong></div>' +
+          '<div><span>' + Number(w.min_days_running || 30) + '+ day ads found</span><strong>' + longCount + '</strong></div>' +
           '<div><span>Last research</span><strong class="small-value">' + esc(w.last_scanned_at ? niceDate(w.last_scanned_at) : "Never") + '</strong></div>' +
         '</div>' +
         '<div class="brand-card-actions">' +
@@ -146,7 +146,7 @@
 
     if (!rows.length) {
       box.innerHTML = '<div class="empty wide">' +
-        (mode === "long" ? 'No ads in this view have reached the long-running threshold yet.' : 'No collected ads for this view yet. Research a tracked brand first.') +
+        (mode === "long" ? 'No 30+ day ads in the collected sample. This does not mean the brand has none.' : 'No collected ads for this view yet. Research a tracked brand first.') +
       '</div>';
       return;
     }
@@ -251,7 +251,7 @@
       activateTab("ads");
 
       $("research-status").textContent =
-        "Research complete. " + Number(result.stored || 0) + " ads stored; " + Number(result.long_running || 0) + " reached the long-running threshold.";
+        "Research sample updated: " + Number(result.stored || 0) + " ads saved; " + Number(result.long_running || 0) + " older ads found in this scan. This is not the advertiser’s total.";
     } catch (error) {
       const saved = competitorId ? ads.filter(a => a.competitor_id === competitorId && a.is_active) : ads.filter(a => a.is_active);
       if (saved.length) {
@@ -259,7 +259,7 @@
         if ($("ad-filter")) $("ad-filter").value = "all";
         renderAds();
         activateTab("ads");
-        $("research-status").textContent = "Showing " + saved.length + " saved ads. Refresh failed: " + (error.message || String(error));
+        $("research-status").textContent = "Showing " + saved.length + " previously saved ads, not the full advertiser library. Refresh failed: " + (error.message || String(error));
       } else {
         $("research-status").textContent = error.message || String(error);
       }
