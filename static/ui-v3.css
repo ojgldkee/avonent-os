@@ -311,3 +311,26 @@ textarea{min-height:96px;resize:vertical}.tall{min-height:165px}label{display:gr
   .package-copy-block p{max-height:240px;font-size:15px}
   .package-footer{grid-template-columns:1fr auto}
 }
+
+/* Competitor inspiration */
+.inspiration-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.inspiration-card{
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:linear-gradient(160deg,rgba(255,255,255,.025),transparent 45%),var(--panel2)
+}
+.inspiration-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.inspiration-card h3{margin:10px 0 7px;font-size:17px}
+.inspiration-card p{margin:0;color:#d0d0d5;font-size:13px;line-height:1.5}
+.inspiration-example{
+  margin-top:11px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#08080a;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.45
+}
+@media(max-width:760px){.inspiration-grid{grid-template-columns:1fr}}
