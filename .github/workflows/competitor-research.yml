@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/competitor-research.yml'
+      - 'services/meta-scraper/src/**'
   workflow_dispatch:
     inputs:
       competitor_id:
