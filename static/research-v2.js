@@ -157,6 +157,7 @@
   }
 
   function scanState(w) {
+    if (w.resolution_status === "legacy_name_search") return "Legacy Facebook match · review when convenient";
     if (w.resolution_status === "ambiguous") return "Choose the matching Facebook advertiser";
     if (w.resolution_status === "unresolved" || w.resolution_status === "needs_meta_resolution" || w.resolution_status === "user_page_link_unresolved") return "Facebook advertiser not resolved";
     if (w.last_scan_status === "running") return "Research in progress";
