@@ -223,3 +223,17 @@ body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
   .add-site-actions{display:grid;grid-template-columns:1fr 1fr}
   .add-site-actions .button{min-width:0}
 }
+
+
+/* Source-first creative research */
+.source-adaptation-card{margin:12px 0;padding:14px;border:1px solid #304052;border-radius:14px;background:#0b1219}
+.source-adaptation-card p{margin:7px 0;color:#c6d2df;line-height:1.5}
+.source-adaptation-card .eyebrow{display:block;margin-bottom:8px}
+.transcript-copy{border-color:#34495d}
+.source-hook-evidence{padding:12px 14px;border-top:1px solid #2a3948;border-bottom:1px solid #2a3948;background:#0d1721}
+.source-hook-evidence span{display:block;font-size:10px;letter-spacing:.14em;color:#8da2b7;font-weight:800}
+.source-hook-evidence p{margin:7px 0 0;font-size:16px;line-height:1.45;color:#f2f6fa}
+.source-analysis-stack{display:block!important}
+.source-analysis-stack p{margin:8px 0;line-height:1.5}
+.timed-beat>span{margin-top:8px}
+.timed-beat>span:first-of-type{margin-top:0}
