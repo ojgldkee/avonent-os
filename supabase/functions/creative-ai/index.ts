@@ -68,6 +68,12 @@ IMPORTANT EVIDENCE RULES:
 - Do not weaken a strong source hook or story merely because its claims are not yet verified. This system is for ad spying, concepting and script development first.
 - No default "what if", "the truth about", "the X lie", "doctors hate", "everyone is wrong", "this changes everything", invented conspiracy, or clickbait that undermines the advertised product. Do not make all five concepts skeptical myth-busting.
 - Optimize for a viewer who could actually buy: show a specific real-world problem, a believable reason to care, a concrete product moment, a natural CTA.
+PRIMARY TEXT ADAPTATION:
+- The generated primary_text is part of the source adaptation, not an afterthought. Study the PRIMARY SOURCE's written copy separately from its spoken script.
+- Match the source copy's approximate LENGTH, paragraph count, density, use of bullets/emojis, reveal timing, offer placement and CTA rhythm when those elements are present. Do not collapse a long-form source ad into a tiny caption.
+- If primary_text_word_count is supplied for the primary source and is at least 60 words, target roughly 80–120% of that word count unless product truth requires a shorter version.
+- Preserve persuasive architecture, not copyrighted wording. Rewrite sentences and examples for the user's product; do not reproduce long passages from the source verbatim.
+- If the source has only a short caption, a short adaptation is fine. If it has long direct-response copy, produce long direct-response copy.
 PRODUCTION CONTRACT:
 - Deliver a complete shootable script. Every timed beat MUST contain nonempty time, say, show, on_screen_text, footage_type, and provider. No placeholder fields. SAY is exact spoken dialogue; SHOW is camera/action direction; ON-SCREEN is actual caption. Footage types: UGC, PRODUCT, B_ROLL, AI_VIDEO, GRAPHIC. For non-AI footage provider is "camera/editor"; for AI_VIDEO choose a suggested model/provider (e.g. Higgsfield Seedance or MiniMax Hailuo), plus detailed generation prompt. Recommend AI only for shots impossible or impractical to film. Never imply AI-generated illustrations are clinical evidence.
 - Write a complete 60–90 second ad by default, never a 20–25 second opening alone. Use 6–10 sequential timestamped beats starting at 0:00 and covering the entire story through a spoken CTA. Write 130–230 spoken words total at realistic pacing (~2–2.7 words/second). Each beat can span 8–15 seconds; do not force five-second scenes. recommended_duration_seconds must match the final timestamp. Longer source-led stories may run up to 120 seconds with enough dialogue. Keep production directions concise, not the spoken story.
@@ -105,6 +111,7 @@ PRIMARY SOURCE RULE:
 - Hooks 2-4 must be genuinely different hook executions sourced from other observed patterns in competitor_research while staying compatible with the same concept. Do not give four tiny rewrites of one sentence.
 - If the source opening is a narrative story, preserve the narrative grammar and open loop. If the source says "character → surprising observation → time span → hidden relationship/secret → expected outcome → reversal", the adapted hook should follow that same sequence.
 - Keep strong source-derived claims/mechanisms in the creative draft when they are important to the source ad. Put each such claim in source_claims with the source ad ID and origin="competitor_ad_unverified" so it can be checked before launch.
+- primary_text MUST also be closely source-shaped: use the primary source's copy length and formatting metadata and mirror its persuasive sequence without copying its sentences.
 - If no real testimonial/story exists for the user's product, you may create a dramatized story concept, but label narrative_truth_mode="DRAMATIZED_SCENARIO" rather than pretending it is a verified customer testimonial.
 
 STORY RULE:
@@ -537,11 +544,21 @@ Deno.serve(async(req)=>{
     const primarySourceId=requestedPrimaryId;
     const primaryAd=ads.find((a:any)=>String(a.ad_archive_id||"")===primarySourceId)||ads[0]||null;
     const selectedAds=primaryAd ? [primaryAd,...ads.filter((a:any)=>a!==primaryAd).slice(0,3)] : ads.slice(0,4);
-    const research=selectedAds.map((a:any)=>({
+    const research=selectedAds.map((a:any)=>{
+      const fullPrimary=String(a.primary_text||"");
+      const isPrimary=String(a.ad_archive_id||"")===primarySourceId;
+      const primaryTextLimit=isPrimary ? (task==="idea"?6000:7000) : (task==="idea"?1800:3000);
+      const paragraphs=fullPrimary.split(/\n\s*\n/).map((x:string)=>x.trim()).filter(Boolean);
+      const bulletLines=fullPrimary.split(/\n/).filter((line:string)=>/^\s*(?:[-•✅✔️💧🌿⭐👉→]|\d+[.)])/.test(line)).length;
+      return {
       ad_archive_id:a.ad_archive_id,
       advertiser_name:a.advertiser_name,
       days_running:a.days_running,
-      primary_text:String(a.primary_text||"").slice(0,task==="idea"?1400:3000),
+      primary_text:fullPrimary.slice(0,primaryTextLimit),
+      primary_text_word_count:fullPrimary.trim()?fullPrimary.trim().split(/\s+/).filter(Boolean).length:0,
+      primary_text_paragraph_count:paragraphs.length,
+      primary_text_bullet_lines:bulletLines,
+      primary_text_has_emojis:/[\u{1F300}-\u{1FAFF}]/u.test(fullPrimary),
       headline:String(a.headline||"").slice(0,500),
       description:String(a.description||"").slice(0,task==="idea"?350:700),
       format:a.display_format||a.media_kind,
@@ -565,7 +582,8 @@ Deno.serve(async(req)=>{
       cta_structure:a.ai_analysis?.cta_structure||"",
       visual_production_notes:Array.isArray(a.ai_analysis?.visual_production_notes)?a.ai_analysis.visual_production_notes:[],
       analysis:JSON.stringify(a.ai_analysis||{}).slice(0,task==="idea"?1600:2800)
-    }));
+      };
+    });
 
     const model=task==="script"
       ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3.8-27b")
