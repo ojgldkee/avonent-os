@@ -12,6 +12,7 @@
   let products = [];
   let ideas = [];
   let sourceAds = [];
+  let watchlist = [];
   let usageEvents = [];
   let workspaceMode = "concepts";
   let progressTimer = null;
@@ -106,6 +107,7 @@
     if (!productId) {
       ideas = [];
       sourceAds = [];
+      watchlist = [];
       usageEvents = [];
       render();
       return;
@@ -114,15 +116,18 @@
     const results = await Promise.all([
       db.from("ai_ideas").select("*").eq("product_id", productId).order("created_at", { ascending: false }).limit(300),
       db.from("competitor_ads").select("*").eq("product_id", productId).order("days_running", { ascending: false }).limit(300),
+      db.from("competitor_watchlist").select("*").eq("product_id", productId).order("created_at", { ascending: true }),
       db.from("creative_usage_events").select("*").eq("product_id", productId).order("created_at", { ascending: false }).limit(500)
     ]);
 
     if (results[0].error) throw results[0].error;
     if (results[1].error) throw results[1].error;
     if (results[2].error) throw results[2].error;
+    if (results[3].error) throw results[3].error;
     ideas = results[0].data || [];
     sourceAds = results[1].data || [];
-    usageEvents = results[2].data || [];
+    watchlist = results[2].data || [];
+    usageEvents = results[3].data || [];
     render();
   }
 
@@ -466,22 +471,102 @@
     return sourceAds.filter(a => ids.has(String(a.ad_archive_id)));
   }
 
+  function safeHttpUrl(value) {
+    try {
+      const u = new URL(String(value || ""));
+      return (u.protocol === "http:" || u.protocol === "https:") ? u.toString() : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function sourceBrandInitials(name) {
+    const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    return (parts.slice(0, 2).map(part => part[0]).join("") || "?").toUpperCase();
+  }
+
+  function sourceBrandLogo(a) {
+    const brandRow = watchlist.find(w => String(w.id) === String(a.competitor_id)) || {};
+    const candidates = [];
+    const add = value => {
+      const safe = safeHttpUrl(value);
+      if (safe && !candidates.includes(safe)) candidates.push(safe);
+    };
+
+    add(a.advertiser_logo_url);
+    add(a.raw?.advertiser_logo_url);
+    add(brandRow.logo_url);
+
+    const site = safeHttpUrl(brandRow.website_url || a.landing_url || a.destination_url);
+    if (site) {
+      try {
+        const base = new URL(site);
+        add(new URL("/apple-touch-icon.png", base).toString());
+        add(new URL("/favicon-192x192.png", base).toString());
+        add(new URL("/favicon.png", base).toString());
+        add(new URL("/favicon.ico", base).toString());
+      } catch {}
+    }
+
+    const name = a.advertiser_name || brandRow.competitor_name || "Competitor";
+    const src = candidates[0] || "";
+    return '<div class="drawer-brand-avatar">' +
+      (src ? '<img src="' + esc(src) + '" alt="' + esc(name) + ' logo" loading="lazy" data-source-brand-logo data-logo-candidates="' + esc(JSON.stringify(candidates)) + '" data-logo-index="0">' : '') +
+      '<span>' + esc(sourceBrandInitials(name)) + '</span>' +
+    '</div>';
+  }
+
+  function setupSourceLogos() {
+    $("source-drawer-content").querySelectorAll("[data-source-brand-logo]").forEach(img => {
+      img.addEventListener("error", () => {
+        let candidates = [];
+        try { candidates = JSON.parse(img.getAttribute("data-logo-candidates") || "[]"); } catch {}
+        const next = Number(img.getAttribute("data-logo-index") || 0) + 1;
+        if (candidates[next]) {
+          img.setAttribute("data-logo-index", String(next));
+          img.src = candidates[next];
+        } else {
+          img.remove();
+        }
+      });
+    });
+  }
+
+  function sourceFold(title, text) {
+    if (!text) return "";
+    return '<details class="source-copy-accordion">' +
+      '<summary><span>' + esc(title) + '</span><span class="source-accordion-icon" aria-hidden="true"></span></summary>' +
+      '<div class="source-accordion-body"><p>' + esc(text) + '</p></div>' +
+    '</details>';
+  }
+
   function openSources(idea) {
     const rows = adsForIdea(idea);
     $("source-drawer").classList.remove("hidden");
     $("source-drawer").setAttribute("aria-hidden", "false");
 
     $("source-drawer-content").innerHTML = rows.length
-      ? rows.map(a => '<article class="drawer-source-ad">' +
-          '<div class="drawer-source-top"><span class="pill">' + esc(a.advertiser_name || "Competitor") + '</span><div class="days-badge ' + (a.started_at ? 'qualified' : '') + '"><strong>' + (a.started_at ? Number(a.days_running || 0) : '—') + '</strong><span>' + (a.started_at ? 'days' : 'unknown') + '</span></div></div>' +
-          (a.headline ? '<h3>' + esc(a.headline) + '</h3>' : '') +
-          (a.ai_analysis?.exact_spoken_opening ? '<div class="drawer-analysis"><span>Actual transcribed opening</span><p>“' + esc(a.ai_analysis.exact_spoken_opening) + '”</p></div>' : '') +
-          (a.primary_text ? '<details><summary>Primary text</summary><p>' + esc(a.primary_text) + '</p></details>' : '') +
-          (a.video_transcript ? '<details><summary>Video transcript</summary><p>' + esc(a.video_transcript) + '</p></details>' : '') +
-          (a.ai_analysis && a.ai_analysis.reusable_pattern ? '<div class="drawer-analysis"><span>Reusable structure</span><p>' + esc(a.ai_analysis.reusable_pattern) + '</p></div>' : '') +
-          '<div class="source-actions">' + (a.source_url ? '<a class="button secondary mini" target="_blank" rel="noopener" href="' + esc(a.source_url) + '">Open Meta</a>' : '') + '</div>' +
-        '</article>').join("")
+      ? rows.map(a => {
+          const brandRow = watchlist.find(w => String(w.id) === String(a.competitor_id)) || {};
+          const brandName = a.advertiser_name || brandRow.competitor_name || "Competitor";
+          return '<article class="drawer-source-ad">' +
+            '<div class="drawer-source-top">' +
+              '<div class="drawer-brand-identity">' + sourceBrandLogo(a) + '<div class="drawer-brand-copy"><strong>' + esc(brandName) + '</strong><span>Source ad</span></div></div>' +
+              '<div class="days-badge ' + (a.started_at ? 'qualified' : '') + '"><strong>' + (a.started_at ? Number(a.days_running || 0) : '—') + '</strong><span>' + (a.started_at ? 'days' : 'unknown') + '</span></div>' +
+            '</div>' +
+            (a.headline ? '<h3>' + esc(a.headline) + '</h3>' : '') +
+            (a.ai_analysis?.exact_spoken_opening ? '<div class="drawer-analysis"><span>Actual transcribed opening</span><p>“' + esc(a.ai_analysis.exact_spoken_opening) + '”</p></div>' : '') +
+            (a.ai_analysis && a.ai_analysis.reusable_pattern ? '<div class="drawer-analysis"><span>Reusable structure</span><p>' + esc(a.ai_analysis.reusable_pattern) + '</p></div>' : '') +
+            '<div class="source-copy-accordions">' +
+              sourceFold("Primary text", a.primary_text) +
+              sourceFold("Video transcript", a.video_transcript) +
+            '</div>' +
+            '<div class="source-actions">' + (a.source_url ? '<a class="button secondary mini" target="_blank" rel="noopener" href="' + esc(a.source_url) + '">Open Meta</a>' : '') + '</div>' +
+          '</article>';
+        }).join("")
       : '<div class="empty">No source-ad rows are available for this idea.</div>';
+
+    setupSourceLogos();
   }
 
   function closeSources() {
@@ -704,6 +789,14 @@
       });
 
       document.querySelectorAll("[data-close-sources]").forEach(el => el.onclick = closeSources);
+
+      $("source-drawer-content").addEventListener("toggle", event => {
+        const opened = event.target;
+        if (!opened.matches("details.source-copy-accordion") || !opened.open) return;
+        $("source-drawer-content").querySelectorAll("details.source-copy-accordion[open]").forEach(other => {
+          if (other !== opened) other.open = false;
+        });
+      }, true);
 
       $("cloud-ideas-grid").addEventListener("toggle", event => {
         const opened = event.target;
