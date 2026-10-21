@@ -268,7 +268,11 @@
       const hooks = hooksFor(idea);
       const savedPack = !!idea.approved;
       const visibleHooks = hooks.map((hook,n) => ({hook,n})).filter(({n}) => !savedView || savedPack || savedAsset(idea,"hook",n));
-      const hookHtml = visibleHooks.map(({hook,n}) => '<section class="idea-hook-block"><div class="idea-section-head"><span>Hook ' + (n+1) + '</span></div><p>' + esc(hook) + '</p><div class="idea-inline-actions"><button class="copy-inline" data-copy-library-hook="' + esc(idea.id) + '" data-hook-index="' + n + '">Copy</button>' + assetButton(idea,"hook",n) + '<button class="copy-inline" data-use-hook="' + esc(idea.id) + '" data-hook-index="' + n + '" aria-pressed="' + !!usageFor(idea.id,"hook",n) + '">' + (usageFor(idea.id,"hook",n) ? 'Used ✓ · Undo' : 'Use hook') + '</button></div></section>').join("");
+      const hookHtml = '<div class="idea-hooks-accordion">' + visibleHooks.map(({hook,n}) =>
+        '<details class="idea-hook-fold"' + (n === 0 ? ' open' : '') + '>' +
+          '<summary><span>Hook ' + (n+1) + '</span><span class="hook-chevron" aria-hidden="true"></span></summary>' +
+          '<div class="idea-hook-body"><p>' + esc(hook) + '</p><div class="idea-inline-actions"><button class="copy-inline" data-copy-library-hook="' + esc(idea.id) + '" data-hook-index="' + n + '">Copy</button>' + assetButton(idea,"hook",n) + '<button class="copy-inline" data-use-hook="' + esc(idea.id) + '" data-hook-index="' + n + '" aria-pressed="' + !!usageFor(idea.id,"hook",n) + '">' + (usageFor(idea.id,"hook",n) ? 'Used ✓ · Undo' : 'Use hook') + '</button></div></div>' +
+        '</details>').join("") + '</div>';
       const timed = Array.isArray(strategy.timed_script) ? strategy.timed_script : [];
       const script = (idea.ai_script ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre>' : timed.length ? '<div class="timed-script">' + timed.map(timedBeatHtml).join("") + '</div>' : '<p>Generate a complete 60–90 second production script.</p>') +
         '<div class="idea-inline-actions">' + assetButton(idea,"script") + '<button class="copy-inline" data-copy-script="' + esc(idea.id) + '">Copy script</button><button class="copy-inline" data-use-script="' + esc(idea.id) + '">' + (usageFor(idea.id,"script") ? 'Used ✓ · Undo' : 'Use script') + '</button><button class="button secondary mini" data-script="' + esc(idea.id) + '">' + (idea.ai_script || timed.length ? 'Regenerate · 60–90 sec' : 'Generate · 60–90 sec') + '</button></div>';
@@ -802,6 +806,11 @@
 
       $("cloud-ideas-grid").addEventListener("toggle", event => {
         const opened = event.target;
+        if (opened.matches("details.idea-hook-fold") && opened.open) {
+          const card = opened.closest(".cloud-idea-card");
+          card?.querySelectorAll("details.idea-hook-fold[open]").forEach(other => { if(other !== opened) other.open = false; });
+          return;
+        }
         if (!opened.matches("details.idea-copy-pack") || !opened.open) return;
         $("cloud-ideas-grid").querySelectorAll("details.idea-copy-pack[open]").forEach(other => { if(other !== opened) other.open = false; });
       },true);
