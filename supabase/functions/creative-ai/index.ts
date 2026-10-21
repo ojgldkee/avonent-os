@@ -77,12 +77,15 @@ PRODUCTION CONTRACT:
 - For AI_PERSON scenes, recommend Higgsfield + Kling 3.0 Pro by default unless another model better fits. For stylized/high-motion AI_VIDEO, Seedance 2.5 is a strong default. For character animation, Hailuo may be used. Always name provider + model and give a paste-ready prompt.
 - The model must NOT make up evidence of video analysis, transcript, scene-by-scene observation, or success metrics.
 FEEDBACK LOOP:
+- creative_brain contains the user's explicit persistent preferences, rules, customer insights and creative lessons. Treat these as the strongest taste/instruction signal after verified product facts. Pinned memories outrank unpinned memories; product-specific memories outrank global memories.
 - creative_feedback contains the user's real usage/winner/loser history when available.
 - Prefer patterns similar to items marked winner. Avoid repeating patterns marked loser.
-- "used" means the user chose that hook/script for production; treat it as positive taste signal, but weaker than "winner".
+- "used" means the user chose that hook/script for production; treat it as a positive taste signal, but weaker than "winner".
+- A recent creative with lifecycle_status="saved" is a mild positive taste signal.
+- A recent creative with status="Rejected" is a negative taste signal. Learn what the user disliked structurally, but do not overfit from one rejection.
 - "results" may include spend, CTR, CPC, CPA and ROAS. Use those numbers as the strongest optimization signal when they are present.
 - Do not simply repeat a previous used hook. Learn the structural preference and apply it to a different source ad.
-- recent_creatives lists recent hooks/angles/source IDs. Avoid near-duplicates. Today's concept should feel materially different in hook mechanism, story premise and visual execution from recent creatives unless the user explicitly marked a pattern as a winner.
+- recent_creatives lists recent hooks/angles/source IDs and statuses. Avoid near-duplicates. Today's concept should feel materially different in hook mechanism, story premise and visual execution from recent creatives unless the user explicitly marked a pattern as a winner.
 
 Return one valid JSON object only, no markdown.`;
 
@@ -571,6 +574,7 @@ Deno.serve(async(req)=>{
     const prompt=task==="script"?SCRIPT_PROMPT:task==="idea"?ONE_IDEA_PROMPT:IDEA_PROMPT;
     let creativeFeedback:any[]=[];
     let recentCreatives:any[]=[];
+    let creativeBrain:any[]=[];
     if(product?.id){
       let fq=admin.from("creative_usage_events")
         .select("asset_kind,action,content_snapshot,performance,notes,created_at")
@@ -580,6 +584,16 @@ Deno.serve(async(req)=>{
       if(auth.userId)fq=fq.eq("user_id",auth.userId);
       const feedback=await fq;
       if(!feedback.error)creativeFeedback=feedback.data||[];
+
+      let bq=admin.from("creative_brain")
+        .select("title,content,category,pinned,product_id,source,updated_at")
+        .or("product_id.is.null,product_id.eq."+product.id)
+        .order("pinned",{ascending:false})
+        .order("updated_at",{ascending:false})
+        .limit(40);
+      if(auth.userId)bq=bq.eq("user_id",auth.userId);
+      const brain=await bq;
+      if(!brain.error)creativeBrain=brain.data||[];
 
       let rq=admin.from("ai_ideas")
         .select("title,hook,angle,format,source_ad_ids,strategy,created_at,lifecycle_status,status")
@@ -601,6 +615,7 @@ Deno.serve(async(req)=>{
     }
 
     const input={
+      creative_brain:creativeBrain,
       creative_feedback:creativeFeedback,
       recent_creatives:recentCreatives,
       product:{
