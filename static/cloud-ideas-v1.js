@@ -286,7 +286,7 @@
         '<button class="button secondary mini" data-copy-primary="' + esc(idea.id) + '">Copy primary text</button>';
       return '<article class="cloud-idea-card" data-idea="' + esc(idea.id) + '"><div class="idea-card-top"><div><span class="idea-number">' + esc(idea.format || 'CONCEPT') + '</span><h2>' + esc(idea.title || idea.angle || 'Ad idea') + '</h2></div></div>' + hookHtml +
         ((!savedView || savedPack || savedAsset(idea,"script")) ? fold('Script',script) : '') + fold('Full creative brief',brief) + fold('Primary text',primary) +
-        '<div class="idea-decision-row"><button class="decision-button" data-approve="' + esc(idea.id) + '">' + (savedPack ? 'Saved pack ✓ · Unsave' : 'Save whole pack') + '</button><button class="decision-button" data-archive="' + esc(idea.id) + '">' + (idea.lifecycle_status === 'archived' ? 'Restore' : 'Archive') + '</button><button class="source-link" data-sources="' + esc(idea.id) + '">Source ads</button></div>' +
+        '<div class="idea-decision-row"><button class="decision-button" data-approve="' + esc(idea.id) + '">' + (savedPack ? 'Saved pack ✓ · Unsave' : 'Save whole pack') + '</button><button class="decision-button" data-reject="' + esc(idea.id) + '">' + (idea.status === 'Rejected' ? 'Not for me ✓ · Undo' : 'Not for me') + '</button><button class="decision-button" data-archive="' + esc(idea.id) + '">' + (idea.lifecycle_status === 'archived' ? 'Restore' : 'Archive') + '</button><button class="source-link" data-sources="' + esc(idea.id) + '">Source ads</button></div>' +
         (idea.lifecycle_status === 'used'
           ? '<div class="idea-performance-row"><span class="helper">How did it perform?</span><button class="copy-inline" data-outcome="winner" data-outcome-id="' + esc(idea.id) + '">Winner</button><button class="copy-inline" data-outcome="loser" data-outcome-id="' + esc(idea.id) + '">Loser</button><button class="copy-inline" data-results="' + esc(idea.id) + '">Add results</button>' + (outcomeFor(idea.id) ? '<span class="pill">' + esc(outcomeFor(idea.id).action) + '</span>' : '') + '</div>'
           : '') +
@@ -580,6 +580,8 @@
       ? {approved:false, status:"Idea", lifecycle_status:idea.lifecycle_status === "used" ? "used" : "new", updated_at:new Date().toISOString()}
       : decision === "approve"
       ? { approved: true, status: "Approved", lifecycle_status: idea?.lifecycle_status === "used" ? "used" : "saved", updated_at: new Date().toISOString() }
+      : idea?.status === "Rejected"
+      ? { approved:false, status:"Idea", updated_at:new Date().toISOString() }
       : { approved: false, status: "Rejected", updated_at: new Date().toISOString() };
 
     const r = await db.from("ai_ideas").update(update).eq("id", id);
