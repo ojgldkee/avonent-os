@@ -246,16 +246,25 @@
     return (parts.slice(0,2).map(x => x[0]).join("") || "?").toUpperCase();
   }
 
-  function faviconFor(url) {
-    try { return new URL("/favicon.ico", url).toString(); } catch { return ""; }
+  function brandIconCandidates(w) {
+    const out = [];
+    const add = value => { if (value && !out.includes(value)) out.push(value); };
+    try {
+      const base = new URL(w.website_url || "");
+      add(new URL("/apple-touch-icon.png", base).toString());
+      add(new URL("/favicon-192x192.png", base).toString());
+      add(new URL("/favicon.png", base).toString());
+      add(new URL("/favicon.ico", base).toString());
+    } catch {}
+    if (w.logo_url && /^https?:\/\//i.test(w.logo_url) && w.logo_url !== w.website_url) add(w.logo_url);
+    return out;
   }
 
   function brandAvatar(w) {
-    const icon = w.website_url ? faviconFor(w.website_url) : "";
-    const fallback = w.logo_url || "";
-    const src = icon || fallback;
+    const candidates = brandIconCandidates(w);
+    const src = candidates[0] || "";
     return '<div class="brand-avatar">' +
-      (src ? '<img src="' + esc(src) + '" alt="' + esc(w.competitor_name) + ' icon" loading="lazy" data-brand-avatar-img data-fallback-logo="' + esc(fallback) + '">' : '') +
+      (src ? '<img src="' + esc(src) + '" alt="' + esc(w.competitor_name) + ' icon" loading="lazy" data-brand-avatar-img data-icon-candidates="' + esc(JSON.stringify(candidates)) + '" data-icon-index="0">' : '') +
       '<span>' + esc(initials(w.competitor_name)) + '</span>' +
     '</div>';
   }
@@ -342,10 +351,12 @@
     }).join("");
     box.querySelectorAll("[data-brand-avatar-img]").forEach(img => {
       img.addEventListener("error", () => {
-        const fallback = img.getAttribute("data-fallback-logo") || "";
-        if (fallback && img.src !== fallback) {
-          img.removeAttribute("data-fallback-logo");
-          img.src = fallback;
+        let candidates = [];
+        try { candidates = JSON.parse(img.getAttribute("data-icon-candidates") || "[]"); } catch {}
+        const next = Number(img.getAttribute("data-icon-index") || 0) + 1;
+        if (candidates[next]) {
+          img.setAttribute("data-icon-index", String(next));
+          img.src = candidates[next];
         } else {
           img.remove();
         }
@@ -537,6 +548,7 @@
         }
       };
 
+      const queuedAt = new Date().toISOString();
       const r = await db.from("competitor_watchlist").insert({
         user_id: session.user.id,
         product_id: productId(),
@@ -550,9 +562,21 @@
         resolution_status: resolutionStatus,
         brand_data: brandData,
         min_days_running: Math.max(1, Number($("competitor-days").value || 30)),
-        active: true
-      });
+        active: true,
+        scan_requested_at: queuedAt,
+        scan_request_status: "queued",
+        last_scan_status: "queued",
+        last_scan_message: "Brand saved. Avonent is enriching the brand and will research Meta ads automatically."
+      }).select("*").single();
       if (r.error) throw r.error;
+
+      // Run a second enrichment pass now that the row exists, so the saved brand
+      // automatically receives the best site icon/social metadata without user help.
+      try {
+        await cloud.invoke("enrich-competitor-brand", { competitor_id: r.data.id, site: canonical }, { timeoutMs: 25000 });
+      } catch (error) {
+        console.warn("brand post-save enrichment failed", error);
+      }
 
       $("competitor-store").value = "";
       $("competitor-name").value = "";
@@ -560,8 +584,8 @@
       $("competitor-logo").value = "";
       await loadResearch();
       $("research-status").textContent = metaPageId || adLibraryUrl
-        ? name + " saved with a resolved Facebook source. The collector can now research it."
-        : name + " saved from the store URL. Facebook is still unresolved; the collector can discover candidates for you to confirm.";
+        ? name + " saved. Logo enrichment is automatic and Meta research has been queued."
+        : name + " saved. Logo enrichment is automatic; Avonent will also research Meta and resolve advertiser candidates automatically when possible.";
     } catch (error) {
       $("research-status").textContent = error.message || String(error);
     } finally {
