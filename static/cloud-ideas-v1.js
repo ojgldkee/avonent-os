@@ -123,7 +123,7 @@
 
   function filteredIdeas() {
     const mode = $("ideas-filter").value;
-    if (mode === "today") return ideas.filter(i => i.generated_for_date === today());
+    if (mode === "today") return ideas.filter(i => i.generated_for_date === today() && i.status !== "Rejected");
     if (mode === "approved") return ideas.filter(i => i.approved || i.status === "Approved");
     if (mode === "scripted") return ideas.filter(i => i.ai_script);
     if (mode === "rejected") return ideas.filter(i => i.status === "Rejected");
