@@ -492,7 +492,9 @@ Deno.serve(async(req)=>{
       if(!found.data)return out(404,{error:"Product not found"});
       product=found.data;
     }
-    let ads=Array.isArray(body?.competitor_ads)?body.competitor_ads.slice(0,task==="idea"?5:10):[];
+    const suppliedAds=Array.isArray(body?.competitor_ads)?body.competitor_ads:[];
+    const requestedPrimaryId=String(body?.primary_source_ad_id||body?.idea?.source_adaptation?.ad_archive_id||"");
+    let ads=suppliedAds.length?[...suppliedAds]:[];
 
     if(product?.id&&!ads.length){
       let rowsQuery=admin.from("competitor_ads")
@@ -500,14 +502,14 @@ Deno.serve(async(req)=>{
         .eq("product_id",product.id)
         .eq("is_active",true)
         .order("days_running",{ascending:false})
-        .limit(task==="idea"?5:10);
+        .limit(task==="idea"?80:20);
       if(auth.userId)rowsQuery=rowsQuery.eq("user_id",auth.userId);
       const rows=await rowsQuery;
       if(rows.error)throw rows.error;
       ads=rows.data||[];
     }
 
-    const primarySourceId=String(body?.primary_source_ad_id||body?.idea?.source_adaptation?.ad_archive_id||"");
+    const primarySourceId=requestedPrimaryId;
     const primaryAd=ads.find((a:any)=>String(a.ad_archive_id||"")===primarySourceId)||ads[0]||null;
     const selectedAds=primaryAd ? [primaryAd,...ads.filter((a:any)=>a!==primaryAd).slice(0,3)] : ads.slice(0,4);
     const research=selectedAds.map((a:any)=>({
