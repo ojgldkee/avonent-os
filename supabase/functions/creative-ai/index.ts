@@ -258,8 +258,8 @@ Deno.serve(async(req)=>{
     }));
 
     const model=task==="script"
-      ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3.8-max-0902")
-      : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3.8-max-0902");
+      ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3.7-flash")
+      : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3.7-flash");
 
     const prompt=task==="script"?SCRIPT_PROMPT:task==="idea"?ONE_IDEA_PROMPT:IDEA_PROMPT;
     const input={
@@ -286,10 +286,10 @@ Deno.serve(async(req)=>{
     };
 
     const candidates=task==="script"
-      ? [model,"qwen/qwen3.8-max-0902","deepseek/deepseek-v3.2"]
+      ? [model,"qwen/qwen3.7-flash","deepseek/deepseek-v3.2"]
       : task==="idea"
-        ? [model,"qwen/qwen3.8-max-0902","deepseek/deepseek-v3.2"]
-        : [model,"qwen/qwen3.8-max-0902","deepseek/deepseek-v3.2"];
+        ? [model,"qwen/qwen3.7-flash","deepseek/deepseek-v3.2"]
+        : [model,"qwen/qwen3.7-flash","deepseek/deepseek-v3.2"];
     let result:any=null;
     let raw:any=null;
     let usedModel=model;
@@ -308,12 +308,12 @@ Deno.serve(async(req)=>{
               {role:"system",content:prompt},
               {role:"user",content:JSON.stringify(input)}
             ],
-            ...(task==="idea"?{}:{response_format:{type:"json_object"}}),
-            ...(candidate.startsWith("deepseek/")?{reasoning:{enabled:false}}:candidate.includes("qwen3.8-max")?{reasoning:{effort:"low",exclude:true}}:{}),
+            ...((task!=="idea"||candidate.includes("qwen3.7-flash"))?{response_format:{type:"json_object"}}:{}),
+            ...((candidate.startsWith("deepseek/")||candidate.includes("qwen3.7-flash"))?{reasoning:{enabled:false}}:{}),
             provider:{sort:"throughput",allow_fallbacks:true},
             max_tokens:task==="script"?5600:task==="idea"?3600:7000
           }),
-          signal:AbortSignal.timeout(task==="script"?55000:task==="idea"?42000:55000)
+          signal:AbortSignal.timeout(task==="script"?50000:task==="idea"?38000:50000)
         });
         raw=await response.json().catch(()=>({}));
         if(!response.ok){
