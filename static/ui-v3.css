@@ -560,7 +560,12 @@ body[data-page="brands"] .brand-knowledge-row{
 }
 .watch-item-controls label{font-size:10px!important}
 .text-button.danger{color:#c3c3c8}
-.research-filters{display:flex;gap:8px}
+.research-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.duration-custom-filter{display:grid!important;gap:4px!important;color:var(--muted2)!important;font-size:9px!important;font-weight:900!important;letter-spacing:.08em;text-transform:uppercase}
+.duration-custom-filter span{display:flex;align-items:center;gap:6px;min-width:116px;padding:0 10px;border:1px solid var(--line2);border-radius:10px;background:#0a0a0c}
+.duration-custom-filter input{width:62px!important;min-width:0!important;padding:9px 0!important;border:0!important;background:transparent!important;font-size:14px!important}
+.duration-custom-filter b{color:var(--muted2);font-size:10px;font-weight:800;text-transform:none}
+.duration-label{color:#d8dee7;border:1px solid #303846;border-radius:999px;padding:1px 6px}
 .research-ad-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .source-ad-card{
   display:flex;
