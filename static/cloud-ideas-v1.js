@@ -301,7 +301,7 @@
         ? '<section class="idea-script-block">' +
             '<div class="idea-section-head"><span>AI Script</span><strong>' + esc(idea.script_model || "AI") + '</strong></div>' +
             '<pre>' + esc(idea.ai_script) + '</pre>' +
-            '<div class="idea-inline-actions"><button class="button secondary mini" type="button" data-copy-script="' + idea.id + '">Copy script</button><button class="button secondary mini" type="button" data-script="' + idea.id + '">Regenerate</button></div>' +
+            '<div class="idea-inline-actions"><button class="button secondary mini" type="button" data-copy-script="' + idea.id + '">Copy script</button><button class="button secondary mini" type="button" data-use-script="' + idea.id + '">' + (usageFor(idea.id,"script") ? 'Used ✓' : 'Use script') + '</button><button class="button secondary mini" type="button" data-script="' + idea.id + '">Regenerate</button></div>' +
           '</section>'
         : '<section class="idea-script-empty"><div><span class="eyebrow">FINAL SCRIPT</span><h4>Generate only when this idea is worth producing.</h4><p>The stronger script model receives the selected idea, product facts, and its source ads.</p></div><button class="button" type="button" data-script="' + idea.id + '">Generate AI Script</button></section>';
 
@@ -332,8 +332,7 @@
         (Array.isArray(strategy.timed_script) && strategy.timed_script.length ? '<h4>Timed script</h4><div class="timed-script">' + strategy.timed_script.map(timedBeatHtml).join("") + '</div>' : '') +
         (Array.isArray(strategy.source_observations) && strategy.source_observations.length ? '<h4>Observed in source ads</h4><ul class="strategy-list evidence-list">' + strategy.source_observations.map(x => '<li><strong>' + esc(x.ad_archive_id || "Source") + '</strong> · ' + esc(x.observation || "") + '</li>').join("") + '</ul>' : '') +
         (Array.isArray(strategy.ai_inferences) && strategy.ai_inferences.length ? '<h4>AI inferences</h4><ul class="strategy-list inference-list">' + strategy.ai_inferences.map(x => '<li>' + esc(typeof x === "string" ? x : JSON.stringify(x)) + '</li>').join("") + '</ul>' : '') +
-        (Array.isArray(strategy.product_fact_checks) && strategy.product_fact_checks.length ? '<h4>Product-fact checks</h4><ul class="strategy-list claim-list">' + strategy.product_fact_checks.map(x => '<li><strong>' + esc(x.status || "needs_review") + '</strong> · ' + esc(x.claim || "") + (x.support ? '<br><small>' + esc(x.support) + '</small>' : '') + '</li>').join("") + '</ul>' : '') +
-        (Array.isArray(strategy.unsupported_claim_checks) && strategy.unsupported_claim_checks.length ? '<div class="claim-warning"><strong>Unsupported / revise</strong><ul class="strategy-list">' + strategy.unsupported_claim_checks.map(x => '<li>' + esc(typeof x === "string" ? x : JSON.stringify(x)) + '</li>').join("") + '</ul></div>' : '<p class="claim-clear">No unsupported claims flagged in this draft.</p>') +
+        (Array.isArray(strategy.source_claims) && strategy.source_claims.length ? '<h4>Claims pulled from source ads</h4><p class="helper">Creative research only. Verify on the product/landing page before launch.</p><ul class="strategy-list claim-list">' + strategy.source_claims.map(x => '<li>' + esc(typeof x === "string" ? x : (x.claim || JSON.stringify(x))) + '</li>').join("") + '</ul>' : '') +
         '<button type="button" class="button secondary mini" data-copy-pack="' + idea.id + '">Copy creative brief</button></details>' +
         '<div class="idea-execution-grid">' +
           '<section><span>Audience</span><p>' + esc(strategy.audience || "Not specified") + '</p></section>' +
