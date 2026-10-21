@@ -5,7 +5,7 @@
   const db=cloud.db;
   const $=id=>document.getElementById(id);
   const esc=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
-  let session=null, products=[], selected=null;
+  let session=null, products=[], selected=null, sites=[], selectedSiteId="";
 
   function imageFor(p){
     return p?.site_data?.image_url || p?.shopify_data?.image?.url || "";
@@ -21,24 +21,79 @@
     return min===max ? "$"+min.toFixed(2) : "$"+min.toFixed(2)+"–$"+max.toFixed(2);
   }
 
+  function normalizeSiteUrl(raw){
+    let value=String(raw||"").trim();
+    if(!value)throw new Error("Enter a website URL.");
+    if(!/^https?:\/\//i.test(value))value="https://"+value;
+    const u=new URL(value);
+    if(u.protocol!=="https:")throw new Error("Website must use HTTPS.");
+    u.hash="";u.search="";u.pathname="/";
+    return u.toString();
+  }
+
+  function siteHost(site){
+    try{return new URL(site?.url||"").hostname.replace(/^www\./,"");}catch{return site?.name||"Site";}
+  }
+
+  function currentSite(){
+    return sites.find(s=>s.id===selectedSiteId)||null;
+  }
+
+  function renderSites(){
+    const select=$("connected-site-select");
+    if(!select)return;
+    select.innerHTML=sites.length
+      ? sites.map(s=>'<option value="'+esc(s.id)+'">'+esc(s.name||s.brand_name||siteHost(s))+' — '+esc(siteHost(s))+'</option>').join("")
+      : '<option value="">No sites connected</option>';
+    if(sites.length){
+      if(!sites.some(s=>s.id===selectedSiteId))selectedSiteId=sites[0].id;
+      select.value=selectedSiteId;
+      localStorage.setItem("avonent-selected-site",selectedSiteId);
+    }else{
+      selectedSiteId="";
+      localStorage.removeItem("avonent-selected-site");
+    }
+    const site=currentSite();
+    $("connected-site-meta").innerHTML=site
+      ? '<span class="strategy-chip">Connected · '+esc(siteHost(site))+'</span>'+(site.brand_name?'<span class="strategy-chip">Brand · '+esc(site.brand_name)+'</span>':'')
+      : '<p class="helper">Connect a storefront to import products.</p>';
+    $("scan-site-title").textContent=site?siteHost(site):"No site connected";
+    $("scan-website").textContent=site?"Scan "+siteHost(site):"Scan selected site";
+    $("scan-website").disabled=!site;
+  }
+
+  async function loadSites(){
+    const r=await db.from("connected_sites").select("*").eq("active",true).order("created_at",{ascending:true});
+    if(r.error)throw r.error;
+    sites=r.data||[];
+    selectedSiteId=localStorage.getItem("avonent-selected-site")||selectedSiteId||sites[0]?.id||"";
+    renderSites();
+  }
+
   async function load(){
-    const r=await db.from("products").select("*").order("updated_at",{ascending:false});
+    let query=db.from("products").select("*").order("updated_at",{ascending:false});
+    if(selectedSiteId)query=query.eq("site_id",selectedSiteId);
+    const r=await query;
     if(r.error) throw r.error;
     products=r.data||[];
     $("product-count").textContent=String(products.length);
+    selected=selected&&products.some(p=>p.id===selected.id)?selected:null;
     renderList();
     if(selected){
       const again=products.find(p=>p.id===selected.id);
-      if(again) selectProduct(again);
-    } else if(products[0]) {
+      if(again)selectProduct(again);
+    }else if(products[0]){
       selectProduct(products[0]);
+    }else{
+      $("product-empty").classList.remove("hidden");
+      $("product-form").classList.add("hidden");
     }
   }
 
   function renderList(){
     const box=$("product-list");
     if(!products.length){
-      box.innerHTML='<div class="empty">No products yet. Scan avonent.com.</div>';
+      box.innerHTML='<div class="empty">No products for this site yet. Run a website scan.</div>';
       return;
     }
     box.innerHTML=products.map(p=>{
@@ -116,27 +171,70 @@
   }
 
   async function scan(){
+    const site=currentSite();
+    if(!site){$("product-status").textContent="Connect a site first.";return;}
     const btn=$("scan-website");
     btn.disabled=true;btn.textContent="Scanning…";
-    $("product-status").textContent="Scanning avonent.com for public products and product pages…";
+    $("product-status").textContent="Scanning "+siteHost(site)+" for public products and product pages…";
     try{
-      const r=await cloud.invoke("website-product-scan",{site:"https://avonent.com"});
+      const r=await cloud.invoke("website-product-scan",{site_id:site.id});
       $("product-status").textContent="Found "+r.found+" product(s): "+r.created+" new, "+r.updated+" updated. Source: "+r.method+".";
       await load();
     }catch(e){
       $("product-status").textContent=e.message||String(e);
     }finally{
-      btn.disabled=false;btn.textContent="Scan avonent.com";
+      btn.disabled=false;btn.textContent="Scan "+siteHost(site);
+    }
+  }
+
+  async function addSite(event){
+    event.preventDefault();
+    try{
+      const url=normalizeSiteUrl($("new-site-url").value);
+      let name=$("new-site-name").value.trim();
+      let brand=$("new-site-brand").value.trim();
+      if(!name){try{name=new URL(url).hostname.replace(/^www\./,"").split(".")[0].replace(/[-_]+/g," ").replace(/\b\w/g,m=>m.toUpperCase());}catch{name="Store";}}
+      if(!brand)brand=name;
+      $("product-status").textContent="Connecting "+url+"…";
+      const r=await db.from("connected_sites").insert({
+        user_id:session.user.id,
+        name,
+        url,
+        brand_name:brand,
+        active:true,
+        updated_at:new Date().toISOString()
+      }).select("*").single();
+      if(r.error)throw r.error;
+      selectedSiteId=r.data.id;
+      localStorage.setItem("avonent-selected-site",selectedSiteId);
+      $("add-site-form").reset();
+      $("add-site-form").classList.add("hidden");
+      await loadSites();
+      await load();
+      $("product-status").textContent="Site connected. Run a scan to import its products.";
+    }catch(e){
+      $("product-status").textContent=e.message||String(e);
     }
   }
 
   document.addEventListener("DOMContentLoaded",async()=>{
     try{
       session=await cloud.requireSession();
+      await loadSites();
       await load();
       $("scan-website").onclick=scan;
       $("refresh-products").onclick=()=>load().catch(e=>$("product-status").textContent=e.message);
       $("product-form").onsubmit=save;
+      $("add-site-form").onsubmit=addSite;
+      $("show-add-site").onclick=()=>$("add-site-form").classList.toggle("hidden");
+      $("cancel-add-site").onclick=()=>$("add-site-form").classList.add("hidden");
+      $("connected-site-select").onchange=async e=>{
+        selectedSiteId=e.target.value||"";
+        localStorage.setItem("avonent-selected-site",selectedSiteId);
+        selected=null;
+        renderSites();
+        await load();
+      };
       $("product-list").onclick=e=>{
         const button=e.target.closest("[data-product]");
         if(!button)return;
