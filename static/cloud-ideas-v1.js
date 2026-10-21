@@ -68,8 +68,12 @@
     progressTimer = null;
     const panel = $("ideas-progress");
     if (!panel) return;
-    $("ideas-progress-percent").textContent = ok ? "100%" : "Stopped";
-    $("ideas-progress-fill").style.width = "100%";
+    if (ok) {
+      $("ideas-progress-percent").textContent = "100%";
+      $("ideas-progress-fill").style.width = "100%";
+    } else {
+      $("ideas-progress-percent").textContent = "Stopped";
+    }
     $("ideas-progress-stage").textContent = message || (ok ? "Creative pack saved." : "Generation stopped.");
     $("ideas-progress-note").textContent = ok ? "Done." : "The request did not complete.";
     if (ok) setTimeout(() => panel.classList.add("hidden"), 2800);
