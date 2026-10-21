@@ -250,3 +250,14 @@ body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
 .timed-beat{overflow-wrap:anywhere}
 .timed-beat>span{display:block;margin-top:9px}
 .timed-beat>p{margin:4px 0 0}
+
+
+/* Creative lifecycle controls */
+.hook-row-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.copy-inline.used{border-color:#7ea5c9;background:#132031}
+.creative-lifecycle-actions,.idea-decision-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.idea-state.used{border-color:#7ea5c9;color:#dce9f6}
+@media(max-width:600px){
+  .hook-row-actions{margin-top:8px}
+  .creative-lifecycle-actions .button,.idea-decision-row .decision-button{min-height:40px}
+}
