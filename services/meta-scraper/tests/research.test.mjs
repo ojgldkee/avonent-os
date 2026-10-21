@@ -145,15 +145,16 @@ test("primary copy expansion uses a footer control instead of overlaying text", 
   assert.match(strategistCss, /source-copy \.source-copy-body>p\{max-height:none!important;overflow:visible!important/);
 });
 
-test("ideas have concepts and combined hooks plus scripts workspaces", () => {
+test("ideas have concepts hooks plus scripts and saved workspaces", () => {
   const ideasHtml = readFileSync(new URL("creatives.html", root), "utf8");
   const ideasUi = readFileSync(new URL("static/cloud-ideas-v1.js", root), "utf8");
-  for (const mode of ["concepts","hooks"]) assert.match(ideasHtml, new RegExp('data-ideas-workspace="'+mode+'"'));
+  for (const mode of ["concepts","hooks","saved"]) assert.match(ideasHtml, new RegExp('data-ideas-workspace="'+mode+'"'));
   assert.doesNotMatch(ideasHtml, /data-ideas-workspace="scripts"/);
   assert.match(ideasHtml, /Hooks \+ scripts/);
-  assert.match(ideasUi, /renderHooksWorkspace/);
   assert.match(ideasUi, /data-copy-library-hook/);
-  assert.match(ideasUi, /Generate production script/);
+  assert.match(ideasUi, /Generate · 60–90 sec|Regenerate · 60–90 sec/);
+  assert.match(ideasUi, /Use hook/);
+  assert.match(ideasUi, /Use script/);
 });
 
 
