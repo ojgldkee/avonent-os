@@ -14,6 +14,8 @@ async function authenticate(req:Request,admin:any){
   if(cron&&sent&&sent===cron)return{mode:"cron",userId:null};
   const token=(req.headers.get("authorization")||"").replace(/^Bearer\s+/i,"").trim();
   if(!token)return null;
+  const service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
+  if(service&&token===service)return{mode:"service",userId:null};
   const user=await admin.auth.getUser(token);
   if(user.error||!user.data.user)return null;
   return{mode:"user",userId:user.data.user.id};
