@@ -153,15 +153,16 @@ Deno.serve(async(req)=>{
       // Pick five materially different source ads: first diversify advertiser, then format,
       // then fill remaining slots with the next-best unused source.
       const diversified:any[]=[];
-      const seenAdvertisers=new Set<string>();
-      const seenFormats=new Set<string>();
+      const seenSignatures=new Set<string>();
       for(const ad of rankedAds){
-        const adv=String(ad.advertiser_name||"").toLowerCase().trim();
-        const fmt=String(ad.media_kind||ad.display_format||"").toLowerCase();
-        if((adv&&!seenAdvertisers.has(adv)) || (fmt&&!seenFormats.has(fmt))){
+        const signature=[
+          String(ad.advertiser_name||"").toLowerCase().trim(),
+          String(ad.ai_analysis?.story_structure||ad.ai_analysis?.spoken_hook_type||"").toLowerCase().trim(),
+          String(ad.media_kind||ad.display_format||"").toLowerCase().trim()
+        ].join("|");
+        if(!seenSignatures.has(signature)){
           diversified.push(ad);
-          if(adv)seenAdvertisers.add(adv);
-          if(fmt)seenFormats.add(fmt);
+          seenSignatures.add(signature);
         }
         if(diversified.length>=5)break;
       }
