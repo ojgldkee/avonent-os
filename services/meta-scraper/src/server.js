@@ -263,7 +263,12 @@ function normalizeCard(card) {
   });
 
   // Primary text is usually the longest meaningful copy line/block in the visible card.
-  const primaryText = primaryCopy(text) || textCandidates.sort((a,b) => b.length-a.length)[0] || "";
+  // Meta sometimes inserts a group-summary row such as "2 ads use this creative and text".
+  // That is UI chrome, not ad copy, and must never be scored or stored as the creative.
+  const groupSummaryPattern = /^\s*\d+\s+ads?\s+use\s+this\s+creative\s+and\s+text\s*$/i;
+  const candidatePrimary = primaryCopy(text) || textCandidates.sort((a,b) => b.length-a.length)[0] || "";
+  const primaryText = groupSummaryPattern.test(candidatePrimary) ? "" : candidatePrimary;
+  const groupSummary = lines.some(line => groupSummaryPattern.test(line));
 
   const sourceUrl = card.links.find(x => /facebook\.com\/ads\/library\/.+id=/i.test(x)) ||
     "https://www.facebook.com/ads/library/?id=" + card.ad_archive_id;
@@ -307,10 +312,11 @@ function normalizeCard(card) {
     is_active: isActive,
     visible_text: text,
     primary_text_complete: primaryText && !/See more|…|\.\.\./i.test(primaryText) ? null : false,
+    group_summary: groupSummary,
     ...publicImpressions(text),
     impressions_source_url: sourceUrl,
     captured_at: new Date().toISOString(),
-    parser_version: "0.4.0"
+    parser_version: "0.4.1"
   };
 }
 
