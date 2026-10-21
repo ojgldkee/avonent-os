@@ -1269,3 +1269,16 @@ body[data-page="brands"] .brand-knowledge-row{
 @media(max-width:560px){
   .production-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* Static creative plans + learning feedback */
+.static-plan-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.static-plan-grid>div{padding:11px;border:1px solid #2a3949;border-radius:11px;background:#080d12}
+.static-plan-grid span,.static-image-prompt>span,.static-design-notes>span{display:block;color:#7f8c9b;font-size:9px;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+.static-plan-grid p,.static-image-prompt p,.static-design-notes p{margin:5px 0 0;color:#e0e7ee;font-size:12px;line-height:1.5}
+.static-image-prompt,.static-design-notes{margin-top:10px;padding:11px;border:1px solid #2a3949;border-radius:11px;background:#080d12}
+.feedback-panel .helper{margin-top:0}
+.feedback-chips{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 12px}
+.feedback-chip{appearance:none;border:1px solid #334150;border-radius:999px;background:#0b1117;color:#aeb9c5;padding:8px 10px;font:inherit;font-size:11px;font-weight:750;cursor:pointer}
+.feedback-chip.selected,.feedback-chip[aria-pressed="true"]{border-color:#7998b6;background:#152434;color:#f0f5fa}
+.feedback-note{width:100%;resize:vertical;min-height:82px;padding:11px 12px;border:1px solid #313c49;border-radius:11px;background:#080a0d;color:#eef2f6;font:inherit;font-size:13px;line-height:1.45}
+@media(max-width:560px){.static-plan-grid{grid-template-columns:1fr}}
