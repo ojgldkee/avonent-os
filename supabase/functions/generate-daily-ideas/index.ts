@@ -62,10 +62,18 @@ Deno.serve(async(req)=>{
     const url=Deno.env.get("SUPABASE_URL")||"";
     const service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
     const token=(req.headers.get("authorization")||"").replace(/^Bearer\s+/i,"").trim();
+    const body=await req.json().catch(()=>({}));
     if(!url||!service)return out(503,{error:"Supabase server configuration missing"});
-    if(!token||token!==service)return out(401,{error:"Service authorization required"});
 
     const admin=createClient(url,service,{auth:{persistSession:false}});
+    let authorized=Boolean(token&&token===service);
+    if(!authorized&&body?.scheduler_token){
+      const secret=await admin.from("avonent_scheduler_secret").select("token").eq("id",true).maybeSingle();
+      if(secret.error)throw secret.error;
+      authorized=Boolean(secret.data?.token&&String(secret.data.token)===String(body.scheduler_token));
+    }
+    if(!authorized)return out(401,{error:"Scheduler authorization required"});
+
     const today=new Date().toISOString().slice(0,10);
 
     const productsResult=await admin.from("products")
