@@ -168,7 +168,7 @@ Return:
 "proof_to_show":"","execution":"","why_test":"","hypothesis":"","inspiration":"",
 "source_ad_ids":[],
 "source_observations":[],
-"source_claims":[],
+"source_claims":[{"claim":"","source_ad_id":"","origin":"competitor_ad_unverified"}],
 "ai_inferences":[],
 "product_fact_checks":[],
 "unsupported_claim_checks":[],
