@@ -70,7 +70,7 @@ IMPORTANT EVIDENCE RULES:
 - Optimize for a viewer who could actually buy: show a specific real-world problem, a believable reason to care, a concrete product moment, a natural CTA.
 PRODUCTION CONTRACT:
 - Deliver a complete shootable script. Every timed beat MUST contain nonempty time, say, show, on_screen_text, footage_type, and provider. No placeholder fields. SAY is exact spoken dialogue; SHOW is camera/action direction; ON-SCREEN is actual caption. Footage types: UGC, PRODUCT, B_ROLL, AI_VIDEO, GRAPHIC. For non-AI footage provider is "camera/editor"; for AI_VIDEO choose a suggested model/provider (e.g. Higgsfield Seedance or MiniMax Hailuo), plus detailed generation prompt. Recommend AI only for shots impossible or impractical to film. Never imply AI-generated illustrations are clinical evidence.
-- Use 5-8 sequential timestamped beats covering the entire duration including a spoken CTA. Match speech to realistic pacing (~2-2.7 words/second). Video length is chosen from the idea, not a fixed template.
+- Write a complete 60–90 second ad by default, never a 20–25 second opening alone. Use 6–10 sequential timestamped beats starting at 0:00 and covering the entire story through a spoken CTA. Write 130–230 spoken words total at realistic pacing (~2–2.7 words/second). Each beat can span 8–15 seconds; do not force five-second scenes. recommended_duration_seconds must match the final timestamp. Longer source-led stories may run up to 120 seconds with enough dialogue. Keep production directions concise, not the spoken story.
 - Every concept must contain 4 strong hook options. Hook 1 should be the closest usable adaptation of the primary source hook. Hooks 2-4 should be clearly different executions built from other observed source patterns, not generic filler.
 - Describe filming setup, shot changes, cut timing, product shots, transitions, camera behavior, casting and any animation prompt/provider when relevant.
 - VISUAL SPECIFICITY IS REQUIRED. Do not say only "AI animation" or "UGC." State what it looks like: e.g. real iPhone UGC in a parked car, photoreal AI spokesperson, stop-motion claymation, glossy 3D product macro, paper-cut collage, cinematic AI reenactment, medical-style explanatory animation, screen-recording, or practical B-roll.
@@ -185,7 +185,7 @@ Return:
 VALIDATION TARGETS:
 - hooks exactly 4; hook === hook_adaptation.adapted_hook === hooks[0].
 - first_three_seconds SAY/SHOW/ON-SCREEN all nonempty.
-- timed_script 6-10 beats covering the whole ad through CTA.
+- timed_script 6-10 beats covering at least 60 seconds through a spoken CTA, with at least 120 spoken words. A hook-only 25-second timeline is invalid.
 - Every beat has substantive SAY/SHOW, footage_type, visual_style, provider and source_reference.
 - If footage is AI, provider/model/prompt must be populated.
 - Keep the product claims inside verified facts. If the source ad's mechanism is not verified for this product, preserve only the storytelling/creative structure, not the claim.
@@ -232,7 +232,7 @@ Return:
 "three_alt_openings":[]
 }}
 
-Every beat must be fully populated and shootable. Use 6-10 beats.
+Every beat must be fully populated and shootable. Use 6-10 beats covering 60–90 seconds (at least 120 spoken words). If selected_idea has a short draft, expand it into a complete story rather than preserving its short duration. End with the spoken CTA.
 For story ads, write an actual beginning, escalation, reveal and resolution rather than a list of claims.
 For AI scenes, explain exactly what the viewer sees and how it should be generated. Name provider/model and write a paste-ready prompt.
 For real UGC, specify the actor type, location, camera framing, movement, props and edit rhythm.
@@ -395,6 +395,24 @@ function normalizeBeat(beat:any,index:number,script:any){
   return b;
 }
 
+function validateScriptDuration(script:any, beats:any[]) {
+  let end = 0;
+  let words = 0;
+  for (const beat of beats) {
+    const match = String(beat.time || "").match(/^\s*(\d+):(\d{2})\s*[-–—]\s*(\d+):(\d{2})\s*$/);
+    if (!match) throw new Error("Script timing must use m:ss-m:ss ranges covering the full 60–90 second story.");
+    const start = Number(match[1])*60 + Number(match[2]);
+    const next = Number(match[3])*60 + Number(match[4]);
+    if (Number(match[2]) >= 60 || Number(match[4]) >= 60 || start !== end || next <= start) throw new Error("Script beats must be sequential with no gaps or overlaps, starting at 0:00.");
+    words += String(beat.say || "").trim().split(/\s+/).filter(Boolean).length;
+    end = next;
+  }
+  if (end < 60 || words < 120 || words / end < 1.6 || words / end > 3.1) {
+    throw new Error("Script is too short or has unrealistic pacing. Write a full 60–90 second story with 130–230 spoken words and a closing CTA; do not pad timestamps around a short hook.");
+  }
+  script.recommended_duration_seconds = end;
+}
+
 function validateResult(task:string,result:any){
   if(task==="idea"){
     const idea=result?.idea;
@@ -412,6 +430,7 @@ function validateResult(task:string,result:any){
     }
 
     if(!idea.first_three_seconds||typeof idea.first_three_seconds!=="object")idea.first_three_seconds={};
+    validateScriptDuration(idea,idea.timed_script);
     const first=idea.timed_script[0]||{};
     idea.first_three_seconds.say=String(idea.first_three_seconds.say||first.say||idea.hook||"").trim();
     idea.first_three_seconds.show=String(idea.first_three_seconds.show||first.show||idea.first_frame||"").trim();
@@ -459,6 +478,7 @@ function validateResult(task:string,result:any){
       throw new Error("AI output validation failed: final script needs at least five complete spoken/visual beats.");
     }
     if(!script.first_three_seconds||typeof script.first_three_seconds!=="object")script.first_three_seconds={};
+    validateScriptDuration(script,script.beats);
     const first=script.beats[0]||{};
     script.first_three_seconds.say=String(script.first_three_seconds.say||first.say||script.hook||"");
     script.first_three_seconds.show=String(script.first_three_seconds.show||first.show||"");

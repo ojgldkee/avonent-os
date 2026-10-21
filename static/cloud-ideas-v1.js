@@ -139,7 +139,45 @@
   }
 
   function usageFor(ideaId, kind, index=null) {
-    return usageEvents.find(e => e.idea_id === ideaId && e.asset_kind === kind && (index == null || Number(e.asset_index) === Number(index)) && ["used","winner"].includes(e.action));
+    return usageEvents.find(e => e.idea_id === ideaId && e.asset_kind === kind && (index == null || Number(e.asset_index) === Number(index)) && e.action === "used");
+  }
+
+  function assetSaved(idea, kind, index=0) {
+    return !!idea.strategy?.saved_assets?.[kind === "hook" ? "hook:" + index : "script"];
+  }
+
+  function saveAssetButton(idea, kind, index=0) {
+    const saved = assetSaved(idea, kind, index);
+    return '<button type="button" class="copy-inline" aria-pressed="' + saved + '" data-save-asset="' + esc(idea.id) + '" data-asset-kind="' + kind + '" data-hook-index="' + index + '">' + (saved ? 'Saved ✓ · Unsave' : 'Save ' + kind) + '</button>';
+  }
+
+  async function toggleAssetSave(idea, kind, index) {
+    const key = kind === "hook" ? "hook:" + index : "script";
+    const saved = {...(idea.strategy?.saved_assets || {})};
+    saved[key] = !saved[key];
+    const r = await db.from("ai_ideas").update({strategy: {...(idea.strategy || {}), saved_assets: saved}, updated_at: new Date().toISOString()}).eq("id", idea.id);
+    if (r.error) throw r.error;
+    await loadData();
+    $("ideas-status").textContent = saved[key] ? "Saved. Find it in Saved on this page." : "Removed from Saved.";
+  }
+
+  function primaryTextHtml(idea) {
+    const strategy = idea.strategy || {};
+    return '<details class="idea-copy-pack" name="idea-sections"><summary>Primary text</summary><p class="preserve-lines">' + esc(strategy.primary_text || "No primary text yet.") + '</p>' +
+      (strategy.headline ? '<h4>Headline</h4><p>' + esc(strategy.headline) + '</p>' : '') +
+      (strategy.description ? '<h4>Description</h4><p>' + esc(strategy.description) + '</p>' : '') +
+      '<button type="button" class="button secondary mini" data-copy-primary="' + esc(idea.id) + '">Copy primary text</button></details>';
+  }
+
+  function scriptHtml(idea) {
+    const strategy = idea.strategy || {};
+    const beats = strategy.timed_script || [];
+    return '<details class="idea-copy-pack" name="idea-sections"><summary>Script + video plan</summary>' +
+      '<div class="idea-inline-actions">' + saveAssetButton(idea,"script") +
+      '<button class="copy-inline" type="button" data-use-script="' + esc(idea.id) + '">' + (usageFor(idea.id,"script") ? 'Used ✓ · Undo' : 'Use script') + '</button>' +
+      '<button class="copy-inline" type="button" data-copy-script="' + esc(idea.id) + '">Copy script</button></div>' +
+      (idea.ai_script ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre>' : beats.map(timedBeatHtml).join('')) +
+      '<button class="button secondary mini" type="button" data-script="' + esc(idea.id) + '">' + (idea.ai_script ? 'Regenerate full script' : 'Generate full 60–90s script') + '</button></details>';
   }
 
   function outcomeFor(ideaId) {
@@ -233,27 +271,22 @@
     '</section>';
   }
 
-  function renderHooksWorkspace(rows) {
+  function renderHooksWorkspace(rows, savedOnly=false) {
     $("cloud-ideas-grid").innerHTML = rows.length ? rows.map((idea) => {
       const strategy = idea.strategy || {};
       const hooks = [idea.hook, ...(Array.isArray(strategy.hooks) ? strategy.hooks : [])].filter(Boolean)
         .filter((hook,index,arr) => arr.indexOf(hook) === index);
       return '<article class="hook-library-card">' +
         '<div class="hook-library-head"><div><span class="eyebrow">HOOK SET</span><h2>' + esc(idea.title || idea.angle || "Creative idea") + '</h2></div><span class="pill">' + esc(idea.angle || "Angle") + '</span></div>' +
-        (strategy.audience ? '<p class="helper">Audience · ' + esc(strategy.audience) + '</p>' : '') +
         '<div class="hook-library-list">' + hooks.map((hook,index) => {
+          if (savedOnly && !idea.approved && !assetSaved(idea,"hook",index)) return "";
           const used = usageFor(idea.id,"hook",index);
-          return '<div class="hook-library-row"><span>' + String(index + 1).padStart(2,"0") + '</span><p>' + esc(hook) + '</p><div class="hook-row-actions"><button type="button" class="copy-inline" data-copy-library-hook="' + esc(idea.id) + '" data-hook-index="' + index + '">Copy</button><button type="button" class="copy-inline ' + (used ? 'used' : '') + '" data-use-hook="' + esc(idea.id) + '" data-hook-index="' + index + '">' + (used ? 'Used ✓' : 'Use hook') + '</button></div></div>';
+          return '<div class="hook-library-row"><span>' + String(index + 1).padStart(2,"0") + '</span><p>' + esc(hook) + '</p><div class="hook-row-actions"><button type="button" class="copy-inline" data-copy-library-hook="' + esc(idea.id) + '" data-hook-index="' + index + '">Copy</button><button type="button" class="copy-inline ' + (used ? 'used' : '') + '" data-use-hook="' + esc(idea.id) + '" data-hook-index="' + index + '">' + (used ? 'Used ✓ · Undo' : 'Use hook') + '</button>' + saveAssetButton(idea,"hook",index) + '</div></div>';
         }).join("") + '</div>' +
         '<div class="hook-library-meta"><span>' + (Array.isArray(idea.source_ad_ids) ? idea.source_ad_ids.length : 0) + ' source ads</span><span>' + esc(idea.format || "Format TBD") + '</span></div>' +
-        hookAdaptationHtml(strategy) +
-        storyArcHtml(strategy) +
-        visualRecipeHtml(strategy) +
-        sourceAdaptationHtml(strategy) +
-        '<details class="idea-copy-pack"><summary>Connected script and video plan</summary><p>Suggested duration: ' + esc(strategy.recommended_duration_seconds || "AI to decide") + ' seconds · ' + esc(strategy.production_style || "AI to choose footage mix") + '</p>' +
-        (Array.isArray(strategy.timed_script) ? strategy.timed_script.map(timedBeatHtml).join("") : '<p>No timed script yet.</p>') +
-        (strategy.video_concept ? '<p>' + esc(strategy.video_concept) + '</p>' : '') +
-        '<button class="button secondary mini" type="button" data-script="' + esc(idea.id) + '">Generate production script</button></details>' +
+        ((!savedOnly || idea.approved || assetSaved(idea,"script")) ? scriptHtml(idea) : '') +
+        primaryTextHtml(idea) +
+        (idea.approved ? '<button type="button" class="copy-inline" data-approve="' + esc(idea.id) + '">Unsave full idea</button>' : '') +
       '</article>';
     }).join("") : '<div class="empty wide">No hook sets in this view yet.</div>';
   }
@@ -268,7 +301,7 @@
           (idea.ai_script ? '<span class="idea-state approved">Final script</span>' : '<span class="idea-state">Concept script</span>') + '</div>' +
         (strategy.first_three_seconds ? '<section class="script-opening"><span>First 3 seconds</span><div class="timed-beat"><span>SAY</span><p>' + esc(strategy.first_three_seconds.say || "") + '</p><span>SHOW</span><p>' + esc(strategy.first_three_seconds.show || "") + '</p><span>ON-SCREEN</span><p>' + esc(strategy.first_three_seconds.on_screen_text || "") + '</p></div></section>' : '') +
         (idea.ai_script
-          ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre><div class="idea-inline-actions"><button class="button secondary mini" type="button" data-copy-script="' + esc(idea.id) + '">Copy script</button><button class="button secondary mini" type="button" data-use-script="' + esc(idea.id) + '">' + (usageFor(idea.id,"script") ? 'Used ✓' : 'Use script') + '</button><button class="button secondary mini" type="button" data-script="' + esc(idea.id) + '">Regenerate</button></div>'
+          ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre><div class="idea-inline-actions"><button class="button secondary mini" type="button" data-copy-script="' + esc(idea.id) + '">Copy script</button><button class="button secondary mini" type="button" data-use-script="' + esc(idea.id) + '">' + (usageFor(idea.id,"script") ? 'Used ✓ · Undo' : 'Use script') + '</button><button class="button secondary mini" type="button" data-script="' + esc(idea.id) + '">Regenerate</button></div>'
           : hookAdaptationHtml(strategy) + storyArcHtml(strategy) + visualRecipeHtml(strategy) + sourceAdaptationHtml(strategy) + '<div class="timed-script">' + timed.map(timedBeatHtml).join("") + '</div><button class="button" type="button" data-script="' + esc(idea.id) + '">Generate final AI script</button>') +
       '</article>';
     }).join("") : '<div class="empty wide">No scripts in this view yet. Generate concepts first, then open Scripts.</div>';
@@ -280,6 +313,10 @@
     $("ideas-archive-count").textContent = String(ideas.filter(i => i.lifecycle_status === "archived").length);
     $("ideas-source-count").textContent = String(sourceAds.length);
 
+    if (workspaceMode === "saved") {
+      renderHooksWorkspace(ideas.filter(i => i.approved || Object.values(i.strategy?.saved_assets || {}).some(Boolean)), true);
+      return;
+    }
     const rows = filteredIdeas();
     if (workspaceMode === "hooks") { renderHooksWorkspace(rows); return; }
     if (workspaceMode === "scripts") { renderScriptsWorkspace(rows); return; }
@@ -297,14 +334,6 @@
       const approved = idea.approved || status === "Approved";
       const rejected = status === "Rejected";
 
-      const scriptBlock = idea.ai_script
-        ? '<section class="idea-script-block">' +
-            '<div class="idea-section-head"><span>AI Script</span><strong>' + esc(idea.script_model || "AI") + '</strong></div>' +
-            '<pre>' + esc(idea.ai_script) + '</pre>' +
-            '<div class="idea-inline-actions"><button class="button secondary mini" type="button" data-copy-script="' + idea.id + '">Copy script</button><button class="button secondary mini" type="button" data-use-script="' + idea.id + '">' + (usageFor(idea.id,"script") ? 'Used ✓' : 'Use script') + '</button><button class="button secondary mini" type="button" data-script="' + idea.id + '">Regenerate</button></div>' +
-          '</section>'
-        : '<section class="idea-script-empty"><div><span class="eyebrow">FINAL SCRIPT</span><h4>Generate only when this idea is worth producing.</h4><p>The stronger script model receives the selected idea, product facts, and its source ads.</p></div><button class="button" type="button" data-script="' + idea.id + '">Generate AI Script</button></section>';
-
       return '<article class="cloud-idea-card" data-idea="' + idea.id + '">' +
         '<div class="idea-card-top">' +
           '<div><span class="idea-number">IDEA ' + String(index + 1).padStart(2, "0") + '</span><h2>' + esc(idea.title || idea.angle || "Ad idea") + '</h2><div class="idea-meta"><span>' + esc(idea.format || "Format TBD") + '</span><span>' + esc(idea.idea_model || "AI") + '</span></div></div>' +
@@ -314,47 +343,25 @@
           '</div>' +
         '</div>' +
 
-        '<section class="idea-hook-block"><div class="idea-section-head"><span>Hook</span><div class="idea-inline-actions"><button class="copy-inline" type="button" data-copy-hook="' + idea.id + '">Copy</button><button class="copy-inline ' + (usageFor(idea.id,"hook",0) ? 'used' : '') + '" type="button" data-use-hook="' + idea.id + '" data-hook-index="0">' + (usageFor(idea.id,"hook",0) ? 'Used ✓' : 'Use hook') + '</button></div></div><p>' + esc(idea.hook || "") + '</p></section>' +
+        '<section class="idea-hook-block"><div class="idea-section-head"><span>Hook</span><div class="idea-inline-actions"><button class="copy-inline" type="button" data-copy-hook="' + idea.id + '">Copy</button><button class="copy-inline ' + (usageFor(idea.id,"hook",0) ? 'used' : '') + '" type="button" data-use-hook="' + idea.id + '" data-hook-index="0">' + (usageFor(idea.id,"hook",0) ? 'Used ✓ · Undo' : 'Use hook') + '</button>' + saveAssetButton(idea,"hook",0) + '</div></div><p>' + esc(idea.hook || "") + '</p></section>' +
 
-        '<details class="idea-copy-pack"><summary>Full creative brief</summary>' +
+        '<details class="idea-copy-pack" name="idea-sections"><summary>Full creative brief</summary>' +
+        '<h4>Angle</h4><p>' + esc(idea.angle || '') + '</p><h4>First frame</h4><p>' + esc(idea.first_frame || '') + '</p>' +
         (strategy.audience ? '<h4>Audience</h4><p>' + esc(strategy.audience) + '</p>' : '') +
         (Array.isArray(strategy.hooks) ? strategy.hooks.map((hook,n) => '<p><strong>Hook ' + (n+1) + '</strong><br>' + esc(hook) + '</p>').join("") : '') +
         (strategy.first_three_seconds ? '<h4>First 3 seconds</h4><div class="timed-beat"><span>SAY</span><p>' + esc(strategy.first_three_seconds.say || "") + '</p><span>SHOW</span><p>' + esc(strategy.first_three_seconds.show || "") + '</p><span>ON-SCREEN</span><p>' + esc(strategy.first_three_seconds.on_screen_text || "") + '</p></div>' : '') +
-        (strategy.primary_text ? '<h4>Primary text</h4><p style="white-space:pre-wrap">' + esc(strategy.primary_text) + '</p>' : '') +
-        (strategy.headline ? '<h4>Headline</h4><p>' + esc(strategy.headline) + '</p>' : '') +
-        (strategy.description ? '<h4>Description</h4><p>' + esc(strategy.description) + '</p>' : '') +
         (strategy.video_concept ? '<h4>Video concept</h4><p>' + esc(strategy.video_concept) + '</p>' : '') +
         hookAdaptationHtml(strategy) +
         storyArcHtml(strategy) +
         visualRecipeHtml(strategy) +
         sourceAdaptationHtml(strategy) +
         (Array.isArray(strategy.shot_directions) && strategy.shot_directions.length ? '<h4>Shot directions</h4><ol class="strategy-list">' + strategy.shot_directions.map(x => '<li>' + esc(typeof x === "string" ? x : JSON.stringify(x)) + '</li>').join("") + '</ol>' : '') +
-        (Array.isArray(strategy.timed_script) && strategy.timed_script.length ? '<h4>Timed script</h4><div class="timed-script">' + strategy.timed_script.map(timedBeatHtml).join("") + '</div>' : '') +
         (Array.isArray(strategy.source_observations) && strategy.source_observations.length ? '<h4>Observed in source ads</h4><ul class="strategy-list evidence-list">' + strategy.source_observations.map(x => '<li><strong>' + esc(x.ad_archive_id || "Source") + '</strong> · ' + esc(x.observation || "") + '</li>').join("") + '</ul>' : '') +
         (Array.isArray(strategy.ai_inferences) && strategy.ai_inferences.length ? '<h4>AI inferences</h4><ul class="strategy-list inference-list">' + strategy.ai_inferences.map(x => '<li>' + esc(typeof x === "string" ? x : JSON.stringify(x)) + '</li>').join("") + '</ul>' : '') +
         (Array.isArray(strategy.source_claims) && strategy.source_claims.length ? '<h4>Claims pulled from source ads</h4><p class="helper">Creative research only. Verify on the product/landing page before launch.</p><ul class="strategy-list claim-list">' + strategy.source_claims.map(x => '<li>' + esc(typeof x === "string" ? x : (x.claim || JSON.stringify(x))) + '</li>').join("") + '</ul>' : '') +
         '<button type="button" class="button secondary mini" data-copy-pack="' + idea.id + '">Copy creative brief</button></details>' +
-        '<div class="idea-execution-grid">' +
-          '<section><span>Audience</span><p>' + esc(strategy.audience || "Not specified") + '</p></section>' +
-          '<section><span>Angle</span><p>' + esc(idea.angle || "Not specified") + '</p></section>' +
-          '<section class="wide"><span>First frame</span><p>' + esc(idea.first_frame || "Not specified") + '</p></section>' +
-          '<section class="wide"><span>Execution</span><p>' + esc(idea.execution || "") + '</p></section>' +
-          '<section><span>Proof to show</span><p>' + esc(idea.proof_to_show || "Use documented product proof") + '</p></section>' +
-          '<section><span>CTA</span><p>' + esc(idea.cta || "") + '</p></section>' +
-        '</div>' +
-
-        '<section class="idea-why"><span>Why test it</span><p>' + esc(idea.why_test || "") + '</p></section>' +
-        (strategy.hypothesis ? '<section class="idea-hypothesis"><span>Hypothesis</span><p>' + esc(strategy.hypothesis) + '</p></section>' : '') +
-        (strategy.risk ? '<section class="idea-risk"><span>Biggest risk</span><p>' + esc(strategy.risk) + '</p></section>' : '') +
-        (overall ? '<div class="idea-score-grid">' +
-          '<div><span>Scroll stop</span><strong>' + Number(scores.scroll_stop || 0) + '/10</strong></div>' +
-          '<div><span>Specificity</span><strong>' + Number(scores.specificity || 0) + '/10</strong></div>' +
-          '<div><span>Product fit</span><strong>' + Number(scores.product_fit || 0) + '/10</strong></div>' +
-          '<div><span>Source support</span><strong>' + Number(scores.source_support || 0) + '/10</strong></div>' +
-          '<div><span>Producibility</span><strong>' + Number(scores.producibility || 0) + '/10</strong></div>' +
-          '<div><span>Compliance</span><strong>' + Number(scores.compliance_safety || 0) + '/10</strong></div>' +
-        '</div>' : '') +
-
+        primaryTextHtml(idea) +
+        scriptHtml(idea) +
         '<div class="idea-research-row">' +
           '<button class="source-link" type="button" data-sources="' + idea.id + '">' +
             '<strong>' + sourceIds.length + '</strong><span>source ads</span>' +
@@ -363,13 +370,12 @@
         '</div>' +
 
         '<div class="idea-decision-row">' +
-          '<button class="decision-button approve ' + (approved ? "active" : "") + '" type="button" data-approve="' + idea.id + '">' + (approved ? '✓ Saved' : 'Save') + '</button>' +
+          '<button class="decision-button approve ' + (approved ? "active" : "") + '" type="button" data-approve="' + idea.id + '">' + (approved ? 'Saved idea · Unsave' : 'Save full idea') + '</button>' +
           '<button class="decision-button reject ' + (rejected ? "active" : "") + '" type="button" data-reject="' + idea.id + '">× Reject</button>' +
           '<button class="decision-button" type="button" data-archive="' + idea.id + '">' + (idea.lifecycle_status === "archived" ? 'Restore' : 'Archive') + '</button>' +
           (idea.lifecycle_status === "used" ? '<button class="decision-button ' + (outcomeFor(idea.id)?.action === "winner" ? 'approve active' : '') + '" type="button" data-outcome="winner" data-outcome-id="' + idea.id + '">Winner</button><button class="decision-button ' + (outcomeFor(idea.id)?.action === "loser" ? 'reject active' : '') + '" type="button" data-outcome="loser" data-outcome-id="' + idea.id + '">Loser</button><button class="decision-button" type="button" data-results="' + idea.id + '">Add results</button>' : '') +
         '</div>' +
 
-        scriptBlock +
       '</article>';
     }).join("");
   }
@@ -562,8 +568,10 @@
   }
 
   async function setDecision(id, decision) {
-    const update = decision === "approve"
-      ? { approved: true, status: "Approved", lifecycle_status: "saved", updated_at: new Date().toISOString() }
+    const idea = ideas.find(i => i.id === id);
+    const unsave = decision === "approve" && idea?.approved;
+    const update = unsave ? {approved: false, status: "Idea", lifecycle_status: idea.lifecycle_status === "used" ? "used" : "new", updated_at: new Date().toISOString()} : decision === "approve"
+      ? { approved: true, status: "Approved", lifecycle_status: idea?.lifecycle_status === "used" ? "used" : "saved", updated_at: new Date().toISOString() }
       : { approved: false, status: "Rejected", updated_at: new Date().toISOString() };
 
     const r = await db.from("ai_ideas").update(update).eq("id", id);
@@ -574,7 +582,13 @@
   async function recordUsage(idea, kind, content, index=null) {
     const now = new Date().toISOString();
     const existing = usageEvents.find(e => e.idea_id === idea.id && e.asset_kind === kind && (index == null || Number(e.asset_index) === Number(index)) && e.action === "used");
-    if (!existing) {
+    if (existing) {
+      const matches = usageEvents.filter(e => e.idea_id === idea.id && e.asset_kind === kind && (index == null || Number(e.asset_index) === Number(index)) && e.action === "used");
+      const removed = await db.from("creative_usage_events").delete().in("id", matches.map(e => e.id)).eq("user_id", session.user.id).select("id");
+      if (removed.error) throw removed.error;
+      if (removed.data.length !== matches.length) throw new Error("Could not undo usage. Please reload and try again.");
+      usageEvents = usageEvents.filter(e => !matches.some(m => m.id === e.id));
+    } else {
       const insert = await db.from("creative_usage_events").insert({
         user_id: session.user.id,
         product_id: idea.product_id,
@@ -587,12 +601,12 @@
       if (insert.error) throw insert.error;
     }
     const update = await db.from("ai_ideas").update({
-      lifecycle_status: "used",
-      used_at: idea.used_at || now,
+      lifecycle_status: existing ? (usageEvents.some(e => e.idea_id === idea.id && e.action === "used") ? "used" : idea.approved ? "saved" : "new") : "used",
+      used_at: existing && !usageEvents.some(e => e.idea_id === idea.id && e.action === "used") ? null : idea.used_at || now,
       updated_at: now
     }).eq("id", idea.id);
     if (update.error) throw update.error;
-    $("ideas-status").textContent = kind === "hook" ? "Hook marked as used. Avonent will remember this choice." : "Script marked as used. Avonent will remember this choice.";
+    $("ideas-status").textContent = existing ? "Usage undone. This asset is available again." : kind === "hook" ? "Hook marked as used. Avonent will remember this choice." : "Script marked as used. Avonent will remember this choice.";
     await loadData();
   }
 
@@ -762,7 +776,28 @@
 
       document.querySelectorAll("[data-close-sources]").forEach(el => el.onclick = closeSources);
 
+      $("cloud-ideas-grid").addEventListener("toggle", event => {
+        if (!event.target.matches('details[name="idea-sections"]') || !event.target.open) return;
+        document.querySelectorAll('details[name="idea-sections"]').forEach(other => { if (other !== event.target) other.open = false; });
+      }, true);
+
       $("cloud-ideas-grid").onclick = async event => {
+        const target = event.target.closest("button");
+        if (target?.disabled) return;
+        const saveId = target?.dataset.saveAsset;
+        if (saveId) {
+          target.disabled = true;
+          try { await toggleAssetSave(ideas.find(i => i.id === saveId), target.dataset.assetKind, Number(target.dataset.hookIndex || 0)); }
+          catch (error) { $("ideas-status").textContent = error.message; }
+          finally { target.disabled = false; }
+          return;
+        }
+        if (target?.dataset.copyPrimary) {
+          try { await navigator.clipboard.writeText(ideas.find(i => i.id === target.dataset.copyPrimary)?.strategy?.primary_text || ""); target.textContent = "Copied"; }
+          catch { $("ideas-status").textContent = "Copy unavailable. Select the text to copy it."; }
+          return;
+        }
+
         const libraryHookId = event.target.getAttribute("data-copy-library-hook");
         if (libraryHookId) {
           const idea = ideas.find(i => i.id === libraryHookId);
@@ -818,11 +853,12 @@
             const hooks = [idea.hook, ...(Array.isArray(idea.strategy?.hooks) ? idea.strategy.hooks : [])].filter(Boolean)
               .filter((hook,index,arr) => arr.indexOf(hook) === index);
             const index = Number(event.target.getAttribute("data-hook-index") || 0);
-            return await recordUsage(idea,"hook",hooks[index] || idea.hook || "",index);
+            event.target.disabled = true;
+            try { return await recordUsage(idea,"hook",hooks[index] || idea.hook || "",index); } finally { event.target.disabled = false; }
           }
           if (useScriptId) {
             const idea = ideas.find(i => i.id === useScriptId);
-            if (idea) return await recordUsage(idea,"script",idea.ai_script || JSON.stringify(idea.strategy?.timed_script || []),null);
+            if (idea) { event.target.disabled = true; try { return await recordUsage(idea,"script",idea.ai_script || JSON.stringify(idea.strategy?.timed_script || []),null); } finally { event.target.disabled = false; } }
           }
           if (archiveId) {
             const idea = ideas.find(i => i.id === archiveId);
@@ -856,8 +892,8 @@
 
           if (copyScriptId) {
             const idea = ideas.find(i => i.id === copyScriptId);
-            if (idea && idea.ai_script) {
-              await navigator.clipboard.writeText(idea.ai_script);
+            if (idea) {
+              await navigator.clipboard.writeText(idea.ai_script || (idea.strategy?.timed_script || []).map(b => [b.time, "SAY: " + b.say, "SHOW: " + b.show].join("\n")).join("\n\n"));
               event.target.textContent = "Copied";
             }
             return;
