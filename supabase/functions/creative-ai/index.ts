@@ -74,9 +74,14 @@ PRIMARY TEXT ADAPTATION:
 - If primary_text_word_count is supplied for the primary source and is at least 60 words, target roughly 80–120% of that word count unless product truth requires a shorter version.
 - Preserve persuasive architecture, not copyrighted wording. Rewrite sentences and examples for the user's product; do not reproduce long passages from the source verbatim.
 - If the source has only a short caption, a short adaptation is fine. If it has long direct-response copy, produce long direct-response copy.
+FORMAT CONTRACT:
+- requested_format controls the deliverable. STATIC means a single-image direct-response creative with a complete static_concept; do not force a video script. VIDEO means a complete shootable video script.
+- For STATIC, study static_visual_analysis from the primary source when available: layout, headline hierarchy, product placement, offer badge, background/art direction, text density and reusable static pattern.
+- For STATIC seasonal concepts, current_date is authoritative. Use a currently relevant or upcoming seasonal moment only when it fits the product/offer; never blindly reuse an expired holiday from the source ad.
+
 PRODUCTION CONTRACT:
-- Deliver a complete shootable script. Every timed beat MUST contain nonempty time, say, show, on_screen_text, footage_type, and provider. No placeholder fields. SAY is exact spoken dialogue; SHOW is camera/action direction; ON-SCREEN is actual caption. Footage types: UGC, PRODUCT, B_ROLL, AI_VIDEO, GRAPHIC. For non-AI footage provider is "camera/editor"; for AI_VIDEO choose a suggested model/provider (e.g. Higgsfield Seedance or MiniMax Hailuo), plus detailed generation prompt. Recommend AI only for shots impossible or impractical to film. Never imply AI-generated illustrations are clinical evidence.
-- Write a complete 60–90 second ad by default, never a 20–25 second opening alone. Use 6–10 sequential timestamped beats starting at 0:00 and covering the entire story through a spoken CTA. Write 130–230 spoken words total at realistic pacing (~2–2.7 words/second). Each beat can span 8–15 seconds; do not force five-second scenes. recommended_duration_seconds must match the final timestamp. Longer source-led stories may run up to 120 seconds with enough dialogue. Keep production directions concise, not the spoken story.
+- For VIDEO, deliver a complete shootable script. Every timed beat MUST contain nonempty time, say, show, on_screen_text, footage_type, and provider. No placeholder fields. SAY is exact spoken dialogue; SHOW is camera/action direction; ON-SCREEN is actual caption. Footage types: UGC, PRODUCT, B_ROLL, AI_VIDEO, GRAPHIC. For non-AI footage provider is "camera/editor"; for AI_VIDEO choose a suggested model/provider (e.g. Higgsfield Seedance or MiniMax Hailuo), plus detailed generation prompt. Recommend AI only for shots impossible or impractical to film. Never imply AI-generated illustrations are clinical evidence.
+- For VIDEO, write a complete 60–90 second ad by default, never a 20–25 second opening alone. Use 6–10 sequential timestamped beats starting at 0:00 and covering the entire story through a spoken CTA. Write 130–230 spoken words total at realistic pacing (~2–2.7 words/second). Each beat can span 8–15 seconds; do not force five-second scenes. recommended_duration_seconds must match the final timestamp. Longer source-led stories may run up to 120 seconds with enough dialogue. Keep production directions concise, not the spoken story.
 - Hook count depends on the source mode. If a short source hook is being reused, return ONE hook only. Do not pad the idea with unrelated hooks from other products or other source ads. If the main hook is an adaptation/original, you may return up to 4 variations of that SAME premise and product; Hooks 2-4 are variants, not unrelated source hooks.
 - Describe filming setup, shot changes, cut timing, product shots, transitions, camera behavior, casting and any animation prompt/provider when relevant.
 - VISUAL SPECIFICITY IS REQUIRED. Do not say only "AI animation" or "UGC." State what it looks like: e.g. real iPhone UGC in a parked car, photoreal AI spokesperson, stop-motion claymation, glossy 3D product macro, paper-cut collage, cinematic AI reenactment, medical-style explanatory animation, screen-recording, or practical B-roll.
@@ -640,6 +645,8 @@ Deno.serve(async(req)=>{
       product_reveal:a.ai_analysis?.product_reveal||"",
       cta_structure:a.ai_analysis?.cta_structure||"",
       visual_production_notes:Array.isArray(a.ai_analysis?.visual_production_notes)?a.ai_analysis.visual_production_notes:[],
+      static_visual_analysis:a.ai_analysis?.static_visual_analysis||null,
+      analysis_scope:a.ai_analysis?.analysis_scope||"",
       analysis:JSON.stringify(a.ai_analysis||{}).slice(0,task==="idea"?1600:2800)
       };
     });
