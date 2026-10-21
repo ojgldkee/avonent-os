@@ -710,27 +710,40 @@
 
   function pickPrimarySources(sources, count=5) {
     const chosen = [];
-    const seenAdvertisers = new Set();
-    for (const ad of sources) {
-      const key = String(ad.advertiser_name || "").toLowerCase().trim();
-      if (key && !seenAdvertisers.has(key)) {
+    const images = sources.filter(ad => mediaKind(ad) === "image");
+    const videos = sources.filter(ad => mediaKind(ad) === "video");
+    const unknown = sources.filter(ad => !["image","video"].includes(mediaKind(ad)));
+
+    const takeDistinct = (pool, max) => {
+      const seen = new Set(chosen.map(ad => String(ad.advertiser_name || "").toLowerCase().trim()));
+      for (const ad of pool) {
+        if (chosen.includes(ad)) continue;
+        const key = String(ad.advertiser_name || "").toLowerCase().trim();
+        if (key && seen.has(key) && pool.length > max) continue;
         chosen.push(ad);
-        seenAdvertisers.add(key);
-        if (chosen.length >= count) return chosen;
+        if (key) seen.add(key);
+        if (chosen.length >= count || max <= 1) break;
+        max--;
+      }
+    };
+
+    // Keep the creative mix broad: when image references exist, reserve two slots for statics.
+    takeDistinct(images, Math.min(2, images.length));
+    takeDistinct(videos, Math.min(3, videos.length));
+    for (const pool of [images, videos, unknown, sources]) {
+      for (const ad of pool) {
+        if (!chosen.includes(ad)) chosen.push(ad);
+        if (chosen.length >= count) return chosen.slice(0,count);
       }
     }
-    for (const ad of sources) {
-      if (!chosen.includes(ad)) chosen.push(ad);
-      if (chosen.length >= count) break;
-    }
-    return chosen;
+    return chosen.slice(0,count);
   }
 
   async function generateIdeas() {
     const p = currentProduct();
     if (!p) return;
 
-    const sources = researchSources(ads).slice(0, 8);
+    const sources = researchSources(ads, 30);
     if (!sources.length) {
       $("research-status").textContent = "Research at least one tracked brand first.";
       return;
@@ -749,9 +762,12 @@
         let lastError = null;
         for (let attempt = 1; attempt <= 2; attempt++) {
           try {
+            const requestedFormat = mediaKind(primarySource) === "image" ? "static" : "video";
             const result = await cloud.invoke("creative-ai", {
               task: "idea",
               variation,
+              requested_format: requestedFormat,
+              current_date: new Date().toISOString().slice(0,10),
               primary_source_ad_id: primarySource?.ad_archive_id || "",
               product: p,
               competitor_ads: sources
