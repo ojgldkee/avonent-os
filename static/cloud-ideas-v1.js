@@ -34,21 +34,25 @@
     return 94;
   }
 
+  let completedConcepts = 0;
   function updateProgress() {
     const panel = $("ideas-progress");
     if (!panel || !progressStartedAt) return;
     const seconds = Math.floor((Date.now() - progressStartedAt) / 1000);
-    const pct = Math.min(94, progressPercent(seconds));
+    const pct = completedConcepts ? Math.min(90, 8 + completedConcepts * 16) : 8;
     $("ideas-progress-percent").textContent = pct + "%";
     $("ideas-progress-fill").style.width = pct + "%";
-    $("ideas-progress-stage").textContent = progressStage(seconds);
-    $("ideas-progress-note").textContent = "Estimated progress · " + seconds + "s elapsed. Keep this page open until it reaches 100%.";
+    $("ideas-progress-stage").textContent = completedConcepts
+      ? completedConcepts + " of 5 concepts finished · " + (completedConcepts < 5 ? "waiting on the remaining concepts…" : "saving creative pack…")
+      : "Five concepts are generating in parallel…";
+    $("ideas-progress-note").textContent = seconds + "s elapsed · progress moves when a concept actually finishes.";
   }
 
   function startProgress(sourceCount) {
     const panel = $("ideas-progress");
     if (!panel) return;
     progressStartedAt = Date.now();
+    completedConcepts = 0;
     panel.classList.remove("hidden");
     $("ideas-progress-label").textContent = "Generating 5 concepts from " + sourceCount + " source ads";
     $("ideas-progress-percent").textContent = "5%";
@@ -265,85 +269,111 @@
     const p = currentProduct();
     if (!p) return;
 
-    const sources = researchSources(sourceAds);
+    const sources = researchSources(sourceAds).slice(0, 8);
     if (!sources.length) {
-      $("ideas-status").textContent = "No captured ad copy yet. Open Research and collect a brand’s ads first. Ads of any age can be used.";
+      $("ideas-status").textContent = "No captured ad copy yet. Open Research and collect a brand’s ads first.";
       return;
     }
 
     const btn = $("generate-more-ideas");
     btn.disabled = true;
     btn.textContent = "Generating…";
-    $("ideas-status").textContent = "Generation started. Do not refresh while it is running.";
-    startProgress(Math.min(sources.length, 16));
+    $("ideas-status").textContent = "Generating 5 concepts in parallel. Keep this page open.";
+    startProgress(sources.length);
 
     try {
-      const result = await cloud.invoke("creative-ai", { task: "ideas", product: p, competitor_ads: sources });
-      let parsed = result.result || null;
+      const jobs = [1,2,3,4,5].map(async variation => {
+        let lastError = null;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            const result = await cloud.invoke("creative-ai", {
+              task: "idea",
+              variation,
+              product: p,
+              competitor_ads: sources
+            });
+            const idea = result.result?.idea;
+            if (!idea?.title || !idea?.hook) throw new Error("AI returned an incomplete concept.");
+            completedConcepts += 1;
+            updateProgress();
+            return { idea, model: result.model || "" };
+          } catch (error) {
+            lastError = error;
+            if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 350));
+          }
+        }
+        throw lastError || new Error("Concept generation failed.");
+      });
 
-      if (!parsed && result.text) {
-        let cleaned = String(result.text).trim();
-        if (cleaned.indexOf("~~~json") === 0) cleaned = cleaned.slice(7);
-        if (cleaned.lastIndexOf("~~~") === cleaned.length - 3) cleaned = cleaned.slice(0, -3);
-        parsed = JSON.parse(cleaned.trim());
+      const settled = await Promise.allSettled(jobs);
+      const generated = settled.filter(x => x.status === "fulfilled").map(x => x.value);
+      const failures = settled.filter(x => x.status === "rejected");
+
+      if (!generated.length) {
+        const first = failures[0]?.reason;
+        throw first instanceof Error ? first : new Error("No concepts were generated.");
       }
 
-      const generated = Array.isArray(parsed && parsed.ideas) ? parsed.ideas : [];
-      if (!generated.length) throw new Error("AI returned no ideas.");
-
       const availableSourceIds = new Set(sources.map(a => String(a.ad_archive_id)));
-      const rows = generated.slice(0, 5).map(i => {
-        const requestedSources = Array.isArray(i.source_ad_ids) ? i.source_ad_ids.map(String).filter(id => availableSourceIds.has(id)).slice(0,4) : [];
-        return ({
-        user_id: session.user.id,
-        product_id: p.id,
-        title: i.title || "",
-        hook: i.hook || "",
-        angle: i.angle || "",
-        format: i.format || "",
-        first_frame: i.first_frame || "",
-        execution: i.idea || i.execution || "",
-        proof_to_show: i.proof_to_show || "",
-        cta: i.cta || "",
-        why_test: i.why_test || "",
-        inspiration: i.inspiration || "",
-        source_ad_ids: requestedSources,
-        strategy: {
-          hooks: i.hooks || [],
-          audience: i.audience || "",
-          first_three_seconds: i.first_three_seconds || {},
-          primary_text: i.primary_text || "",
-          headline: i.headline || "",
-          description: i.description || "",
-          video_concept: i.video_concept || "",
-          video_structure: i.video_structure || "",
-          shot_directions: Array.isArray(i.shot_directions) ? i.shot_directions : [],
-          timed_script: Array.isArray(i.timed_script) ? i.timed_script : [],
-          source_observations: Array.isArray(i.source_observations) ? i.source_observations : [],
-          ai_inferences: Array.isArray(i.ai_inferences) ? i.ai_inferences : [],
-          product_fact_checks: Array.isArray(i.product_fact_checks) ? i.product_fact_checks : [],
-          unsupported_claim_checks: Array.isArray(i.unsupported_claim_checks) ? i.unsupported_claim_checks : [],
-          hypothesis: i.hypothesis || "",
-          risk: i.risk || "",
-          scores: i.scores || {},
-          overall_score: Number(i.overall_score || 0)
-        },
-        idea_model: result.model || "",
-        generated_for_date: today()
-      });
+      const rows = generated.map(({idea:i,model}) => {
+        const requestedSources = Array.isArray(i.source_ad_ids)
+          ? i.source_ad_ids.map(String).filter(id => availableSourceIds.has(id)).slice(0,4)
+          : [];
+        return {
+          user_id: session.user.id,
+          product_id: p.id,
+          title: i.title || "",
+          hook: i.hook || "",
+          angle: i.angle || "",
+          format: i.format || "",
+          first_frame: i.first_frame || "",
+          execution: i.idea || i.execution || "",
+          proof_to_show: i.proof_to_show || "",
+          cta: i.cta || "",
+          why_test: i.why_test || "",
+          inspiration: i.inspiration || "",
+          source_ad_ids: requestedSources,
+          strategy: {
+            hooks: Array.isArray(i.hooks) ? i.hooks : [],
+            audience: i.audience || "",
+            first_three_seconds: i.first_three_seconds || {},
+            primary_text: i.primary_text || "",
+            headline: i.headline || "",
+            description: i.description || "",
+            video_concept: i.video_concept || "",
+            video_structure: i.video_structure || "",
+            recommended_duration_seconds: Number(i.recommended_duration_seconds || 0),
+            production_style: i.production_style || "",
+            shot_directions: Array.isArray(i.shot_directions) ? i.shot_directions : [],
+            timed_script: Array.isArray(i.timed_script) ? i.timed_script : [],
+            animation_prompts: Array.isArray(i.animation_prompts) ? i.animation_prompts : [],
+            source_observations: Array.isArray(i.source_observations) ? i.source_observations : [],
+            ai_inferences: Array.isArray(i.ai_inferences) ? i.ai_inferences : [],
+            product_fact_checks: Array.isArray(i.product_fact_checks) ? i.product_fact_checks : [],
+            unsupported_claim_checks: Array.isArray(i.unsupported_claim_checks) ? i.unsupported_claim_checks : [],
+            hypothesis: i.hypothesis || "",
+            risk: i.risk || "",
+            scores: i.scores || {},
+            overall_score: Number(i.overall_score || 0)
+          },
+          idea_model: model,
+          generated_for_date: today()
+        };
       });
 
       const insert = await db.from("ai_ideas").insert(rows);
       if (insert.error) throw insert.error;
-      $("ideas-status").textContent = rows.length + " new ideas generated.";
-      endProgress(rows.length + " concepts generated and saved.", true);
+
+      const note = rows.length === 5
+        ? "5 concepts generated and saved."
+        : rows.length + " concepts saved; " + failures.length + " slot(s) failed after retry.";
+      $("ideas-status").textContent = note;
+      endProgress(note, true);
       await loadData();
     } catch (error) {
-      if (error.data && error.data.setup_required) {
-        $("ideas-status").textContent = "AI connection is not configured correctly.";
-      } else {
-        $("ideas-status").textContent = error.message || String(error);
-      }
+      $("ideas-status").textContent = error.data?.setup_required
+        ? "AI connection is not configured correctly."
+        : (error.message || String(error));
       endProgress(error.message || "Generation stopped.", false);
     } finally {
       btn.disabled = false;
