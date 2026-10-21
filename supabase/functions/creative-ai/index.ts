@@ -56,7 +56,11 @@ Your job is SOURCE-FIRST AD ADAPTATION: study the actual supplied competitor ad 
 Be direct, human, conversational, emotionally precise, specific and commercially convincing. Write like a real creator talking to a friend, not a marketing chatbot.
 IMPORTANT EVIDENCE RULES:
 - Supplied primary_text is written Facebook ad copy, NOT necessarily spoken video dialogue. Only identify an ACTUAL SPOKEN HOOK when an explicit transcript with timestamps is supplied. Otherwise label the observed written opening as "primary text opening"; say "spoken hook unavailable" and do not invent video scenes as observed.
-- Extract the source ad's actual opening text, offer, product reveal, objection, proof, CTA, sequencing and what is observed versus inferred. Preserve persuasive STRUCTURE and pacing while producing new wording and visuals, not near-verbatim reproduction of a competitor's distinctive script.
+- Extract the source ad's actual opening, story engine, sentence rhythm, offer, product reveal, objection, proof, CTA, sequencing, edit rhythm, visual style and what is observed versus inferred.
+- For the PRIMARY SOURCE, adapt CLOSELY at the structural level. Preserve the hook's sentence count, point of view, clause order, reveal placement, curiosity mechanism, emotional turn, pacing and approximate length. Rewrite the actual words for the user's product instead of inventing a different generic hook.
+- If the source is a story ad, the output MUST also be a story ad. Do not collapse a narrative into generic education. Preserve the source story spine, tension escalation, delayed reveal and CTA position.
+- If the source is direct-response talking-head, preserve that mode. If it is AI animation, preserve or deliberately upgrade that visual language.
+- Never blend the primary source's opening with a different source's sequence. One idea has one primary source skeleton. Secondary ads may only contribute supporting patterns.
 - Source longevity does not prove profitability. Do not claim an ad is a winner without performance data; call it a long-running or observed ad instead.
 - Select a SPECIFIC source ad ID, cite exact source-supported observations, and build the new creative around it. If the source has only primary text, adapt the written sequence and label video pacing as a production hypothesis.
 - Do not claim the user's own product is fake, fraudulent, filler, dangerous, placebo, a scam, clinically proven or ineffective. Do not fabricate a lab result, testimonial, discount, price, ingredient, certification, sourcing story, dosage, timeline, biological mechanism, medical outcome, wellness outcome, or competitor misconduct. Only use verified supplied product facts.
@@ -68,7 +72,9 @@ PRODUCTION CONTRACT:
 - Deliver a complete shootable script. Every timed beat MUST contain nonempty time, say, show, on_screen_text, footage_type, and provider. No placeholder fields. SAY is exact spoken dialogue; SHOW is camera/action direction; ON-SCREEN is actual caption. Footage types: UGC, PRODUCT, B_ROLL, AI_VIDEO, GRAPHIC. For non-AI footage provider is "camera/editor"; for AI_VIDEO choose a suggested model/provider (e.g. Higgsfield Seedance or MiniMax Hailuo), plus detailed generation prompt. Recommend AI only for shots impossible or impractical to film. Never imply AI-generated illustrations are clinical evidence.
 - Use 5-8 sequential timestamped beats covering the entire duration including a spoken CTA. Match speech to realistic pacing (~2-2.7 words/second). Video length is chosen from the idea, not a fixed template.
 - Every concept must contain 4 distinct, spoken, natural-sounding ORIGINAL hook options. The source's actual opening must be listed separately as research evidence, not disguised as original.
-- Describe filming setup, shot changes, cut timing, product shots, and any animation prompt/provider when relevant.
+- Describe filming setup, shot changes, cut timing, product shots, transitions, camera behavior, casting and any animation prompt/provider when relevant.
+- VISUAL SPECIFICITY IS REQUIRED. Do not say only "AI animation" or "UGC." State what it looks like: e.g. real iPhone UGC in a parked car, photoreal AI spokesperson, stop-motion claymation, glossy 3D product macro, paper-cut collage, cinematic AI reenactment, medical-style explanatory animation, screen-recording, or practical B-roll.
+- For AI_PERSON scenes, recommend Higgsfield + Kling 3.0 Pro by default unless another model better fits. For stylized/high-motion AI_VIDEO, Seedance 2.5 is a strong default. For character animation, Hailuo may be used. Always name provider + model and give a paste-ready prompt.
 - The model must NOT make up evidence of video analysis, transcript, scene-by-scene observation, or success metrics.
 Return one valid JSON object only, no markdown.`;
 
@@ -80,29 +86,150 @@ timed_script beats must have {time,say,show,on_screen_text,footage_type,provider
 `;
 
 const ONE_IDEA_PROMPT=BASE+`
-Generate ONE production-ready concept by deeply adapting a SINGLE source ad. If primary_source_ad_id is supplied, that exact ad is the primary source and must be used in source_adaptation.ad_archive_id. variation (1-5) changes the creative execution, not the source evidence.
-Use the primary source as the SKELETON: preserve its persuasion order, approximate reveal timing, pacing pattern, objection/proof placement, and CTA position when those are supported by transcript/visual analysis. Adapt every line to the user's product facts and voice. The result should feel like the same proven creative format rebuilt for this product, not a generic concept invented from scratch. Do not reproduce a competitor's full distinctive script verbatim. Do not create five near-identical moringa scare campaigns.
-Read the source ad's actual primary_text and headline; quote its observed opening accurately in source_adaptation.observed_opening_text. Do not say you heard the video's spoken opening without transcript.
-Produce JSON {"idea":{title,audience,angle,format,hook,hooks,first_frame,first_three_seconds,primary_text,headline,description,cta,video_concept,recommended_duration_seconds,production_style,shot_directions,timed_script,proof_to_show,execution,why_test,hypothesis,inspiration,source_ad_ids,source_observations,ai_inferences,product_fact_checks,unsupported_claim_checks,animation_prompts,scores,overall_score,risk,source_adaptation}}.
-source_adaptation:{ad_archive_id,advertiser_name,observed_opening_text,opening_type:"primary_text" or "spoken_transcript",observed_sequence,adapted_sequence,spoken_hook_available:boolean,why_selected}.
-hooks: exactly 4 original short natural spoken hooks. When an exact spoken source opening exists, mirror its rhetorical shape, cadence and attention mechanism while rewriting the actual wording for the user's product. Do not default to questions unless the source does.
-timed_script: 5-8 beats, each {time,say,show,on_screen_text,footage_type,provider,animation_prompt,source_reference}; ALL required, SAY and SHOW must be substantive. source_reference briefly states which source beat/pattern this adapted beat corresponds to. Include full CTA in last beat. For UGC/PRODUCT/B_ROLL/GRAPHIC use provider "camera/editor" and animation_prompt "". For AI_VIDEO specify a real suggested video generator and a detailed generation prompt.
-shot_directions: 4-7 specific shoot/edit instructions. animation_prompts: only when an AI_VIDEO shot is recommended, each {scene,seconds,model,prompt,cost_estimate_note}. Never invent prices.
-Keep the JSON reasonably compact; prioritize dialogue, production instructions and source adaptation over verbose theory.
+Generate ONE production-ready ad by closely adapting ONE primary source ad.
+
+PRIMARY SOURCE RULE:
+- primary_source_ad_id identifies the source skeleton. Use that exact ad.
+- If exact_spoken_opening exists, Hook 1 MUST be a close structural rewrite of it: preserve sentence count, POV, clause order, curiosity device, emotional turn, reveal placement and approximate length. Change only what must change for the user's product and verified facts.
+- Hooks 2-4 are controlled variants of Hook 1 using the SAME mechanism, not unrelated generic hooks.
+- If the source opening is a narrative story, preserve the narrative grammar and open loop. If the source says "character → surprising observation → time span → hidden relationship/secret → expected outcome → reversal", the adapted hook should follow that same sequence.
+- Do not import the primary source's health claims, statistics, testimonials or mechanisms as facts for the user's product.
+- If no real testimonial/story exists for the user's product, use a clearly dramatized narrative concept and set narrative_truth_mode="DRAMATIZED_SCENARIO". Do not fake a customer result.
+
+STORY RULE:
+- Build story_arc.source_story_spine directly from the primary source.
+- Build story_arc.adapted_story_spine beat-for-beat from it.
+- Preserve tension escalation and delayed product reveal when the source uses them.
+- Do not turn a dramatic Resilia-style story into "here are 3 benefits" education.
+
+VISUAL RULE:
+- Create a visual_recipe that explains exactly what the finished ad should look and feel like.
+- For every timed beat specify footage_type, visual_style, camera, setting, actor_or_subject, action, transition, provider, video_model, animation_style and animation_prompt.
+- Allowed footage_type values: REAL_UGC, REAL_PRODUCT, REAL_B_ROLL, AI_PERSON, AI_VIDEO, AI_CLAYMATION, AI_3D, GRAPHIC, SCREEN_RECORDING.
+- If AI is not needed, provider="camera/editor", video_model="", animation_prompt="".
+- For AI_PERSON/AI_VIDEO/AI_CLAYMATION/AI_3D name the provider/model and provide a detailed generation prompt.
+
+Return:
+{"idea":{
+"title":"","audience":"","angle":"","format":"",
+"hook":"","hooks":["","","",""],
+"hook_adaptation":{
+  "source_hook_exact":"",
+  "source_hook_type":"",
+  "source_hook_blueprint":"",
+  "adapted_hook":"",
+  "what_was_preserved":[],
+  "what_changed":[]
+},
+"narrative_truth_mode":"FACTUAL|DRAMATIZED_SCENARIO|NON_TESTIMONIAL",
+"story_arc":{
+  "source_story_type":"",
+  "source_story_spine":[],
+  "adapted_story_spine":[],
+  "tension_curve":"",
+  "reveal_point":"",
+  "cta_position":""
+},
+"first_frame":"",
+"first_three_seconds":{"say":"","show":"","on_screen_text":"","footage_type":"","visual_style":"","provider":"","video_model":""},
+"primary_text":"","headline":"","description":"","cta":"",
+"video_concept":"",
+"recommended_duration_seconds":0,
+"production_style":"",
+"visual_recipe":{
+  "overall_style":"",
+  "source_visual_pattern":"",
+  "adapted_visual_style":"",
+  "actor_mode":"",
+  "animation_style":"",
+  "camera_language":"",
+  "setting":"",
+  "edit_rhythm":"",
+  "color_texture":"",
+  "aspect_ratio":"9:16",
+  "provider_stack":[]
+},
+"shot_directions":[],
+"timed_script":[{
+  "time":"","say":"","show":"","on_screen_text":"",
+  "footage_type":"","visual_style":"","camera":"","setting":"",
+  "actor_or_subject":"","action":"","transition":"",
+  "provider":"","video_model":"","animation_style":"",
+  "animation_prompt":"","source_reference":""
+}],
+"proof_to_show":"","execution":"","why_test":"","hypothesis":"","inspiration":"",
+"source_ad_ids":[],
+"source_observations":[],
+"ai_inferences":[],
+"product_fact_checks":[],
+"unsupported_claim_checks":[],
+"animation_prompts":[],
+"scores":{},"overall_score":0,"risk":"",
+"source_adaptation":{
+  "ad_archive_id":"","advertiser_name":"","observed_opening_text":"",
+  "opening_type":"","observed_sequence":[],"adapted_sequence":[],
+  "spoken_hook_available":false,"why_selected":"",
+  "source_story_structure":"","source_visual_hook":"","source_first_frame":"",
+  "source_pacing":"","source_visual_production_notes":[]
+}
+}}
+
+VALIDATION TARGETS:
+- hooks exactly 4; hook === hook_adaptation.adapted_hook === hooks[0].
+- first_three_seconds SAY/SHOW/ON-SCREEN all nonempty.
+- timed_script 6-10 beats covering the whole ad through CTA.
+- Every beat has substantive SAY/SHOW, footage_type, visual_style, provider and source_reference.
+- If footage is AI, provider/model/prompt must be populated.
+- Keep the product claims inside verified facts. If the source ad's mechanism is not verified for this product, preserve only the storytelling/creative structure, not the claim.
+- Prioritize a compelling story and source fidelity over generic marketing theory.
 `;
 
 const SCRIPT_PROMPT=BASE+`
-Turn the selected source-adapted concept into a fully written production script, not an outline.
-Return JSON {"script":{title,audience,recommended_duration_seconds,format,hook,first_three_seconds:{say,show,on_screen_text},beats:[{time,say,show,on_screen_text,footage_type,provider,animation_prompt,video_model,source_reference}],product_reveal,proof_moment,cta,editor_notes,source_observations,ai_inferences,product_fact_checks,unsupported_claim_checks,compliance_notes,three_alt_openings}}.
-Write exact human-sounding spoken dialogue in every beat, actionable visuals and text, realistic duration, full CTA, specific UGC/B-roll/product/AI footage types. Each beat must include source_reference explaining which part of the competitor source structure it adapts. For AI_VIDEO, suggest provider/model and a paste-ready video prompt. Do not copy competitor script verbatim.
+Turn the selected source-adapted concept into a final shoot-ready production script.
+
+This is NOT a generic rewrite. Keep the exact source-ad creative architecture already stored in selected_idea:
+- hook mechanism and cadence
+- story spine
+- tension/reveal order
+- approximate pacing
+- visual language
+- product reveal position
+- CTA position
+
+The final script must feel like the same creative FORMAT rebuilt for the user's brand while using original wording and verified facts.
+
+Return:
+{"script":{
+"title":"","audience":"","recommended_duration_seconds":0,"format":"",
+"hook":"",
+"hook_adaptation":{"source_hook_exact":"","source_hook_blueprint":"","adapted_hook":"","what_was_preserved":[]},
+"story_arc":{"source_story_spine":[],"adapted_story_spine":[],"tension_curve":"","reveal_point":"","cta_position":""},
+"visual_recipe":{"overall_style":"","actor_mode":"","animation_style":"","camera_language":"","setting":"","edit_rhythm":"","color_texture":"","provider_stack":[]},
+"first_three_seconds":{"say":"","show":"","on_screen_text":"","footage_type":"","visual_style":"","provider":"","video_model":""},
+"beats":[{
+  "time":"","say":"","show":"","on_screen_text":"",
+  "footage_type":"","visual_style":"","camera":"","setting":"",
+  "actor_or_subject":"","action":"","transition":"",
+  "provider":"","video_model":"","animation_style":"",
+  "animation_prompt":"","source_reference":""
+}],
+"product_reveal":"","proof_moment":"","cta":"",
+"editor_notes":[],
+"source_observations":[],
+"ai_inferences":[],
+"product_fact_checks":[],
+"unsupported_claim_checks":[],
+"compliance_notes":[],
+"three_alt_openings":[]
+}}
+
+Every beat must be fully populated and shootable. Use 6-10 beats.
+For story ads, write an actual beginning, escalation, reveal and resolution rather than a list of claims.
+For AI scenes, explain exactly what the viewer sees and how it should be generated. Name provider/model and write a paste-ready prompt.
+For real UGC, specify the actor type, location, camera framing, movement, props and edit rhythm.
+Do not reproduce the competitor's full script verbatim.
 `;
 
-function openingFromText(value:string){
-  const text=String(value||"").replace(/\s+/g," ").trim();
-  if(!text)return "";
-  const first=text.split(/(?<=[.!?])\s+/)[0]||text;
-  return first.split(/\s+/).slice(0,25).join(" ");
-}
 
 function normalizeClaimText(value:any){
   return String(value||"").toLowerCase().replace(/[’']/g,"'").replace(/[-–—]+/g," ").replace(/\s+/g," ").trim();
@@ -232,7 +359,11 @@ function validateResult(task:string,result:any){
   if(task==="idea"){
     const idea=result?.idea;
     if(!idea||!idea.title||!idea.hook)throw new Error("AI output validation failed: incomplete idea.");
-    if(!Array.isArray(idea.timed_script)||idea.timed_script.length<4||idea.timed_script.some((b:any)=>!String(b?.say||"").trim()||!String(b?.show||"").trim()||!String(b?.on_screen_text||"").trim()||!String(b?.time||"").trim()))throw new Error("AI output validation failed: script has empty SAY/SHOW/ON-SCREEN fields.");
+    if(!idea?.hook_adaptation?.adapted_hook||!idea?.hook_adaptation?.source_hook_blueprint)throw new Error("AI output validation failed: hook adaptation is missing.");
+    if(!idea?.story_arc?.adapted_story_spine||!Array.isArray(idea.story_arc.adapted_story_spine)||idea.story_arc.adapted_story_spine.length<3)throw new Error("AI output validation failed: story arc is missing.");
+    if(!idea?.visual_recipe?.overall_style)throw new Error("AI output validation failed: visual recipe is missing.");
+    if(!idea?.first_three_seconds||!String(idea.first_three_seconds.say||"").trim()||!String(idea.first_three_seconds.show||"").trim()||!String(idea.first_three_seconds.on_screen_text||"").trim())throw new Error("AI output validation failed: first 3 seconds are incomplete.");
+    if(!Array.isArray(idea.timed_script)||idea.timed_script.length<6||idea.timed_script.some((b:any)=>!String(b?.say||"").trim()||!String(b?.show||"").trim()||!String(b?.on_screen_text||"").trim()||!String(b?.time||"").trim()||!String(b?.footage_type||"").trim()||!String(b?.visual_style||"").trim()||!String(b?.provider||"").trim()||!String(b?.source_reference||"").trim()))throw new Error("AI output validation failed: production script is incomplete.");
     if(!Array.isArray(idea.hooks))idea.hooks=[idea.hook];
     if(idea.hooks.filter((x:any)=>String(x||"").trim()).length<4)throw new Error("AI output validation failed: expected four usable hooks.");
     if(!Array.isArray(idea.source_ad_ids))idea.source_ad_ids=[];
@@ -305,7 +436,9 @@ Deno.serve(async(req)=>{
     }
 
     const primarySourceId=String(body?.primary_source_ad_id||body?.idea?.source_adaptation?.ad_archive_id||"");
-    const research=ads.map((a:any)=>({
+    const primaryAd=ads.find((a:any)=>String(a.ad_archive_id||"")===primarySourceId)||ads[0]||null;
+    const selectedAds=primaryAd ? [primaryAd,...ads.filter((a:any)=>a!==primaryAd).slice(0,3)] : ads.slice(0,4);
+    const research=selectedAds.map((a:any)=>({
       ad_archive_id:a.ad_archive_id,
       advertiser_name:a.advertiser_name,
       days_running:a.days_running,
@@ -322,9 +455,16 @@ Deno.serve(async(req)=>{
       media_url:a.media_url||"",
       media_thumbnail_url:a.media_thumbnail_url||"",
       exact_spoken_opening:a.ai_analysis?.exact_spoken_opening||a.ai_analysis?.spoken_hook||"",
+      spoken_hook_type:a.ai_analysis?.spoken_hook_type||"",
       visual_hook:a.ai_analysis?.visual_hook||"",
       first_frame:a.ai_analysis?.first_frame||"",
       observed_sequence:a.ai_analysis?.observed_sequence||[],
+      story_structure:a.ai_analysis?.story_structure||"",
+      reusable_pattern:a.ai_analysis?.reusable_pattern||"",
+      pacing:a.ai_analysis?.pacing||"",
+      product_reveal:a.ai_analysis?.product_reveal||"",
+      cta_structure:a.ai_analysis?.cta_structure||"",
+      visual_production_notes:Array.isArray(a.ai_analysis?.visual_production_notes)?a.ai_analysis.visual_production_notes:[],
       analysis:JSON.stringify(a.ai_analysis||{}).slice(0,task==="idea"?1600:2800)
     }));
 
@@ -441,8 +581,25 @@ Deno.serve(async(req)=>{
         advertiser_name:String(primary.advertiser_name||""),
         observed_opening_text:observed,
         opening_type:exact?"spoken_transcript":"primary_text",
-        spoken_hook_available:Boolean(exact)
+        observed_sequence:Array.isArray(primary.observed_sequence)?primary.observed_sequence:[],
+        spoken_hook_available:Boolean(exact),
+        source_story_structure:String(primary.story_structure||""),
+        source_visual_hook:String(primary.visual_hook||""),
+        source_first_frame:String(primary.first_frame||""),
+        source_pacing:String(primary.pacing||""),
+        source_visual_production_notes:Array.isArray(primary.visual_production_notes)?primary.visual_production_notes:[]
       };
+      result.idea.hook_adaptation={
+        ...(result.idea.hook_adaptation||{}),
+        source_hook_exact:observed,
+        source_hook_type:String(primary.spoken_hook_type||""),
+      };
+      if(result.idea.hook_adaptation?.adapted_hook){
+        result.idea.hook=result.idea.hook_adaptation.adapted_hook;
+        if(Array.isArray(result.idea.hooks)){
+          result.idea.hooks=[result.idea.hook_adaptation.adapted_hook,...result.idea.hooks.filter((h:any)=>String(h)!==String(result.idea.hook_adaptation.adapted_hook))].slice(0,4);
+        }
+      }
       result.idea.source_ad_ids=Array.from(new Set([
         String(primary.ad_archive_id||""),
         ...(Array.isArray(result.idea.source_ad_ids)?result.idea.source_ad_ids.map(String):[])
