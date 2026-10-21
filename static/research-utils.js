@@ -68,6 +68,10 @@
     return {pageUrl:clean.href,pageId,adLibraryUrl,adId:""};
   }
 
+  function isMetaGroupSummaryText(value) {
+    return /^\s*\d+\s+ads?\s+use\s+this\s+creative\s+and\s+text\s*$/i.test(String(value || ""));
+  }
+
   function researchSourceScore(ad) {
     const analysis = ad?.ai_analysis || {};
     const transcript = String(ad?.video_transcript || "").trim();
@@ -75,15 +79,20 @@
     const analyzed = Boolean(ad?.analyzed_at);
     const researchScore = Math.max(0, Math.min(100, Number(analysis.research_score || 0)));
     const days = Math.max(0, Math.min(180, Number(ad?.days_running || 0)));
-    const hasCopy = Boolean(String(ad?.primary_text || ad?.headline || "").trim());
+    const primary = isMetaGroupSummaryText(ad?.primary_text) ? "" : String(ad?.primary_text || "");
+    const hasCopy = Boolean(String(primary || ad?.headline || "").trim());
     return (transcript ? 1000 : 0) + (visual ? 500 : 0) + (analyzed ? 250 : 0) + researchScore * 3 + days + (hasCopy ? 25 : 0);
   }
 
   function researchSources(rows, limit=30) {
-    return rows.filter(a => a.is_active && (a.video_transcript || a.primary_text || a.headline))
+    return rows.filter(a => {
+      if (!a?.is_active) return false;
+      const primary = isMetaGroupSummaryText(a.primary_text) ? "" : String(a.primary_text || "");
+      return Boolean(a.video_transcript || primary || a.headline || a.media_url || a.media_thumbnail_url);
+    })
       .sort((a,b) => researchSourceScore(b) - researchSourceScore(a) || Number(b.days_running || 0) - Number(a.days_running || 0))
       .slice(0,limit);
   }
 
-  root.AVONENT_RESEARCH_UTILS = {normalizeStoreUrl,parseMetaLink,parseFacebookReference,researchSources};
+  root.AVONENT_RESEARCH_UTILS = {normalizeStoreUrl,parseMetaLink,parseFacebookReference,researchSources,isMetaGroupSummaryText};
 })(typeof window === "undefined" ? globalThis : window);
