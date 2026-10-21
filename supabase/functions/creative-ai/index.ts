@@ -203,8 +203,8 @@ Deno.serve(async(req)=>{
     }));
 
     const model=task==="script"
-      ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3-235b-a22b-2507:nitro")
-      : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3-30b-a3b-instruct-2507:nitro");
+      ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3-235b-a22b-2507")
+      : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3-30b-a3b-instruct-2507");
 
     const prompt=task==="script"?SCRIPT_PROMPT:task==="idea"?ONE_IDEA_PROMPT:IDEA_PROMPT;
     const input={
@@ -231,10 +231,10 @@ Deno.serve(async(req)=>{
     };
 
     const candidates=task==="script"
-      ? [model,"qwen/qwen3-30b-a3b-instruct-2507:nitro","qwen/qwen3-30b-a3b-instruct-2507"]
+      ? [model,"qwen/qwen3-30b-a3b-instruct-2507"]
       : task==="idea"
-        ? [model]
-        : [model,"qwen/qwen3-30b-a3b-instruct-2507"];
+        ? [model,"qwen/qwen3-235b-a22b-2507"]
+        : [model,"qwen/qwen3-235b-a22b-2507"];
     let result:any=null;
     let raw:any=null;
     let usedModel=model;
@@ -248,14 +248,14 @@ Deno.serve(async(req)=>{
           headers:{"authorization":"Bearer "+key,"content-type":"application/json","HTTP-Referer":"https://ojgldkee.github.io/avonent-os/","X-Title":"Avonent OS"},
           body:JSON.stringify({
             model:candidate,
-            temperature:0.72,
+            temperature:task==="script"?0.55:0.62,
             messages:[
               {role:"system",content:prompt},
               {role:"user",content:JSON.stringify(input)}
             ],
-            ...(task==="idea"?{}:{response_format:{type:"json_object"}}),
+            response_format:{type:"json_object"},
             provider:{sort:"throughput",allow_fallbacks:true},
-            max_tokens:task==="script"?6500:task==="idea"?4800:8000
+            max_tokens:task==="script"?6500:task==="idea"?5200:8000
           }),
           signal:AbortSignal.timeout(task==="script"?60000:task==="idea"?50000:60000)
         });
