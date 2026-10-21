@@ -280,3 +280,15 @@ body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
 .ideas-main .timed-beat p{margin:0 0 12px}
 .ideas-main .timed-beat>span{font-size:11px;overflow-wrap:normal;word-break:normal}
 .ideas-main .final-script-pre{white-space:pre-wrap;font:inherit;line-height:1.6;overflow-wrap:anywhere}
+
+
+/* Creative lifecycle + learning */
+.idea-performance-row{
+  margin-top:12px;padding:12px;border:1px solid #2d3947;border-radius:14px;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#0b1219
+}
+.idea-performance-row .helper{margin:0 4px 0 0}
+.source-claims-note{
+  margin:12px 0;padding:12px;border:1px solid #3b4350;border-radius:12px;background:#10151c
+}
+.source-claims-note p{margin:6px 0;line-height:1.45}
