@@ -38,6 +38,7 @@ function rowFromIdea(userId:string,product:any,idea:any,model:string,available:S
       shot_directions:Array.isArray(idea.shot_directions)?idea.shot_directions:[],
       timed_script:Array.isArray(idea.timed_script)?idea.timed_script:[],
       animation_prompts:Array.isArray(idea.animation_prompts)?idea.animation_prompts:[],
+      source_adaptation:idea.source_adaptation||null,
       source_observations:Array.isArray(idea.source_observations)?idea.source_observations:[],
       ai_inferences:Array.isArray(idea.ai_inferences)?idea.ai_inferences:[],
       product_fact_checks:Array.isArray(idea.product_fact_checks)?idea.product_fact_checks:[],
@@ -99,7 +100,7 @@ Deno.serve(async(req)=>{
       }
 
       const adsResult=await admin.from("competitor_ads")
-        .select("ad_archive_id,advertiser_name,primary_text,headline,description,display_format,media_kind,started_at,days_running,source_url,ai_analysis")
+        .select("ad_archive_id,advertiser_name,primary_text,headline,description,display_format,media_kind,media_url,media_thumbnail_url,started_at,days_running,source_url,video_transcript,video_transcript_segments,video_duration_seconds,transcription_status,ai_analysis")
         .eq("user_id",product.user_id)
         .eq("product_id",product.id)
         .eq("is_active",true)
@@ -114,7 +115,13 @@ Deno.serve(async(req)=>{
       }
 
       const slots=Array.from({length:needed},(_,i)=>existingCount+i+1);
+      const rankedAds=[...ads].sort((a:any,b:any)=>{
+        const as=Number(Boolean(a.video_transcript))*1000+Number(Boolean(a.ai_analysis?.visual_analysis_available))*500+Number(a.ai_analysis?.research_score||0)*3+Number(a.days_running||0);
+        const bs=Number(Boolean(b.video_transcript))*1000+Number(Boolean(b.ai_analysis?.visual_analysis_available))*500+Number(b.ai_analysis?.research_score||0)*3+Number(b.days_running||0);
+        return bs-as;
+      });
       const jobs=slots.map(async variation=>{
+        const primary=rankedAds[(variation-1)%rankedAds.length];
         const response=await fetch(url.replace(/\/$/,"")+"/functions/v1/creative-ai",{
           method:"POST",
           headers:{
@@ -124,8 +131,9 @@ Deno.serve(async(req)=>{
           body:JSON.stringify({
             task:"idea",
             variation:Math.min(5,variation),
+            primary_source_ad_id:primary?.ad_archive_id||"",
             product,
-            competitor_ads:ads
+            competitor_ads:rankedAds
           }),
           signal:AbortSignal.timeout(70000)
         });
