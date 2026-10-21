@@ -70,12 +70,13 @@ timed_script beats must have {time,say,show,on_screen_text,footage_type,provider
 `;
 
 const ONE_IDEA_PROMPT=BASE+`
-Generate ONE production-ready concept by deeply adapting a SINGLE source ad. If primary_source_ad_id is supplied, that exact ad is the primary source and must be used in source_adaptation.ad_archive_id. variation (1-5) changes the creative execution, not the source evidence. Do not create five near-identical moringa scare campaigns.
+Generate ONE production-ready concept by deeply adapting a SINGLE source ad. If primary_source_ad_id is supplied, that exact ad is the primary source and must be used in source_adaptation.ad_archive_id. variation (1-5) changes the creative execution, not the source evidence.
+Use the primary source as the SKELETON: preserve its persuasion order, approximate reveal timing, pacing pattern, objection/proof placement, and CTA position when those are supported by transcript/visual analysis. Adapt every line to the user's product facts and voice. The result should feel like the same proven creative format rebuilt for this product, not a generic concept invented from scratch. Do not reproduce a competitor's full distinctive script verbatim. Do not create five near-identical moringa scare campaigns.
 Read the source ad's actual primary_text and headline; quote its observed opening accurately in source_adaptation.observed_opening_text. Do not say you heard the video's spoken opening without transcript.
 Produce JSON {"idea":{title,audience,angle,format,hook,hooks,first_frame,first_three_seconds,primary_text,headline,description,cta,video_concept,recommended_duration_seconds,production_style,shot_directions,timed_script,proof_to_show,execution,why_test,hypothesis,inspiration,source_ad_ids,source_observations,ai_inferences,product_fact_checks,unsupported_claim_checks,animation_prompts,scores,overall_score,risk,source_adaptation}}.
 source_adaptation:{ad_archive_id,advertiser_name,observed_opening_text,opening_type:"primary_text" or "spoken_transcript",observed_sequence,adapted_sequence,spoken_hook_available:boolean,why_selected}.
-hooks: exactly 4 original short natural spoken hooks, not 4 accusations or vague questions.
-timed_script: 5-8 beats, each {time,say,show,on_screen_text,footage_type,provider,animation_prompt}; ALL required, SAY and SHOW must be substantive. Include full CTA in last beat. For UGC/PRODUCT/B_ROLL/GRAPHIC use provider "camera/editor" and animation_prompt "". For AI_VIDEO specify a real suggested video generator and a detailed generation prompt.
+hooks: exactly 4 original short natural spoken hooks. When an exact spoken source opening exists, mirror its rhetorical shape, cadence and attention mechanism while rewriting the actual wording for the user's product. Do not default to questions unless the source does.
+timed_script: 5-8 beats, each {time,say,show,on_screen_text,footage_type,provider,animation_prompt,source_reference}; ALL required, SAY and SHOW must be substantive. source_reference briefly states which source beat/pattern this adapted beat corresponds to. Include full CTA in last beat. For UGC/PRODUCT/B_ROLL/GRAPHIC use provider "camera/editor" and animation_prompt "". For AI_VIDEO specify a real suggested video generator and a detailed generation prompt.
 shot_directions: 4-7 specific shoot/edit instructions. animation_prompts: only when an AI_VIDEO shot is recommended, each {scene,seconds,model,prompt,cost_estimate_note}. Never invent prices.
 Keep the JSON reasonably compact; prioritize dialogue, production instructions and source adaptation over verbose theory.
 `;
@@ -160,6 +161,7 @@ Deno.serve(async(req)=>{
       ads=rows.data||[];
     }
 
+    const primarySourceId=String(body?.primary_source_ad_id||"");
     const research=ads.map((a:any)=>({
       ad_archive_id:a.ad_archive_id,
       advertiser_name:a.advertiser_name,
@@ -169,7 +171,9 @@ Deno.serve(async(req)=>{
       description:String(a.description||"").slice(0,task==="idea"?700:1200),
       format:a.display_format||a.media_kind,
       source_url:a.source_url,
-      transcript:a.video_transcript||a.transcript||a.ai_analysis?.transcript||null,
+      transcript:String(a.ad_archive_id||"")===primarySourceId
+        ? (a.video_transcript||a.transcript||a.ai_analysis?.transcript||null)
+        : String(a.video_transcript||a.transcript||"").slice(0,800),
       transcript_segments:Array.isArray(a.video_transcript_segments)?a.video_transcript_segments.slice(0,80):[],
       video_duration_seconds:a.video_duration_seconds||null,
       media_url:a.media_url||"",
