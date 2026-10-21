@@ -71,7 +71,23 @@ jobs:
       - name: Research tracked brands
         run: node src/github-runner.js
 
+      - name: Check video transcript queue
+        id: transcript_queue
+        run: |
+          BODY="$(curl --fail-with-body --show-error --silent \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            "$SUPABASE_URL/rest/v1/competitor_ads?select=id&media_kind=eq.video&video_transcript=is.null&media_url=not.is.null&limit=1")"
+          if [ "$BODY" = "[]" ]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "No videos need transcription."
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            echo "Video transcript work is queued."
+          fi
+
       - name: Install transcript engine
+        if: steps.transcript_queue.outputs.needed == 'true'
         run: |
           python -m pip install --disable-pip-version-check --no-cache-dir "faster-whisper>=1.1,<2"
           if ! command -v ffmpeg >/dev/null 2>&1; then
@@ -80,6 +96,7 @@ jobs:
           fi
 
       - name: Transcribe captured video ads
+        if: steps.transcript_queue.outputs.needed == 'true'
         env:
           MAX_TRANSCRIPTS_PER_RUN: "8"
           WHISPER_MODEL: small.en
