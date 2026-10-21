@@ -204,3 +204,22 @@ body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
 .hook-library-card .idea-copy-pack{margin-top:14px;background:#0d141c;border-color:#2a3b4b}
 .hook-library-card .idea-copy-pack summary{padding:4px 0;color:#cde7ed}
 @media(max-width:600px){.production-controls{padding:10px;gap:8px}.production-controls .helper{flex:1 1 100%;font-size:12px}}
+
+
+/* Connected storefront manager */
+.connected-sites-panel{margin:14px 0 18px}
+.connected-sites-panel .section-head{align-items:flex-start}
+.connected-site-picker{display:grid;grid-template-columns:minmax(240px,1fr) minmax(0,1.2fr);gap:12px;align-items:end}
+.connected-site-picker label{margin:0}
+.connected-site-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-height:46px}
+.add-site-form{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid #2b3543}
+.add-site-form.hidden{display:none}
+.add-site-form label{margin:0;min-width:0}
+.add-site-actions{display:flex;gap:8px;grid-column:1/-1}
+.add-site-actions .button{min-width:130px}
+@media(max-width:760px){
+  .connected-site-picker{grid-template-columns:1fr}
+  .add-site-form{grid-template-columns:1fr}
+  .add-site-actions{display:grid;grid-template-columns:1fr 1fr}
+  .add-site-actions .button{min-width:0}
+}
