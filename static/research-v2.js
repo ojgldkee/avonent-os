@@ -815,6 +815,8 @@
         ].filter(id => id && available.has(id)))).slice(0, 4),
         strategy: {
           hooks: Array.isArray(idea.hooks) ? idea.hooks : [],
+          creative_type: idea.creative_type || (/static|image/i.test(String(idea.format || "")) ? "STATIC" : "VIDEO"),
+          static_concept: idea.static_concept || null,
           audience: idea.audience || "",
           first_three_seconds: idea.first_three_seconds || {},
           primary_text: idea.primary_text || "",
