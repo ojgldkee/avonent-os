@@ -269,6 +269,24 @@
     }).join("");
   }
 
+  function pickPrimarySources(sources, count=5) {
+    const chosen = [];
+    const seenAdvertisers = new Set();
+    for (const ad of sources) {
+      const key = String(ad.advertiser_name || "").toLowerCase().trim();
+      if (key && !seenAdvertisers.has(key)) {
+        chosen.push(ad);
+        seenAdvertisers.add(key);
+        if (chosen.length >= count) return chosen;
+      }
+    }
+    for (const ad of sources) {
+      if (!chosen.includes(ad)) chosen.push(ad);
+      if (chosen.length >= count) break;
+    }
+    return chosen;
+  }
+
   async function generateIdeas() {
     const p = currentProduct();
     if (!p) return;
@@ -286,13 +304,16 @@
     startProgress(sources.length);
 
     try {
+      const primarySources = pickPrimarySources(sources, 5);
       const jobs = [1,2,3,4,5].map(async variation => {
+        const primarySource = primarySources[(variation - 1) % primarySources.length];
         let lastError = null;
         for (let attempt = 1; attempt <= 2; attempt++) {
           try {
             const result = await cloud.invoke("creative-ai", {
               task: "idea",
               variation,
+              primary_source_ad_id: primarySource?.ad_archive_id || "",
               product: p,
               competitor_ads: sources
             });
@@ -320,9 +341,10 @@
 
       const availableSourceIds = new Set(sources.map(a => String(a.ad_archive_id)));
       const rows = generated.map(({idea:i,model}) => {
-        const requestedSources = Array.isArray(i.source_ad_ids)
-          ? i.source_ad_ids.map(String).filter(id => availableSourceIds.has(id)).slice(0,4)
-          : [];
+        const requestedSources = Array.from(new Set([
+          String(i.source_adaptation?.ad_archive_id || ""),
+          ...(Array.isArray(i.source_ad_ids) ? i.source_ad_ids.map(String) : [])
+        ].filter(id => id && availableSourceIds.has(id)))).slice(0,4);
         return {
           user_id: session.user.id,
           product_id: p.id,
@@ -351,6 +373,7 @@
             shot_directions: Array.isArray(i.shot_directions) ? i.shot_directions : [],
             timed_script: Array.isArray(i.timed_script) ? i.timed_script : [],
             animation_prompts: Array.isArray(i.animation_prompts) ? i.animation_prompts : [],
+            source_adaptation: i.source_adaptation || null,
             source_observations: Array.isArray(i.source_observations) ? i.source_observations : [],
             ai_inferences: Array.isArray(i.ai_inferences) ? i.ai_inferences : [],
             product_fact_checks: Array.isArray(i.product_fact_checks) ? i.product_fact_checks : [],
