@@ -55,6 +55,19 @@ Do not manufacture source IDs or observations.
 Return JSON: {"ideas":[...]}.
 `;
 
+
+const ONE_IDEA_PROMPT=BASE+`
+Generate ONE original, production-ready advertising concept. The request includes variation (1-5); use it as a creative lane so separately generated concepts are meaningfully different:
+1 = contrarian / pattern interrupt
+2 = skeptical objection / myth-busting
+3 = visual demonstration / mechanism
+4 = identity / story / emotional tension
+5 = offer / comparison / decision trigger
+Do not repeat generic angles.
+Return JSON {"idea":{title,audience,angle,format,hook,hooks,first_frame,first_three_seconds,primary_text,headline,description,cta,video_concept,recommended_duration_seconds,production_style,shot_directions,timed_script,proof_to_show,execution,why_test,hypothesis,inspiration,source_ad_ids,source_observations,ai_inferences,product_fact_checks,unsupported_claim_checks,animation_prompts,scores,overall_score,risk}}.
+hooks must contain exactly 4 varied strings. timed_script must cover the full recommended duration through CTA. Keep the response tight and production-ready rather than verbose. Use only supplied source IDs.
+`;
+
 const SCRIPT_PROMPT=BASE+`
 Expand the selected idea into one complete shootable production script.
 Return JSON {"script":{title,audience,recommended_duration_seconds,format,hook,
@@ -69,7 +82,19 @@ Do not fabricate source evidence or product proof.
 `;
 
 function validateResult(task:string,result:any){
-  if(task==="ideas"){
+  if(task==="idea"){
+    const idea=result?.idea;
+    if(!idea||!idea.title||!idea.hook)throw new Error("AI returned an incomplete idea.");
+    if(!Array.isArray(idea.hooks))idea.hooks=[idea.hook];
+    if(!Array.isArray(idea.source_ad_ids))idea.source_ad_ids=[];
+    if(!Array.isArray(idea.shot_directions))idea.shot_directions=[];
+    if(!Array.isArray(idea.timed_script))idea.timed_script=[];
+    if(!Array.isArray(idea.source_observations))idea.source_observations=[];
+    if(!Array.isArray(idea.ai_inferences))idea.ai_inferences=[];
+    if(!Array.isArray(idea.product_fact_checks))idea.product_fact_checks=[];
+    if(!Array.isArray(idea.unsupported_claim_checks))idea.unsupported_claim_checks=[];
+    if(!Array.isArray(idea.animation_prompts))idea.animation_prompts=[];
+  }else if(task==="ideas"){
     if(!Array.isArray(result?.ideas)||result.ideas.length!==5)throw new Error("AI returned an invalid ideas structure (expected five ideas).");
     for(const idea of result.ideas){
       if(!idea||!idea.title||!idea.hook)throw new Error("AI returned an incomplete idea.");
@@ -103,9 +128,9 @@ Deno.serve(async(req)=>{
     if(!key)return out(503,{setup_required:true,error:"OPENROUTER_API_KEY is not configured."});
 
     const body=await req.json().catch(()=>({}));
-    const task=body?.task==="script"?"script":"ideas";
+    const task=body?.task==="script"?"script":body?.task==="idea"?"idea":"ideas";
     const product=body?.product||{};
-    let ads=Array.isArray(body?.competitor_ads)?body.competitor_ads.slice(0,30):[];
+    let ads=Array.isArray(body?.competitor_ads)?body.competitor_ads.slice(0,task==="idea"?8:16):[];
 
     if(auth.userId&&product?.id&&!ads.length){
       const rows=await admin.from("competitor_ads")
@@ -114,7 +139,7 @@ Deno.serve(async(req)=>{
         .eq("product_id",product.id)
         .eq("is_active",true)
         .order("days_running",{ascending:false})
-        .limit(16);
+        .limit(task==="idea"?8:16);
       if(rows.error)throw rows.error;
       ads=rows.data||[];
     }
@@ -132,10 +157,10 @@ Deno.serve(async(req)=>{
     }));
 
     const model=task==="script"
-      ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3-235b-a22b-2507")
-      : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3-30b-a3b-instruct-2507");
+      ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3-235b-a22b-2507:nitro")
+      : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3-30b-a3b-instruct-2507:nitro");
 
-    const prompt=task==="script"?SCRIPT_PROMPT:IDEA_PROMPT;
+    const prompt=task==="script"?SCRIPT_PROMPT:task==="idea"?ONE_IDEA_PROMPT:IDEA_PROMPT;
     const input={
       product:{
         id:product.id||"",
@@ -154,12 +179,15 @@ Deno.serve(async(req)=>{
         site_data:product.site_data||{}
       },
       competitor_research:research,
-      selected_idea:body?.idea||null
+      selected_idea:body?.idea||null,
+      variation:Number(body?.variation||1)
     };
 
     const candidates=task==="script"
-      ? [model,"qwen/qwen3-30b-a3b-instruct-2507"]
-      : [model,"qwen/qwen3-235b-a22b-2507"];
+      ? [model,"qwen/qwen3-30b-a3b-instruct-2507:nitro"]
+      : task==="idea"
+        ? [model,"qwen/qwen3-235b-a22b-2507:nitro"]
+        : [model,"qwen/qwen3-30b-a3b-instruct-2507:nitro"];
     let result:any=null;
     let raw:any=null;
     let usedModel=model;
@@ -179,9 +207,9 @@ Deno.serve(async(req)=>{
               {role:"user",content:JSON.stringify(input)}
             ],
             response_format:{type:"json_object"},
-            max_tokens:task==="script"?7000:9000
+            max_tokens:task==="script"?6500:task==="idea"?4200:8500
           }),
-          signal:AbortSignal.timeout(105000)
+          signal:AbortSignal.timeout(task==="script"?70000:task==="idea"?42000:70000)
         });
         raw=await response.json().catch(()=>({}));
         if(!response.ok){
