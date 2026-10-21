@@ -237,3 +237,16 @@ body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
 .source-analysis-stack p{margin:8px 0;line-height:1.5}
 .timed-beat>span{margin-top:8px}
 .timed-beat>span:first-of-type{margin-top:0}
+
+
+/* Source-driven hook/story/video blueprint */
+.hook-adaptation-card,.story-arc-card,.visual-recipe-card{
+  margin:12px 0;padding:14px;border:1px solid #304052;border-radius:14px;background:#0b1219
+}
+.hook-adaptation-card p,.story-arc-card p,.visual-recipe-card p{
+  margin:8px 0;color:#c6d2df;line-height:1.5
+}
+.hook-adaptation-card strong,.story-arc-card strong,.visual-recipe-card strong{color:#eef4fa}
+.timed-beat{overflow-wrap:anywhere}
+.timed-beat>span{display:block;margin-top:9px}
+.timed-beat>p{margin:4px 0 0}
