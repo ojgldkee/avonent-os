@@ -86,6 +86,13 @@ Return JSON {"script":{title,audience,recommended_duration_seconds,format,hook,f
 Write exact human-sounding spoken dialogue in every beat, actionable visuals and text, realistic duration, full CTA, specific UGC/B-roll/product/AI footage types. For AI_VIDEO, suggest provider/model and a paste-ready video prompt. Do not copy competitor script verbatim.
 `;
 
+function openingFromText(value:string){
+  const text=String(value||"").replace(/\s+/g," ").trim();
+  if(!text)return "";
+  const first=text.split(/(?<=[.!?])\s+/)[0]||text;
+  return first.split(/\s+/).slice(0,25).join(" ");
+}
+
 function validateResult(task:string,result:any){
   if(task==="idea"){
     const idea=result?.idea;
@@ -254,6 +261,26 @@ Deno.serve(async(req)=>{
     }
 
     if(!result)throw new Error(lastError);
+
+    if(task==="idea"){
+      const requested=String(body?.primary_source_ad_id||"");
+      const primary=research.find((a:any)=>String(a.ad_archive_id)===requested)||research[0];
+      if(!primary)throw new Error("AI output validation failed: no source ad was available.");
+      const exact=String(primary.exact_spoken_opening||"").trim();
+      const observed=exact||openingFromText(primary.primary_text||primary.headline||"");
+      result.idea.source_adaptation={
+        ...(result.idea.source_adaptation||{}),
+        ad_archive_id:String(primary.ad_archive_id||""),
+        advertiser_name:String(primary.advertiser_name||""),
+        observed_opening_text:observed,
+        opening_type:exact?"spoken_transcript":"primary_text",
+        spoken_hook_available:Boolean(exact)
+      };
+      result.idea.source_ad_ids=Array.from(new Set([
+        String(primary.ad_archive_id||""),
+        ...(Array.isArray(result.idea.source_ad_ids)?result.idea.source_ad_ids.map(String):[])
+      ].filter(Boolean))).slice(0,4);
+    }
 
     return out(200,{ok:true,task,model:usedModel,result,usage:raw?.usage||null});
   }catch(e){
