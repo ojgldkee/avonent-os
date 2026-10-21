@@ -484,6 +484,7 @@
 
     const result = await cloud.invoke("creative-ai", {
       task: "script",
+      primary_source_ad_id: idea.strategy?.source_adaptation?.ad_archive_id || "",
       product: p,
       competitor_ads: sources,
       idea: {
