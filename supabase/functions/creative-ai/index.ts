@@ -91,8 +91,8 @@ Keep the JSON reasonably compact; prioritize dialogue, production instructions a
 
 const SCRIPT_PROMPT=BASE+`
 Turn the selected source-adapted concept into a fully written production script, not an outline.
-Return JSON {"script":{title,audience,recommended_duration_seconds,format,hook,first_three_seconds:{say,show,on_screen_text},beats:[{time,say,show,on_screen_text,footage_type,provider,animation_prompt,video_model}],product_reveal,proof_moment,cta,editor_notes,source_observations,ai_inferences,product_fact_checks,unsupported_claim_checks,compliance_notes,three_alt_openings}}.
-Write exact human-sounding spoken dialogue in every beat, actionable visuals and text, realistic duration, full CTA, specific UGC/B-roll/product/AI footage types. For AI_VIDEO, suggest provider/model and a paste-ready video prompt. Do not copy competitor script verbatim.
+Return JSON {"script":{title,audience,recommended_duration_seconds,format,hook,first_three_seconds:{say,show,on_screen_text},beats:[{time,say,show,on_screen_text,footage_type,provider,animation_prompt,video_model,source_reference}],product_reveal,proof_moment,cta,editor_notes,source_observations,ai_inferences,product_fact_checks,unsupported_claim_checks,compliance_notes,three_alt_openings}}.
+Write exact human-sounding spoken dialogue in every beat, actionable visuals and text, realistic duration, full CTA, specific UGC/B-roll/product/AI footage types. Each beat must include source_reference explaining which part of the competitor source structure it adapts. For AI_VIDEO, suggest provider/model and a paste-ready video prompt. Do not copy competitor script verbatim.
 `;
 
 function openingFromText(value:string){
@@ -133,8 +133,8 @@ function validateResult(task:string,result:any){
       if(!Array.isArray(idea.unsupported_claim_checks))idea.unsupported_claim_checks=[];
       if(!Array.isArray(idea.animation_prompts))idea.animation_prompts=[];
     }
-  }else if(!result?.script||!Array.isArray(result.script.beats)||result.script.beats.length<4||result.script.beats.some((b:any)=>!String(b?.say||"").trim()||!String(b?.show||"").trim()||!String(b?.on_screen_text||"").trim())){
-    throw new Error("AI output validation failed: incomplete script.");
+  }else if(!result?.script||!Array.isArray(result.script.beats)||result.script.beats.length<4||result.script.beats.some((b:any)=>!String(b?.say||"").trim()||!String(b?.show||"").trim()||!String(b?.on_screen_text||"").trim()||!String(b?.footage_type||"").trim()||!String(b?.provider||b?.video_model||"").trim()||!String(b?.source_reference||"").trim())){
+    throw new Error("AI output validation failed: final script is missing dialogue, visuals, footage provider, or source mapping.");
   }
   return result;
 }
