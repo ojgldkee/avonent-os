@@ -68,9 +68,20 @@
     return {pageUrl:clean.href,pageId,adLibraryUrl,adId:""};
   }
 
+  function researchSourceScore(ad) {
+    const analysis = ad?.ai_analysis || {};
+    const transcript = String(ad?.video_transcript || "").trim();
+    const visual = Boolean(analysis.visual_analysis_available);
+    const analyzed = Boolean(ad?.analyzed_at);
+    const researchScore = Math.max(0, Math.min(100, Number(analysis.research_score || 0)));
+    const days = Math.max(0, Math.min(180, Number(ad?.days_running || 0)));
+    const hasCopy = Boolean(String(ad?.primary_text || ad?.headline || "").trim());
+    return (transcript ? 1000 : 0) + (visual ? 500 : 0) + (analyzed ? 250 : 0) + researchScore * 3 + days + (hasCopy ? 25 : 0);
+  }
+
   function researchSources(rows, limit=30) {
-    return rows.filter(a => a.is_active && (a.primary_text || a.headline))
-      .sort((a,b) => Number(Boolean(b.analyzed_at))-Number(Boolean(a.analyzed_at)) || String(a.started_at || "9999").localeCompare(String(b.started_at || "9999")))
+    return rows.filter(a => a.is_active && (a.video_transcript || a.primary_text || a.headline))
+      .sort((a,b) => researchSourceScore(b) - researchSourceScore(a) || Number(b.days_running || 0) - Number(a.days_running || 0))
       .slice(0,limit);
   }
 
