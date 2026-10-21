@@ -70,8 +70,12 @@
     ideaProgressTimer = null;
     const panel = $("research-progress");
     if (!panel) return;
-    $("research-progress-percent").textContent = ok ? "100%" : "Stopped";
-    $("research-progress-fill").style.width = "100%";
+    if (ok) {
+      $("research-progress-percent").textContent = "100%";
+      $("research-progress-fill").style.width = "100%";
+    } else {
+      $("research-progress-percent").textContent = "Stopped";
+    }
     $("research-progress-stage").textContent = message || (ok ? "Creative pack saved." : "Generation stopped.");
     $("research-progress-note").textContent = ok ? "Done. Opening Ideas…" : "The request did not complete.";
   }
