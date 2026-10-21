@@ -36,21 +36,25 @@
     return 94;
   }
 
+  let completedIdeaConcepts = 0;
   function updateIdeaProgress() {
     const panel = $("research-progress");
     if (!panel || !ideaProgressStartedAt) return;
     const seconds = Math.floor((Date.now() - ideaProgressStartedAt) / 1000);
-    const pct = Math.min(94, ideaProgressPercent(seconds));
+    const pct = completedIdeaConcepts ? Math.min(90, 8 + completedIdeaConcepts * 16) : 8;
     $("research-progress-percent").textContent = pct + "%";
     $("research-progress-fill").style.width = pct + "%";
-    $("research-progress-stage").textContent = ideaProgressStage(seconds);
-    $("research-progress-note").textContent = "Estimated progress · " + seconds + "s elapsed. Keep this page open until it reaches 100%.";
+    $("research-progress-stage").textContent = completedIdeaConcepts
+      ? completedIdeaConcepts + " of 5 concepts finished · " + (completedIdeaConcepts < 5 ? "waiting on the remaining concepts…" : "saving creative pack…")
+      : "Five concepts are generating in parallel…";
+    $("research-progress-note").textContent = seconds + "s elapsed · progress moves when a concept actually finishes.";
   }
 
   function startIdeaProgress(sourceCount) {
     const panel = $("research-progress");
     if (!panel) return;
     ideaProgressStartedAt = Date.now();
+    completedIdeaConcepts = 0;
     panel.classList.remove("hidden");
     $("research-progress-label").textContent = "Generating 5 concepts from " + sourceCount + " source ads";
     $("research-progress-percent").textContent = "5%";
@@ -586,8 +590,7 @@
     const p = currentProduct();
     if (!p) return;
 
-    const sources = researchSources(ads).slice(0, 16);
-
+    const sources = researchSources(ads).slice(0, 8);
     if (!sources.length) {
       $("research-status").textContent = "Research at least one tracked brand first.";
       return;
@@ -596,18 +599,45 @@
     const btn = $("generate-ideas");
     btn.disabled = true;
     btn.textContent = "Generating…";
-    $("research-status").textContent = "Generation started. Keep this page open.";
+    $("research-status").textContent = "Generating 5 concepts in parallel. Keep this page open.";
     startIdeaProgress(sources.length);
 
     try {
-      const result = await cloud.invoke("creative-ai", { task: "ideas", product: p, competitor_ads: sources });
-      const parsed = result.result || {};
-      const ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
-      if (!ideas.length) throw new Error("AI returned no ideas.");
+      const jobs = [1,2,3,4,5].map(async variation => {
+        let lastError = null;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            const result = await cloud.invoke("creative-ai", {
+              task: "idea",
+              variation,
+              product: p,
+              competitor_ads: sources
+            });
+            const idea = result.result?.idea;
+            if (!idea?.title || !idea?.hook) throw new Error("AI returned an incomplete concept.");
+            completedIdeaConcepts += 1;
+            updateIdeaProgress();
+            return { idea, model: result.model || "" };
+          } catch (error) {
+            lastError = error;
+            if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 350));
+          }
+        }
+        throw lastError || new Error("Concept generation failed.");
+      });
+
+      const settled = await Promise.allSettled(jobs);
+      const generated = settled.filter(x => x.status === "fulfilled").map(x => x.value);
+      const failures = settled.filter(x => x.status === "rejected");
+
+      if (!generated.length) {
+        const first = failures[0]?.reason;
+        throw first instanceof Error ? first : new Error("No concepts were generated.");
+      }
 
       const available = new Set(sources.map(a => String(a.ad_archive_id)));
       const date = new Date().toISOString().slice(0, 10);
-      const rows = ideas.slice(0, 5).map(idea => ({
+      const rows = generated.map(({idea,model}) => ({
         user_id: session.user.id,
         product_id: p.id,
         title: idea.title || "",
@@ -624,7 +654,7 @@
           ? idea.source_ad_ids.map(String).filter(id => available.has(id)).slice(0, 4)
           : [],
         strategy: {
-          hooks: idea.hooks || [],
+          hooks: Array.isArray(idea.hooks) ? idea.hooks : [],
           audience: idea.audience || "",
           first_three_seconds: idea.first_three_seconds || {},
           primary_text: idea.primary_text || "",
@@ -632,8 +662,11 @@
           description: idea.description || "",
           video_concept: idea.video_concept || "",
           video_structure: idea.video_structure || "",
+          recommended_duration_seconds: Number(idea.recommended_duration_seconds || 0),
+          production_style: idea.production_style || "",
           shot_directions: Array.isArray(idea.shot_directions) ? idea.shot_directions : [],
           timed_script: Array.isArray(idea.timed_script) ? idea.timed_script : [],
+          animation_prompts: Array.isArray(idea.animation_prompts) ? idea.animation_prompts : [],
           source_observations: Array.isArray(idea.source_observations) ? idea.source_observations : [],
           ai_inferences: Array.isArray(idea.ai_inferences) ? idea.ai_inferences : [],
           product_fact_checks: Array.isArray(idea.product_fact_checks) ? idea.product_fact_checks : [],
@@ -643,19 +676,25 @@
           scores: idea.scores || {},
           overall_score: Number(idea.overall_score || 0)
         },
-        idea_model: result.model || "",
+        idea_model: model,
         generated_for_date: date
       }));
 
       const insert = await db.from("ai_ideas").insert(rows);
       if (insert.error) throw insert.error;
-      finishIdeaProgress(rows.length + " concepts generated and saved.", true);
+
+      const note = rows.length === 5
+        ? "5 concepts generated and saved."
+        : rows.length + " concepts saved; " + failures.length + " slot(s) failed after retry.";
+      $("research-status").textContent = note;
+      finishIdeaProgress(note, true);
       await new Promise(resolve => setTimeout(resolve, 650));
       location.href = "creatives.html?cloud=1";
     } catch (error) {
       $("research-status").textContent = error.data?.setup_required
         ? "AI connection is not configured correctly."
         : (error.message || String(error));
+      finishIdeaProgress(error.message || "Generation stopped.", false);
     } finally {
       btn.disabled = false;
       btn.textContent = "Generate ideas";
