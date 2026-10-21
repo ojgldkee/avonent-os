@@ -8,14 +8,20 @@ const CORS={
 };
 const out=(status:number,body:unknown)=>new Response(JSON.stringify(body),{status,headers:CORS});
 
-async function authenticate(req:Request,admin:any){
+async function authenticate(req:Request,admin:any,body:any){
   const token=(req.headers.get("authorization")||"").replace(/^Bearer\s+/i,"").trim();
-  if(!token)return null;
   const service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
-  if(service&&token===service)return{mode:"service",userId:null};
-  const user=await admin.auth.getUser(token);
-  if(user.error||!user.data.user)return null;
-  return{mode:"user",userId:user.data.user.id};
+  if(service&&token&&token===service)return{mode:"service",userId:null};
+  if(token){
+    const user=await admin.auth.getUser(token);
+    if(!user.error&&user.data.user)return{mode:"user",userId:user.data.user.id};
+  }
+  const schedulerToken=String(body?.scheduler_token||"");
+  if(schedulerToken){
+    const secret=await admin.from("avonent_scheduler_secret").select("token").eq("id",true).maybeSingle();
+    if(!secret.error&&secret.data?.token&&String(secret.data.token)===schedulerToken)return{mode:"scheduler",userId:null};
+  }
+  return null;
 }
 
 function parseJson(text:string){
@@ -153,11 +159,10 @@ Deno.serve(async(req)=>{
     const key=Deno.env.get("OPENROUTER_API_KEY")||"";
     if(!url||!service)return out(503,{error:"Supabase server configuration missing"});
     const admin=createClient(url,service,{auth:{persistSession:false}});
-    const auth=await authenticate(req,admin);
+    const body=await req.json().catch(()=>({}));
+    const auth=await authenticate(req,admin,body);
     if(!auth)return out(401,{error:"Unauthorized"});
     if(!key)return out(503,{setup_required:true,error:"OPENROUTER_API_KEY is not configured."});
-
-    const body=await req.json().catch(()=>({}));
     const limit=Math.max(1,Math.min(Number(body?.limit||8),12));
     let q=admin.from("competitor_ads")
       .select("id,user_id,product_id,ad_archive_id,advertiser_name,primary_text,headline,description,cta_text,landing_url,display_format,media_kind,media_url,media_thumbnail_url,started_at,days_running,source_url,video_transcript,video_transcript_segments,video_duration_seconds,transcription_status")
