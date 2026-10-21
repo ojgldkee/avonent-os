@@ -44,6 +44,11 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Install collector
         run: npm install --no-audit --no-fund
 
@@ -65,6 +70,29 @@ jobs:
 
       - name: Research tracked brands
         run: node src/github-runner.js
+
+      - name: Install transcript engine
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir "faster-whisper>=1.1,<2"
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+      - name: Transcribe captured video ads
+        env:
+          MAX_TRANSCRIPTS_PER_RUN: "8"
+          WHISPER_MODEL: small.en
+        run: python src/transcribe-videos.py
+
+      - name: Analyze transcript and video structure
+        run: |
+          curl --fail-with-body --show-error --silent \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{"limit":12}' \
+            "$SUPABASE_URL/functions/v1/analyze-competitor-ads"
 
       - name: Print collector log on failure
         if: failure()
