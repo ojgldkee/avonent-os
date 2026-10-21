@@ -608,6 +608,24 @@
     }
   }
 
+  function pickPrimarySources(sources, count=5) {
+    const chosen = [];
+    const seenAdvertisers = new Set();
+    for (const ad of sources) {
+      const key = String(ad.advertiser_name || "").toLowerCase().trim();
+      if (key && !seenAdvertisers.has(key)) {
+        chosen.push(ad);
+        seenAdvertisers.add(key);
+        if (chosen.length >= count) return chosen;
+      }
+    }
+    for (const ad of sources) {
+      if (!chosen.includes(ad)) chosen.push(ad);
+      if (chosen.length >= count) break;
+    }
+    return chosen;
+  }
+
   async function generateIdeas() {
     const p = currentProduct();
     if (!p) return;
@@ -625,13 +643,16 @@
     startIdeaProgress(sources.length);
 
     try {
+      const primarySources = pickPrimarySources(sources, 5);
       const jobs = [1,2,3,4,5].map(async variation => {
+        const primarySource = primarySources[(variation - 1) % primarySources.length];
         let lastError = null;
         for (let attempt = 1; attempt <= 2; attempt++) {
           try {
             const result = await cloud.invoke("creative-ai", {
               task: "idea",
               variation,
+              primary_source_ad_id: primarySource?.ad_archive_id || "",
               product: p,
               competitor_ads: sources
             });
@@ -672,9 +693,10 @@
         cta: idea.cta || "",
         why_test: idea.why_test || "",
         inspiration: idea.inspiration || "",
-        source_ad_ids: Array.isArray(idea.source_ad_ids)
-          ? idea.source_ad_ids.map(String).filter(id => available.has(id)).slice(0, 4)
-          : [],
+        source_ad_ids: Array.from(new Set([
+          String(idea.source_adaptation?.ad_archive_id || ""),
+          ...(Array.isArray(idea.source_ad_ids) ? idea.source_ad_ids.map(String) : [])
+        ].filter(id => id && available.has(id)))).slice(0, 4),
         strategy: {
           hooks: Array.isArray(idea.hooks) ? idea.hooks : [],
           audience: idea.audience || "",
@@ -689,6 +711,7 @@
           shot_directions: Array.isArray(idea.shot_directions) ? idea.shot_directions : [],
           timed_script: Array.isArray(idea.timed_script) ? idea.timed_script : [],
           animation_prompts: Array.isArray(idea.animation_prompts) ? idea.animation_prompts : [],
+          source_adaptation: idea.source_adaptation || null,
           source_observations: Array.isArray(idea.source_observations) ? idea.source_observations : [],
           ai_inferences: Array.isArray(idea.ai_inferences) ? idea.ai_inferences : [],
           product_fact_checks: Array.isArray(idea.product_fact_checks) ? idea.product_fact_checks : [],
