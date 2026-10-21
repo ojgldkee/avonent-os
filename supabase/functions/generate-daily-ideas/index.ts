@@ -87,12 +87,14 @@ Deno.serve(async(req)=>{
     const results:any[]=[];
     for(const product of productsResult.data||[]){
       const existing=await admin.from("ai_ideas")
-        .select("id",{count:"exact",head:true})
+        .select("id,status,strategy")
         .eq("product_id",product.id)
         .eq("generated_for_date",today);
       if(existing.error)throw existing.error;
 
-      const existingCount=Number(existing.count||0);
+      const existingCount=(existing.data||[]).filter((row:any)=>
+        row.status!=="Rejected" && Boolean(row.strategy?.source_adaptation?.ad_archive_id)
+      ).length;
       const needed=Math.max(0,5-existingCount);
       if(!needed){
         results.push({product_id:product.id,product:product.name,status:"already_ready",existing:existingCount,generated:0});
