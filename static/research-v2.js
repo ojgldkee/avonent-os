@@ -431,6 +431,26 @@
           (a.raw?.primary_text_complete === false ? '<small class="source-copy-note">Source text may be incomplete.</small>' : '') + '</div>'
         : '<div class="source-copy muted-copy"><div class="source-copy-body"><p>Primary text not captured yet.</p></div></div>';
 
+      const transcriptStatus = String(a.transcription_status || "");
+      const spokenOpening = String(a.ai_analysis?.exact_spoken_opening || a.ai_analysis?.spoken_hook || "").trim();
+      const transcript = String(a.video_transcript || "").trim();
+      const transcriptBlock = transcript
+        ? '<div class="source-copy transcript-copy"><div class="source-copy-head"><span>Video transcript</span><span class="qualified-label">Transcribed</span></div>' +
+          (spokenOpening ? '<div class="source-hook-evidence"><span>ACTUAL SPOKEN OPENING</span><p>“' + esc(spokenOpening) + '”</p></div>' : '') +
+          '<details><summary>Read full transcript</summary><p style="white-space:pre-wrap;overflow-wrap:anywhere">' + esc(transcript) + '</p></details></div>'
+        : (adKind === "video" ? '<div class="source-copy muted-copy"><div class="source-copy-body"><p>' +
+            (transcriptStatus === "running" ? 'Video transcription in progress…' : transcriptStatus === "error" ? 'Transcript unavailable from the last attempt.' : 'Video transcript will be captured by the research pipeline.') +
+          '</p></div></div>' : '');
+
+      const analysisBlock = a.ai_analysis
+        ? '<details class="score-breakdown source-structure"><summary>Source structure analysis</summary><div class="source-analysis-stack">' +
+            (a.ai_analysis.visual_hook ? '<p><strong>Visual hook:</strong> ' + esc(a.ai_analysis.visual_hook) + '</p>' : '') +
+            (a.ai_analysis.reusable_pattern ? '<p><strong>Reusable pattern:</strong> ' + esc(a.ai_analysis.reusable_pattern) + '</p>' : '') +
+            (Array.isArray(a.ai_analysis.observed_sequence) && a.ai_analysis.observed_sequence.length ? '<p><strong>Observed sequence:</strong> ' + esc(a.ai_analysis.observed_sequence.join(" → ")) + '</p>' : '') +
+            (a.ai_analysis.cta_structure ? '<p><strong>CTA structure:</strong> ' + esc(a.ai_analysis.cta_structure) + '</p>' : '') +
+          '</div></details>'
+        : '';
+
       const headline = a.headline
         ? '<div class="ad-headline-block"><span>Headline</span><strong>' + esc(a.headline) + '</strong></div>'
         : '';
@@ -445,11 +465,12 @@
         '<div class="days-badge ' + (qualifies(a) ? 'qualified' : '') + '"><strong>' + (ageDays === null ? '—' : ageDays) + '</strong><span>' + (ageDays === null ? 'unknown' : 'days') + '</span></div></div></div>' +
         '<div class="source-rank-line"><span>Sample rank #' + (researchRank.rank || '—') + ' of ' + researchRank.total + (creativeUses > 1 ? ' · creative repeated ' + creativeUses + '×' : '') + '</span><span>' + (aiScore ? 'AI copy score ' + aiScore + '/100 · ' : '') + 'Research score · not profitability</span></div>' +
         '<details class="score-breakdown"><summary>Why ' + researchScore + '/100?</summary><div><span>Longevity <b>' + scoreParts.longevity + '/40</b></span><span>Creative repetition <b>' + scoreParts.repetition + '/20</b></span><span>Primary copy <b>' + scoreParts.copy + '/10</b></span><span>Media <b>' + scoreParts.media + '/10</b></span><span>Headline <b>' + scoreParts.headline + '/5</b></span><span>Landing page <b>' + scoreParts.destination + '/5</b></span><span>CTA <b>' + scoreParts.cta + '/5</b></span><span>Active <b>' + scoreParts.active + '/5</b></span></div></details>' +
-        mediaHtml + (adKind === "video" && !poster ? '<p class="helper">Preview unavailable · press play to view video.</p>' : '') + headline + primary + '<p class="helper">Impressions: ' + esc(impressionLabel(a)) + '</p>' +
+        mediaHtml + (adKind === "video" && !poster ? '<p class="helper">Preview unavailable · press play to view video.</p>' : '') + transcriptBlock + analysisBlock + headline + primary + '<p class="helper">Impressions: ' + esc(impressionLabel(a)) + '</p>' +
         '<div class="source-meta"><span>' + (a.started_at ? 'Started ' + esc(new Date(a.started_at + 'T00:00:00Z').toLocaleDateString(undefined, {month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})) : 'Start date unavailable') + '</span>' +
           '<span>' + esc(adKind === "unknown" ? "Unknown media" : adKind === "video" ? "Video" : "Image") + '</span>' +
           (qualifies(a) ? '<span class="qualified-label">Long-running</span>' : '') +
-          (a.analyzed_at ? '<span class="qualified-label">AI analyzed</span>' : '') +
+          (transcript ? '<span class="qualified-label">Transcript ready</span>' : '') +
+          (a.ai_analysis?.visual_analysis_available ? '<span class="qualified-label">Video analyzed</span>' : a.analyzed_at ? '<span class="qualified-label">AI analyzed</span>' : '') +
         '</div>' +
         '<div class="source-actions">' + actions + '</div>' +
       '</article>';
