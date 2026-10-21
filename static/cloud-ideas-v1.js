@@ -272,6 +272,7 @@
         (idea.first_frame ? '<h4>First frame</h4><p>' + esc(idea.first_frame) + '</p>' : '') +
         (strategy.video_concept ? '<h4>Video concept</h4><p>' + esc(strategy.video_concept) + '</p>' : '') +
         hookAdaptationHtml(strategy) + storyArcHtml(strategy) + visualRecipeHtml(strategy) + sourceAdaptationHtml(strategy) +
+        (Array.isArray(strategy.source_claims) && strategy.source_claims.length ? '<div class="source-claims-note"><strong>Claims carried from source ads</strong>' + strategy.source_claims.map(x => '<p>' + esc(typeof x === "string" ? x : (x.claim || JSON.stringify(x))) + '</p>').join("") + '<small>Creative research notes — check before launch.</small></div>' : '') +
         '<button class="button secondary mini" data-copy-pack="' + esc(idea.id) + '">Copy creative brief</button>';
       const primary = '<p class="primary-copy">' + esc(strategy.primary_text || 'No primary text generated yet.') + '</p>' +
         (strategy.headline ? '<h4>Headline</h4><p>' + esc(strategy.headline) + '</p>' : '') +
