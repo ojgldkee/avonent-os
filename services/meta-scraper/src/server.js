@@ -242,7 +242,17 @@ function normalizeCard(card) {
 
   const lines = text.split("\n").map(x => x.trim()).filter(Boolean);
   const sponsoredIndex = lines.findIndex(x => /^Sponsored$/i.test(x) || /^Sponsored\b/i.test(x));
-  const advertiser = sponsoredIndex > 0 ? lines[sponsoredIndex - 1] : "";
+  let advertiser = sponsoredIndex > 0 ? lines[sponsoredIndex - 1] : "";
+  if (!advertiser) {
+    const pageLink = (card.link_meta || []).find(item => {
+      try {
+        const u = new URL(item.href);
+        const h = u.hostname.replace(/^www\./,"").toLowerCase();
+        return h === "facebook.com" && !/\/ads\/library/i.test(u.pathname) && String(item.text || "").trim().length > 1;
+      } catch { return false; }
+    });
+    advertiser = String(pageLink?.text || "").trim();
+  }
 
   const excluded = /^(Active|Inactive|Library ID:|Started running on|Platforms|Open Dropdown|See ad details|Sponsored|Multiple versions|This ad has multiple versions)/i;
   const textCandidates = lines.filter(line => {
@@ -253,7 +263,7 @@ function normalizeCard(card) {
   });
 
   // Primary text is usually the longest meaningful copy line/block in the visible card.
-  const primaryText = primaryCopy(text);
+  const primaryText = primaryCopy(text) || textCandidates.sort((a,b) => b.length-a.length)[0] || "";
 
   const sourceUrl = card.links.find(x => /facebook\.com\/ads\/library\/.+id=/i.test(x)) ||
     "https://www.facebook.com/ads/library/?id=" + card.ad_archive_id;
@@ -307,38 +317,70 @@ function normalizeCard(card) {
 async function extractVisibleCards(page, limit = 300) {
   const raw = await page.evaluate((maxVisible) => {
     const compact = s => String(s || "").replace(/\u00a0/g, " ").replace(/[ \t]+/g, " ").trim();
-    const all = Array.from(document.querySelectorAll("div, article"));
-    const idNodes = all.filter(el => /Library ID:\s*\d{5,30}/i.test(el.innerText || "") && !Array.from(el.children).some(child => /Library ID:\s*\d{5,30}/i.test(child.innerText || "")));
     const candidates = [];
     const seen = new Set();
+    const seeds = [];
 
-    for (const node of idNodes) {
-      const match = (node.innerText || "").match(/Library ID:\s*(\d{5,30})/i);
-      if (!match || seen.has(match[1])) continue;
+    const pushSeed = (id, node) => {
+      const value = String(id || "").trim();
+      if (!/^\d{5,30}$/.test(value) || seen.has(value)) return;
+      seeds.push({ id:value, node });
+      seen.add(value);
+    };
 
-      let card = node;
-      for (let i = 0; i < 10 && card.parentElement; i++) {
+    // Older/current layouts expose "Library ID: 123..." as text.
+    for (const el of Array.from(document.querySelectorAll("div, article, span"))) {
+      const text = el.innerText || "";
+      const match = text.match(/Library\s+ID\s*:?\s*(\d{5,30})/i);
+      if (!match) continue;
+      const childHasSame = Array.from(el.children || []).some(child => /Library\s+ID\s*:?\s*\d{5,30}/i.test(child.innerText || ""));
+      if (!childHasSame) pushSeed(match[1], el);
+      if (seeds.length >= maxVisible) break;
+    }
+
+    // Newer layouts can omit the visible Library ID but keep the ad id in links.
+    if (seeds.length < maxVisible) {
+      const links = Array.from(document.querySelectorAll('a[href*="/ads/library/"], a[href*="facebook.com/ads/library"]'));
+      for (const a of links) {
+        let id = "";
+        try {
+          const u = new URL(a.href || "", location.href);
+          id = u.searchParams.get("id") || "";
+        } catch {}
+        if (id) pushSeed(id, a);
+        if (seeds.length >= maxVisible) break;
+      }
+    }
+
+    // Build one self-contained card around each seed without swallowing neighboring ads.
+    for (const seed of seeds) {
+      let card = seed.node;
+      for (let i = 0; i < 12 && card?.parentElement; i++) {
         const parent = card.parentElement;
         const text = parent.innerText || "";
-        const ids = new Set(Array.from(text.matchAll(/Library ID:\s*(\d{5,30})/gi), m => m[1]));
+        const textIds = Array.from(text.matchAll(/Library\s+ID\s*:?\s*(\d{5,30})/gi), m => m[1]);
+        const linkIds = Array.from(parent.querySelectorAll?.('a[href*="/ads/library/"]') || []).map(a => {
+          try { return new URL(a.href, location.href).searchParams.get("id") || ""; } catch { return ""; }
+        }).filter(x => /^\d{5,30}$/.test(x));
+        const ids = new Set([...textIds, ...linkIds]);
+        if (ids.size > 1 && !ids.has(seed.id)) break;
         if (ids.size > 1) break;
-        if (text.length > 180 && text.length < 18000 && /Sponsored/i.test(text)) {
-          card = parent;
-          if (/Started running on|Library ID:/i.test(text)) break;
-        } else {
-          card = parent;
-        }
+
+        card = parent;
+        const useful = text.length > 120 && text.length < 24000;
+        const adSignals = /Sponsored|Started running|Library\s+ID|See ad details|Active/i.test(text) || ids.has(seed.id);
+        if (useful && adSignals && (card.matches?.("article") || i >= 3)) break;
       }
 
-      const text = compact(card.innerText || "");
-      if (!text || text.length > 22000) continue;
+      const text = compact(card?.innerText || "");
+      if (!text || text.length > 26000) continue;
 
-      const link_meta = Array.from(card.querySelectorAll("a[href]"))
+      const link_meta = Array.from(card.querySelectorAll?.("a[href]") || [])
         .map(a => ({ href:a.href || "", text:(a.innerText || a.getAttribute("aria-label") || "").trim() }))
         .filter(x => x.href);
       const links = link_meta.map(x => x.href);
 
-      const image_meta = Array.from(card.querySelectorAll("img")).map(x => ({
+      const image_meta = Array.from(card.querySelectorAll?.("img") || []).map(x => ({
         src: x.currentSrc || x.src || "",
         alt: x.alt || "",
         width: x.naturalWidth || x.width || 0,
@@ -346,19 +388,13 @@ async function extractVisibleCards(page, limit = 300) {
       })).filter(x => x.src);
       const images = image_meta.map(x => x.src);
 
-      const videos = Array.from(card.querySelectorAll("video"))
-        .flatMap(v => [
-          v.currentSrc || v.src || "",
-          ...Array.from(v.querySelectorAll("source[src]")).map(s => s.src)
-        ])
+      const videos = Array.from(card.querySelectorAll?.("video") || [])
+        .flatMap(v => [v.currentSrc || v.src || "", ...Array.from(v.querySelectorAll("source[src]")).map(s => s.src)])
         .filter(Boolean);
-
-      const posters = Array.from(card.querySelectorAll("video[poster]"))
-        .map(v => v.poster || "")
-        .filter(Boolean);
+      const posters = Array.from(card.querySelectorAll?.("video[poster]") || []).map(v => v.poster || "").filter(Boolean);
 
       candidates.push({
-        ad_archive_id: match[1],
+        ad_archive_id: seed.id,
         text,
         links,
         link_meta,
@@ -367,11 +403,8 @@ async function extractVisibleCards(page, limit = 300) {
         posters,
         image_meta
       });
-
-      seen.add(match[1]);
       if (candidates.length >= maxVisible) break;
     }
-
     return candidates;
   }, limit);
 
@@ -522,7 +555,7 @@ async function scrape(input) {
       reached_end_signal: reachedEndSignal,
       sample_complete: reachedEndSignal && collected.size < maxAds,
       capture_status: ads.length ? "partial" : reachedEndSignal ? "no_results" : "parse_failed",
-      parser_version: "0.5.0",
+      parser_version: "0.6.0",
       resolved_page_id: resolvedPageId || "",
       note: reachedEndSignal
         ? "Collector reached an apparent end-of-results signal."
