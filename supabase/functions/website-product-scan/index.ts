@@ -171,6 +171,24 @@ Deno.serve(async(req)=>{
 
     if(!products.length)return reply(502,{error:"No public product data could be discovered on "+site.hostname+".",method});
 
+    // Shopify products.json sometimes omits body_html even when the public product page
+    // exposes a useful meta/JSON-LD description. Enrich missing facts from the page.
+    for(let i=0;i<products.length;i++){
+      if(products[i]?.description)continue;
+      try{
+        const pageProduct=await scrapeProductPage(products[i].source_url);
+        if(pageProduct){
+          products[i]={
+            ...products[i],
+            description:pageProduct.description||products[i].description||"",
+            category:products[i].category||pageProduct.category||"",
+            image_url:products[i].image_url||pageProduct.image_url||"",
+            vendor:products[i].vendor||pageProduct.vendor||""
+          };
+        }
+      }catch{}
+    }
+
     let created=0,updated=0;
     for(const p of products){
       const lookup=await admin.from("products").select("*").eq("user_id",user.id).eq("source_url",p.source_url).maybeSingle();
@@ -189,6 +207,7 @@ Deno.serve(async(req)=>{
           name:p.name,
           category:p.category||lookup.data.category||"",
           brand_name:brandName||lookup.data.brand_name||"",
+          product_facts:p.description||lookup.data.product_facts||"",
           source_kind:"website",
           site_id:siteRow?.id||lookup.data.site_id||null,
           site_data:{...siteData,site_url:siteUrl},
