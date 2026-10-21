@@ -557,7 +557,7 @@
           }
         } catch (error) {
           if (error.data && error.data.setup_required) {
-            $("ideas-status").textContent = "AI setup required: add OPENAI_API_KEY in Supabase → Edge Functions → Secrets using the AI setup link.";
+            $("ideas-status").textContent = "AI connection is not configured correctly.";
           } else {
             $("ideas-status").textContent = error.message || String(error);
           }
