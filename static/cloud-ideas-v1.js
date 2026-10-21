@@ -138,6 +138,32 @@
     return ids.size;
   }
 
+  function timedBeatHtml(beat) {
+    const type = beat?.footage_type || "Not specified";
+    const provider = beat?.provider || (type === "AI_VIDEO" ? "AI provider TBD" : "camera/editor");
+    return '<div class="timed-beat">' +
+      '<strong>' + esc(beat?.time || "") + '</strong>' +
+      '<span>SAY</span><p>' + esc(beat?.say || "") + '</p>' +
+      '<span>SHOW</span><p>' + esc(beat?.show || "") + '</p>' +
+      '<span>ON-SCREEN</span><p>' + esc(beat?.on_screen_text || "") + '</p>' +
+      '<span>FOOTAGE</span><p><strong>' + esc(type) + '</strong> · ' + esc(provider) + '</p>' +
+      (beat?.animation_prompt ? '<span>AI VIDEO PROMPT</span><p>' + esc(beat.animation_prompt) + '</p>' : '') +
+    '</div>';
+  }
+
+  function sourceAdaptationHtml(strategy) {
+    const s = strategy?.source_adaptation;
+    if (!s) return "";
+    const openingLabel = s.opening_type === "spoken_transcript" ? "Actual transcribed opening" : "Observed written opening";
+    return '<section class="source-adaptation-card">' +
+      '<span class="eyebrow">SOURCE AD ADAPTATION</span>' +
+      '<p><strong>' + esc(s.advertiser_name || "Competitor") + '</strong> · Ad ' + esc(s.ad_archive_id || "") + '</p>' +
+      '<p><strong>' + openingLabel + ':</strong> ' + esc(s.observed_opening_text || "Unavailable") + '</p>' +
+      (s.observed_sequence ? '<p><strong>Source sequence:</strong> ' + esc(Array.isArray(s.observed_sequence) ? s.observed_sequence.join(" → ") : s.observed_sequence) + '</p>' : '') +
+      (s.adapted_sequence ? '<p><strong>Our adapted sequence:</strong> ' + esc(Array.isArray(s.adapted_sequence) ? s.adapted_sequence.join(" → ") : s.adapted_sequence) + '</p>' : '') +
+    '</section>';
+  }
+
   function renderHooksWorkspace(rows) {
     $("cloud-ideas-grid").innerHTML = rows.length ? rows.map((idea) => {
       const strategy = idea.strategy || {};
@@ -150,8 +176,9 @@
           '<div class="hook-library-row"><span>' + String(index + 1).padStart(2,"0") + '</span><p>' + esc(hook) + '</p><button type="button" class="copy-inline" data-copy-library-hook="' + esc(idea.id) + '" data-hook-index="' + index + '">Copy</button></div>'
         ).join("") + '</div>' +
         '<div class="hook-library-meta"><span>' + (Array.isArray(idea.source_ad_ids) ? idea.source_ad_ids.length : 0) + ' source ads</span><span>' + esc(idea.format || "Format TBD") + '</span></div>' +
+        sourceAdaptationHtml(strategy) +
         '<details class="idea-copy-pack"><summary>Connected script and video plan</summary><p>Suggested duration: ' + esc(strategy.recommended_duration_seconds || "AI to decide") + ' seconds · ' + esc(strategy.production_style || "AI to choose footage mix") + '</p>' +
-        (Array.isArray(strategy.timed_script) ? strategy.timed_script.map(beat => '<div class="timed-beat"><strong>' + esc(beat.time) + '</strong><span>SAY</span><p>' + esc(beat.say) + '</p><span>SHOW</span><p>' + esc(beat.show) + '</p><span>ON-SCREEN</span><p>' + esc(beat.on_screen_text) + '</p></div>').join("") : '<p>No timed script yet.</p>') +
+        (Array.isArray(strategy.timed_script) ? strategy.timed_script.map(timedBeatHtml).join("") : '<p>No timed script yet.</p>') +
         (strategy.video_concept ? '<p>' + esc(strategy.video_concept) + '</p>' : '') +
         '<button class="button secondary mini" type="button" data-script="' + esc(idea.id) + '">Generate production script</button></details>' +
       '</article>';
@@ -169,7 +196,7 @@
         (strategy.first_three_seconds ? '<section class="script-opening"><span>First 3 seconds</span><div class="timed-beat"><span>SAY</span><p>' + esc(strategy.first_three_seconds.say || "") + '</p><span>SHOW</span><p>' + esc(strategy.first_three_seconds.show || "") + '</p><span>ON-SCREEN</span><p>' + esc(strategy.first_three_seconds.on_screen_text || "") + '</p></div></section>' : '') +
         (idea.ai_script
           ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre><div class="idea-inline-actions"><button class="button secondary mini" type="button" data-copy-script="' + esc(idea.id) + '">Copy script</button><button class="button secondary mini" type="button" data-script="' + esc(idea.id) + '">Regenerate</button></div>'
-          : '<div class="timed-script">' + timed.map(beat => '<div class="timed-beat"><strong>' + esc(beat.time || "") + '</strong><span>SAY</span><p>' + esc(beat.say || "") + '</p><span>SHOW</span><p>' + esc(beat.show || "") + '</p><span>ON-SCREEN</span><p>' + esc(beat.on_screen_text || "") + '</p></div>').join("") + '</div><button class="button" type="button" data-script="' + esc(idea.id) + '">Generate final AI script</button>') +
+          : sourceAdaptationHtml(strategy) + '<div class="timed-script">' + timed.map(timedBeatHtml).join("") + '</div><button class="button" type="button" data-script="' + esc(idea.id) + '">Generate final AI script</button>') +
       '</article>';
     }).join("") : '<div class="empty wide">No scripts in this view yet. Generate concepts first, then open Scripts.</div>';
   }
@@ -224,8 +251,9 @@
         (strategy.headline ? '<h4>Headline</h4><p>' + esc(strategy.headline) + '</p>' : '') +
         (strategy.description ? '<h4>Description</h4><p>' + esc(strategy.description) + '</p>' : '') +
         (strategy.video_concept ? '<h4>Video concept</h4><p>' + esc(strategy.video_concept) + '</p>' : '') +
+        sourceAdaptationHtml(strategy) +
         (Array.isArray(strategy.shot_directions) && strategy.shot_directions.length ? '<h4>Shot directions</h4><ol class="strategy-list">' + strategy.shot_directions.map(x => '<li>' + esc(typeof x === "string" ? x : JSON.stringify(x)) + '</li>').join("") + '</ol>' : '') +
-        (Array.isArray(strategy.timed_script) && strategy.timed_script.length ? '<h4>Timed script</h4><div class="timed-script">' + strategy.timed_script.map(beat => '<div class="timed-beat"><strong>' + esc(beat.time || "") + '</strong><span>SAY</span><p>' + esc(beat.say || "") + '</p><span>SHOW</span><p>' + esc(beat.show || "") + '</p><span>ON-SCREEN</span><p>' + esc(beat.on_screen_text || "") + '</p></div>').join("") + '</div>' : '') +
+        (Array.isArray(strategy.timed_script) && strategy.timed_script.length ? '<h4>Timed script</h4><div class="timed-script">' + strategy.timed_script.map(timedBeatHtml).join("") + '</div>' : '') +
         (Array.isArray(strategy.source_observations) && strategy.source_observations.length ? '<h4>Observed in source ads</h4><ul class="strategy-list evidence-list">' + strategy.source_observations.map(x => '<li><strong>' + esc(x.ad_archive_id || "Source") + '</strong> · ' + esc(x.observation || "") + '</li>').join("") + '</ul>' : '') +
         (Array.isArray(strategy.ai_inferences) && strategy.ai_inferences.length ? '<h4>AI inferences</h4><ul class="strategy-list inference-list">' + strategy.ai_inferences.map(x => '<li>' + esc(typeof x === "string" ? x : JSON.stringify(x)) + '</li>').join("") + '</ul>' : '') +
         (Array.isArray(strategy.product_fact_checks) && strategy.product_fact_checks.length ? '<h4>Product-fact checks</h4><ul class="strategy-list claim-list">' + strategy.product_fact_checks.map(x => '<li><strong>' + esc(x.status || "needs_review") + '</strong> · ' + esc(x.claim || "") + (x.support ? '<br><small>' + esc(x.support) + '</small>' : '') + '</li>').join("") + '</ul>' : '') +
@@ -422,8 +450,10 @@
       ? rows.map(a => '<article class="drawer-source-ad">' +
           '<div class="drawer-source-top"><span class="pill">' + esc(a.advertiser_name || "Competitor") + '</span><div class="days-badge ' + (a.started_at ? 'qualified' : '') + '"><strong>' + (a.started_at ? Number(a.days_running || 0) : '—') + '</strong><span>' + (a.started_at ? 'days' : 'unknown') + '</span></div></div>' +
           (a.headline ? '<h3>' + esc(a.headline) + '</h3>' : '') +
-          (a.primary_text ? '<p>' + esc(a.primary_text) + '</p>' : '') +
-          (a.ai_analysis && a.ai_analysis.reusable_pattern ? '<div class="drawer-analysis"><span>AI pattern</span><p>' + esc(a.ai_analysis.reusable_pattern) + '</p></div>' : '') +
+          (a.ai_analysis?.exact_spoken_opening ? '<div class="drawer-analysis"><span>Actual transcribed opening</span><p>“' + esc(a.ai_analysis.exact_spoken_opening) + '”</p></div>' : '') +
+          (a.primary_text ? '<details><summary>Primary text</summary><p>' + esc(a.primary_text) + '</p></details>' : '') +
+          (a.video_transcript ? '<details><summary>Video transcript</summary><p>' + esc(a.video_transcript) + '</p></details>' : '') +
+          (a.ai_analysis && a.ai_analysis.reusable_pattern ? '<div class="drawer-analysis"><span>Reusable structure</span><p>' + esc(a.ai_analysis.reusable_pattern) + '</p></div>' : '') +
           '<div class="source-actions">' + (a.source_url ? '<a class="button secondary mini" target="_blank" rel="noopener" href="' + esc(a.source_url) + '">Open Meta</a>' : '') + '</div>' +
         '</article>').join("")
       : '<div class="empty">No source-ad rows are available for this idea.</div>';
@@ -470,6 +500,7 @@
         video_concept: idea.strategy?.video_concept || "",
         shot_directions: idea.strategy?.shot_directions || [],
         timed_script: idea.strategy?.timed_script || [],
+        source_adaptation: idea.strategy?.source_adaptation || null,
         source_observations: idea.strategy?.source_observations || [],
         ai_inferences: idea.strategy?.ai_inferences || [],
         product_fact_checks: idea.strategy?.product_fact_checks || [],
@@ -480,7 +511,7 @@
     const script = result.result?.script;
     const scriptText = result.text || (script ? [
       script.title, "Duration: " + (script.recommended_duration_seconds || "—") + " seconds",
-      ...(Array.isArray(script.beats) ? script.beats.map(b => [b.time, "SAY: " + (b.say || ""), "SHOW: " + (b.show || ""), "ON SCREEN: " + (b.on_screen_text || "")].join("\n")) : []),
+      ...(Array.isArray(script.beats) ? script.beats.map(b => [b.time, "SAY: " + (b.say || ""), "SHOW: " + (b.show || ""), "ON SCREEN: " + (b.on_screen_text || ""), "FOOTAGE: " + (b.footage_type || "") + " · " + (b.provider || b.video_model || "camera/editor"), ...(b.animation_prompt ? ["AI VIDEO PROMPT: " + b.animation_prompt] : [])].join("\n")) : []),
       "CTA: " + (script.cta || ""), "Alternative openings: " + JSON.stringify(script.three_alt_openings || []),
       "Observed evidence: " + JSON.stringify(script.source_observations || []),
       "AI inferences: " + JSON.stringify(script.ai_inferences || []),
