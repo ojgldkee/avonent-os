@@ -161,7 +161,7 @@ function facebookSearchQuery(pageUrl, brandName) {
   }
 }
 
-async function fetchMetaSearch(brand, query) {
+async function fetchMetaSearch(brand, query, options = {}) {
   const response = await fetch(SCRAPER_URL + "/v1/meta/search", {
     method: "POST",
     headers: {
@@ -170,9 +170,9 @@ async function fetchMetaSearch(brand, query) {
     },
     body: JSON.stringify({
       query: query || brand.competitor_name,
-      page_id: brand.meta_page_id || "",
-      page_url: brand.facebook_page_url || "",
-      url: brand.ad_library_url || "",
+      page_id: options.keywordOnly ? "" : (brand.meta_page_id || ""),
+      page_url: options.keywordOnly ? "" : (brand.facebook_page_url || ""),
+      url: options.keywordOnly ? "" : (brand.ad_library_url || ""),
       country: "US",
       active_status: "active",
       max_ads: 500,
@@ -198,6 +198,24 @@ async function collectBrand(brand) {
 
   let result = await fetchMetaSearch(brand, brand.competitor_name);
   let sourceAds = Array.isArray(result.ads) ? result.ads : [];
+
+  // If a configured page scan exposes no cards, retry a public keyword search.
+  // Keep only ads that still match the configured page, advertiser name, or store domain.
+  if (!sourceAds.length && (brand.meta_page_id || brand.ad_library_url)) {
+    console.log("[" + brand.competitor_name + "] direct page scan returned no cards; retrying keyword discovery");
+    const keyword = await fetchMetaSearch(brand, brand.competitor_name, { keywordOnly:true }).catch(() => null);
+    const discovered = Array.isArray(keyword?.ads) ? keyword.ads : [];
+    const matched = discovered.filter(ad =>
+      (brand.meta_page_id && String(ad.advertiser_page_id || "") === String(brand.meta_page_id)) ||
+      normalizeAdvertiser(ad.advertiser_name) === normalizeAdvertiser(brand.competitor_name) ||
+      (brand.website_url && sameStore(externalWebsite(ad.landing_url || ""), brand.website_url))
+    );
+    if (matched.length) {
+      sourceAds = matched;
+      result = {...keyword, ads:matched};
+      console.log("[" + brand.competitor_name + "] keyword fallback matched " + matched.length + " ad(s)");
+    }
+  }
 
   if (!brand.meta_page_id && result.resolved_page_id) {
     const resolvedId = String(result.resolved_page_id);
@@ -344,8 +362,34 @@ async function collectBrand(brand) {
   }
 
   const rows = Array.from(seen.values());
-  if (!rows.length && !result.reached_end_signal) throw new Error("No ads captured; the page may be blocked or its format may have changed.");
-  if (rows.length) await upsertAds(rows);
+  if (!rows.length) {
+    const now = new Date().toISOString();
+    if (result.reached_end_signal || result.capture_status === "no_results") {
+      await updateBrand(brand.id, {
+        last_scanned_at:now,
+        last_scan_status:"completed",
+        last_scan_ads:0,
+        last_scan_long_running:0,
+        last_scan_complete:true,
+        last_scan_message:"No active ads were found for this advertiser in the current Meta Ad Library view.",
+        scan_request_status:"",
+        scan_requested_at:null
+      });
+      console.log("[" + brand.competitor_name + "] no active ads found");
+      return;
+    }
+
+    await updateBrand(brand.id, {
+      last_scan_status:"queued",
+      last_scan_message:"Meta did not expose ad cards on this pass. Avonent will retry automatically.",
+      last_scan_complete:false,
+      scan_request_status:"queued",
+      scan_requested_at:now
+    });
+    console.log("[" + brand.competitor_name + "] no cards captured; queued automatic retry");
+    return;
+  }
+  await upsertAds(rows);
 
   const logo = rows.map(x => x.advertiser_logo_url).find(Boolean) || brand.logo_url || "";
   const site = rows.map(x => externalWebsite(x.landing_url)).find(Boolean) || brand.website_url || "";
