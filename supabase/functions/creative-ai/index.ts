@@ -105,7 +105,7 @@ function openingFromText(value:string){
 }
 
 function normalizeClaimText(value:any){
-  return String(value||"").toLowerCase().replace(/[’']/g,"'").replace(/\s+/g," ").trim();
+  return String(value||"").toLowerCase().replace(/[’']/g,"'").replace(/[-–—]+/g," ").replace(/\s+/g," ").trim();
 }
 function creativeClaimCorpus(task:string,result:any){
   const x=task==="script"?result?.script:task==="idea"?result?.idea:result?.ideas;
@@ -114,8 +114,10 @@ function creativeClaimCorpus(task:string,result:any){
   const beats=task==="script"?x.beats:x.timed_script;
   return normalizeClaimText([
     x.title,x.hook,...(Array.isArray(x.hooks)?x.hooks:[]),x.primary_text,x.headline,x.description,
-    x.cta,x.proof_to_show,x.execution,x.video_concept,
-    ...(Array.isArray(beats)?beats.flatMap((b:any)=>[b?.say,b?.on_screen_text]):[])
+    x.cta,x.proof_to_show,x.execution,x.video_concept,x.first_frame,
+    x.first_three_seconds?.say,x.first_three_seconds?.show,x.first_three_seconds?.on_screen_text,
+    ...(Array.isArray(x.shot_directions)?x.shot_directions.map((d:any)=>typeof d==="string"?d:JSON.stringify(d)):[]),
+    ...(Array.isArray(beats)?beats.flatMap((b:any)=>[b?.say,b?.show,b?.on_screen_text]):[])
   ].filter(Boolean).join(" "));
 }
 function verifiedFactCorpus(product:any){
@@ -138,13 +140,18 @@ function validateProductClaims(task:string,result:any,product:any){
     "immunity","immune","detox","weight loss","blood sugar","cholesterol","inflammation","brain fog",
     "focus","clarity","endurance","absorption","cellular","replenish","bioavailability","potency",
     "nutrient-rich","nutrient rich","grown in","sustainably sourced","harvested","parasite","parasites",
-    "filler","knockoff","fake product","scam","crash","jitter"
+    "filler","knockoff","fake product","scam","crash","jitter","reset","vitality","well being",
+    "supports","support energy","boost energy","boosts energy","improve digestion","improves digestion",
+    "feel the difference","nutrient deficit","nutrient depletion","steady energy","natural energy",
+    "two capsules","two softgels","two soft gels"
   ];
   const unsupported=risky.filter(term=>output.includes(term)&&!facts.includes(term));
   const statMatches=output.match(/\b\d+(?:\.\d+)?\s*(?:%|percent|out of\s+\d+)\b/g)||[];
   for(const stat of statMatches)if(!facts.includes(stat))unsupported.push(stat);
-  const timeMatches=output.match(/\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|twelve|twenty[- ]?four|forty[- ]?eight|seventy[- ]?two)\s*(?:hour|hours|day|days|week|weeks)\b/g)||[];
+  const timeMatches=output.match(/\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|twelve|twenty four|forty eight|seventy two)\s*(?:hour|hours|day|days|week|weeks)\b/g)||[];
   for(const span of timeMatches)if(!facts.includes(span))unsupported.push(span);
+  const dosageMatches=output.match(/\b(?:take|taking|use|using)\s+(?:one|two|three|four|\d+)\s+(?:capsule|capsules|softgel|softgels|soft gel|soft gels)\b/g)||[];
+  for(const dose of dosageMatches)if(!facts.includes(dose))unsupported.push(dose);
   const unique=[...new Set(unsupported)];
   if(unique.length)throw new Error("AI output validation failed: unsupported product claims detected: "+unique.slice(0,8).join(", "));
   return result;
