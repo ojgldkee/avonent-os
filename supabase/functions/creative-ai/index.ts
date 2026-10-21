@@ -76,6 +76,12 @@ PRODUCTION CONTRACT:
 - VISUAL SPECIFICITY IS REQUIRED. Do not say only "AI animation" or "UGC." State what it looks like: e.g. real iPhone UGC in a parked car, photoreal AI spokesperson, stop-motion claymation, glossy 3D product macro, paper-cut collage, cinematic AI reenactment, medical-style explanatory animation, screen-recording, or practical B-roll.
 - For AI_PERSON scenes, recommend Higgsfield + Kling 3.0 Pro by default unless another model better fits. For stylized/high-motion AI_VIDEO, Seedance 2.5 is a strong default. For character animation, Hailuo may be used. Always name provider + model and give a paste-ready prompt.
 - The model must NOT make up evidence of video analysis, transcript, scene-by-scene observation, or success metrics.
+FEEDBACK LOOP:
+- creative_feedback contains the user's real usage/winner/loser history when available.
+- Prefer patterns similar to items marked winner. Avoid repeating patterns marked loser.
+- "used" means the user chose that hook/script for production; treat it as positive taste signal, but weaker than "winner".
+- Do not simply repeat a previous used hook. Learn the structural preference and apply it to a different source ad.
+
 Return one valid JSON object only, no markdown.`;
 
 const IDEA_PROMPT=BASE+`
@@ -474,7 +480,20 @@ Deno.serve(async(req)=>{
       : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3.8-27b");
 
     const prompt=task==="script"?SCRIPT_PROMPT:task==="idea"?ONE_IDEA_PROMPT:IDEA_PROMPT;
+    let creativeFeedback:any[]=[];
+    if(product?.id){
+      let fq=admin.from("creative_usage_events")
+        .select("asset_kind,action,content_snapshot,performance,notes,created_at")
+        .eq("product_id",product.id)
+        .order("created_at",{ascending:false})
+        .limit(40);
+      if(auth.userId)fq=fq.eq("user_id",auth.userId);
+      const feedback=await fq;
+      if(!feedback.error)creativeFeedback=feedback.data||[];
+    }
+
     const input={
+      creative_feedback:creativeFeedback,
       product:{
         id:product.id||"",
         brand_name:product.brand_name||"",
