@@ -264,14 +264,19 @@ body[data-page="research"] .research-automation-panel{width:100%;max-width:100%}
 
 
 /* Compact Ideas workspace */
-.ideas-workspace-tabs{position:static;display:flex;gap:4px}
-.ideas-workspace-tabs button{flex:1;min-width:0;padding:12px 8px;font-size:13px}
-.ideas-main .cloud-idea-card{gap:12px;padding:16px}
-.idea-copy-pack{margin-top:10px}
-.idea-copy-pack summary{min-height:24px;line-height:1.5}
-.idea-copy-pack:not([open]){padding:13px 16px}
-.preserve-lines{white-space:pre-wrap}
-.idea-inline-actions,.hook-row-actions{display:flex;flex-wrap:wrap;gap:10px}
-.idea-copy-pack .final-script-pre{font:inherit;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
-.ideas-main .timed-beat{grid-template-columns: minmax(85px,auto) minmax(0,1fr)}
-@media(max-width:600px){.ideas-main .timed-beat{display:block;padding:14px}.ideas-main .timed-beat>strong{display:block;margin-bottom:12px}.ideas-main .timed-beat>span{display:block;margin:14px 0 4px;font-size:10px}.ideas-main .timed-beat>p{margin:0}.idea-section-head{flex-wrap:wrap;gap:8px}.ideas-main .idea-hook-block p{font-size:18px}.hook-row-actions button{min-height:40px}}
+.ideas-main .ideas-workspace-tabs{position:static;display:flex;gap:4px;padding:5px;grid-template-columns:repeat(3,minmax(0,1fr))}
+.ideas-main .ideas-workspace-tabs button{flex:1;min-width:0;padding:12px 6px;font-size:13px}
+.ideas-main .cloud-idea-card{gap:12px;padding:18px}
+.ideas-main .idea-copy-pack{margin:0;padding:0;border-radius:12px}
+.ideas-main .idea-copy-pack summary{padding:16px;min-height:48px}
+.ideas-main .idea-fold-body{padding:0 16px 16px;overflow-wrap:anywhere}
+.ideas-main .idea-fold-body p,.ideas-main .primary-copy{white-space:pre-wrap}
+.ideas-main .idea-inline-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px}
+.ideas-main .copy-inline{min-height:40px}
+.ideas-main .idea-hook-block{padding:14px;margin:0}
+.ideas-main .idea-hook-block p{font-size:16px;line-height:1.55;margin:8px 0}
+.ideas-main .cloud-idea-card h2{font-size:21px}
+.ideas-main .timed-beat{grid-template-columns:1fr;gap:5px;padding:12px}
+.ideas-main .timed-beat p{margin:0 0 12px}
+.ideas-main .timed-beat>span{font-size:11px;overflow-wrap:normal;word-break:normal}
+.ideas-main .final-script-pre{white-space:pre-wrap;font:inherit;line-height:1.6;overflow-wrap:anywhere}
