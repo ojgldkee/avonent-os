@@ -415,7 +415,10 @@
     const keyword = ($("keyword-filter")?.value || "").trim().toLowerCase();
     const sort = $("sort-filter")?.value || "newest";
 
-    let rows = ads.filter(a => a.is_active);
+    let rows = ads.filter(a => a.is_active && !(
+      isMetaGroupSummaryText(a.primary_text) &&
+      !a.media_url && !a.media_thumbnail_url && !a.headline && !a.landing_url
+    ));
     if (brand !== "all") rows = rows.filter(a => a.competitor_id === brand);
     if (media !== "all") rows = rows.filter(a => mediaKind(a) === media);
     if (age === "unknown") rows = rows.filter(a => adAge(a) === null);
@@ -526,7 +529,7 @@
         '<div class="source-ad-top">' + avatar + '<div><span class="pill">' + esc(a.advertiser_name || "Tracked brand") + '</span><h3>Ad ' + esc(a.ad_archive_id || "") + '</h3></div>' +
         '<div class="source-score-stack"><div class="research-score" title="Research usefulness heuristic — not ad performance"><strong>' + researchScore + '</strong><span>research</span></div>' +
         '<div class="days-badge ' + (qualifies(a) ? 'qualified' : '') + '"><strong>' + (ageDays === null ? '—' : ageDays) + '</strong><span>' + (ageDays === null ? 'unknown' : 'days') + '</span></div></div></div>' +
-        '<div class="source-rank-line"><span>Sample rank #' + (researchRank.rank || '—') + ' of ' + researchRank.total + (creativeUses > 1 ? ' · creative repeated ' + creativeUses + '×' : '') + '</span><span>' + (aiScore ? 'AI copy score ' + aiScore + '/100 · ' : '') + 'Research score · not profitability</span></div>' +
+        '<div class="source-rank-line"><span>Sample rank #' + (researchRank.rank || '—') + ' of ' + researchRank.total + (creativeUses > 1 ? ' · creative repeated ' + creativeUses + '×' : '') + '</span><span>' + (aiScore ? 'AI copy score ' + aiScore + '/100 · ' : '') + 'Research signal · not performance</span></div>' +
         '<details class="score-breakdown"><summary>Why this research signal is ' + researchScore + '/100</summary><p class="score-explainer">This is a heuristic for research usefulness, not a prediction of sales or ROAS. Points come only from the evidence below.</p><div><span>Longevity <b>' + scoreParts.longevity + '/40</b></span><span>Creative repetition <b>' + scoreParts.repetition + '/20</b></span><span>Primary copy captured <b>' + scoreParts.copy + '/10</b></span><span>Media captured <b>' + scoreParts.media + '/10</b></span><span>Headline captured <b>' + scoreParts.headline + '/5</b></span><span>Landing page captured <b>' + scoreParts.destination + '/5</b></span><span>CTA captured <b>' + scoreParts.cta + '/5</b></span><span>Still active <b>' + scoreParts.active + '/5</b></span></div></details>' +
         mediaHtml + (adKind === "video" && !poster ? '<p class="helper">Preview unavailable · press play to view video.</p>' : '') + transcriptBlock + analysisBlock + headline + primary +
         '<div class="source-meta"><span>' + (a.started_at ? 'Started ' + esc(new Date(a.started_at + 'T00:00:00Z').toLocaleDateString(undefined, {month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})) : 'Start date unavailable') + '</span>' +
