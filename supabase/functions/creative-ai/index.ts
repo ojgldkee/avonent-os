@@ -219,6 +219,7 @@ This is NOT a generic rewrite. Keep the exact source-ad creative architecture al
 - CTA position
 
 The final script must feel like the same creative FORMAT rebuilt for the user's brand. Preserve the useful source claims/mechanisms in the draft when they drive the ad, while labeling them as source-derived/unverified rather than silently treating them as proven facts.
+If selected_idea.hook_adaptation.copy_mode="verbatim_short_source_hook", the script MUST begin with selected_idea.hook exactly, word-for-word. Do not paraphrase, soften, swap characters, or replace the opening scenario. The first beat SAY must start with that exact short hook before continuing into original script material.
 
 Return:
 {"script":{
@@ -791,6 +792,9 @@ Deno.serve(async(req)=>{
       result.idea.hook_adaptation.adapted_hook=firstHook;
       if(primaryExact&&result.idea.first_three_seconds&&typeof result.idea.first_three_seconds==="object"){
         result.idea.first_three_seconds.say=primaryExact;
+      }
+      if(primaryExact&&Array.isArray(result.idea.timed_script)&&result.idea.timed_script.length){
+        result.idea.timed_script[0].say=primaryExact;
       }
       result.idea.source_ad_ids=Array.from(new Set([
         String(primary.ad_archive_id||""),
