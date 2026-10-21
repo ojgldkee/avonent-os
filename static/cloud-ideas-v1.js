@@ -257,6 +257,26 @@
     return [0.5, 2.5];
   }
 
+  function staticPlanHtml(strategy) {
+    const s = strategy?.static_concept || {};
+    const ratios = Array.isArray(s.aspect_ratios) ? s.aspect_ratios.filter(Boolean) : [];
+    return '<section class="production-plan static-production-plan">' +
+      '<div class="production-plan-head"><div><span class="eyebrow">STATIC PRODUCTION PLAN</span><strong>How to build this image ad</strong></div><span class="production-estimate-note">image creative</span></div>' +
+      '<div class="static-plan-grid">' +
+        (s.headline_text ? '<div><span>Headline</span><p>' + esc(s.headline_text) + '</p></div>' : '') +
+        (s.subhead ? '<div><span>Subhead</span><p>' + esc(s.subhead) + '</p></div>' : '') +
+        (s.offer_badge ? '<div><span>Offer badge</span><p>' + esc(s.offer_badge) + '</p></div>' : '') +
+        (s.product_placement ? '<div><span>Product placement</span><p>' + esc(s.product_placement) + '</p></div>' : '') +
+        (s.visual_hierarchy ? '<div><span>Visual hierarchy</span><p>' + esc(s.visual_hierarchy) + '</p></div>' : '') +
+        (s.background ? '<div><span>Background / art direction</span><p>' + esc(s.background) + '</p></div>' : '') +
+        (s.seasonal_theme ? '<div><span>Seasonal angle</span><p>' + esc(s.seasonal_theme) + '</p></div>' : '') +
+      '</div>' +
+      (ratios.length ? '<div class="production-tools"><span>Sizes</span>' + ratios.map(x => '<b>' + esc(x) + '</b>').join("") + '</div>' : '') +
+      (s.image_prompt ? '<div class="static-image-prompt"><span>IMAGE PROMPT</span><p>' + esc(s.image_prompt) + '</p></div>' : '') +
+      (Array.isArray(s.design_notes) && s.design_notes.length ? '<div class="static-design-notes"><span>DESIGN NOTES</span>' + s.design_notes.map(x => '<p>• ' + esc(x) + '</p>').join("") + '</div>' : '') +
+    '</section>';
+  }
+
   function productionPlanHtml(strategy, timed) {
     const duration = scriptDurationSeconds(strategy, timed);
     const aiBeats = timed.filter(beat => /^AI_/i.test(String(beat?.footage_type || "")) || /kling|seedance|hailuo|minimax|higgsfield/i.test(String([beat?.provider,beat?.video_model].filter(Boolean).join(" "))));
@@ -310,6 +330,29 @@
     return '<details class="idea-copy-pack" name="idea-content"><summary>' + title + '</summary><div class="idea-fold-body">' + body + '</div></details>';
   }
 
+  function feedbackHtml(idea) {
+    const reasons = [
+      ["love_hook","Love the hook"],
+      ["good_source_match","Good source match"],
+      ["bad_hook","Bad hook"],
+      ["too_generic","Too generic"],
+      ["wrong_product","Wrong product"],
+      ["source_too_different","Too different from source"],
+      ["bad_story","Bad story"],
+      ["bad_visual","Bad visual"],
+      ["too_long","Too long"],
+      ["too_expensive","Too expensive to make"],
+      ["prefer_static","Should be static"],
+      ["prefer_video","Should be video"]
+    ];
+    return '<div class="feedback-panel" data-feedback-panel="' + esc(idea.id) + '">' +
+      '<p class="helper">Tell Avonent what you like or dislike. Saving feedback does not call the AI; it is stored and read on future generations.</p>' +
+      '<div class="feedback-chips">' + reasons.map(([key,label]) => '<button type="button" class="feedback-chip" data-feedback-reason="' + key + '" aria-pressed="false">' + esc(label) + '</button>').join("") + '</div>' +
+      '<textarea class="feedback-note" data-feedback-note rows="3" maxlength="700" placeholder="Optional: tell Avonent exactly what was wrong or what you want more of."></textarea>' +
+      '<div class="idea-inline-actions"><button type="button" class="button secondary mini" data-save-feedback="' + esc(idea.id) + '">Save feedback</button></div>' +
+    '</div>';
+  }
+
   function render() {
     $("ideas-today-count").textContent = String(ideas.filter(i => i.generated_for_date === today()).length);
     $("ideas-used-count").textContent = String(ideas.filter(i => i.lifecycle_status === "used").length);
@@ -327,9 +370,12 @@
           '<div class="idea-hook-body"><p>' + esc(hook) + '</p><div class="idea-inline-actions"><button class="copy-inline" data-copy-library-hook="' + esc(idea.id) + '" data-hook-index="' + n + '">Copy</button>' + assetButton(idea,"hook",n) + '<button class="copy-inline" data-use-hook="' + esc(idea.id) + '" data-hook-index="' + n + '" aria-pressed="' + !!usageFor(idea.id,"hook",n) + '">' + (usageFor(idea.id,"hook",n) ? 'Used ✓ · Undo' : 'Use hook') + '</button></div></div>' +
         '</details>').join("") + '</div>';
       const timed = Array.isArray(strategy.timed_script) ? strategy.timed_script : [];
-      const script = productionPlanHtml(strategy, timed) +
-        (idea.ai_script ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre>' : timed.length ? '<div class="timed-script">' + timed.map(timedBeatHtml).join("") + '</div>' : '<p>Generate a complete 60–90 second production script.</p>') +
-        '<div class="idea-inline-actions">' + assetButton(idea,"script") + '<button class="copy-inline" data-copy-script="' + esc(idea.id) + '">Copy script</button><button class="copy-inline" data-use-script="' + esc(idea.id) + '">' + (usageFor(idea.id,"script") ? 'Used ✓ · Undo' : 'Use script') + '</button><button class="button secondary mini" data-script="' + esc(idea.id) + '">' + (idea.ai_script || timed.length ? 'Regenerate production script' : 'Generate production script') + '</button></div>';
+      const isStatic = String(strategy.creative_type || idea.format || "").toUpperCase().includes("STATIC") || !!strategy.static_concept;
+      const script = isStatic
+        ? staticPlanHtml(strategy)
+        : productionPlanHtml(strategy, timed) +
+          (idea.ai_script ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre>' : timed.length ? '<div class="timed-script">' + timed.map(timedBeatHtml).join("") + '</div>' : '<p>Generate a complete 60–90 second production script.</p>') +
+          '<div class="idea-inline-actions">' + assetButton(idea,"script") + '<button class="copy-inline" data-copy-script="' + esc(idea.id) + '">Copy script</button><button class="copy-inline" data-use-script="' + esc(idea.id) + '">' + (usageFor(idea.id,"script") ? 'Used ✓ · Undo' : 'Use script') + '</button><button class="button secondary mini" data-script="' + esc(idea.id) + '">' + (idea.ai_script || timed.length ? 'Regenerate production script' : 'Generate production script') + '</button></div>';
       const brief = (strategy.audience ? '<h4>Audience</h4><p>' + esc(strategy.audience) + '</p>' : '') +
         (idea.angle ? '<h4>Angle</h4><p>' + esc(idea.angle) + '</p>' : '') +
         (idea.first_frame ? '<h4>First frame</h4><p>' + esc(idea.first_frame) + '</p>' : '') +
@@ -343,7 +389,7 @@
         (idea.cta ? '<h4>CTA</h4><p>' + esc(idea.cta) + '</p>' : '') +
         '<button class="button secondary mini" data-copy-primary="' + esc(idea.id) + '">Copy primary text</button>';
       return '<article class="cloud-idea-card" data-idea="' + esc(idea.id) + '"><div class="idea-card-top"><div><span class="idea-number">' + esc(idea.format || 'CONCEPT') + '</span><h2>' + esc(idea.title || idea.angle || 'Ad idea') + '</h2></div></div>' + hookHtml +
-        fold('Script · production plan',script) + fold('Full creative brief',brief) + fold('Primary text',primary) +
+        fold(isStatic ? 'Static · production plan' : 'Script · production plan',script) + fold('Full creative brief',brief) + fold('Primary text',primary) + fold('Feedback',feedbackHtml(idea)) +
         '<div class="idea-decision-row"><button class="decision-button" data-approve="' + esc(idea.id) + '">' + (savedPack ? 'Saved pack ✓ · Unsave' : 'Save whole pack') + '</button><button class="decision-button" data-reject="' + esc(idea.id) + '">' + (idea.status === 'Rejected' ? 'Not for me ✓ · Undo' : 'Not for me') + '</button><button class="decision-button" data-archive="' + esc(idea.id) + '">' + (idea.lifecycle_status === 'archived' ? 'Restore' : 'Archive') + '</button><button class="source-link" data-sources="' + esc(idea.id) + '">Source ads</button></div>' +
         (idea.lifecycle_status === 'used'
           ? '<div class="idea-performance-row"><span class="helper">How did it perform?</span><button class="copy-inline" data-outcome="winner" data-outcome-id="' + esc(idea.id) + '">Winner</button><button class="copy-inline" data-outcome="loser" data-outcome-id="' + esc(idea.id) + '">Loser</button><button class="copy-inline" data-results="' + esc(idea.id) + '">Add results</button>' + (outcomeFor(idea.id) ? '<span class="pill">' + esc(outcomeFor(idea.id).action) + '</span>' : '') + '</div>'
@@ -647,6 +693,30 @@
     await loadData();
   }
 
+  async function saveFeedback(idea, panel) {
+    const selected = [...panel.querySelectorAll("[data-feedback-reason][aria-pressed='true']")].map(btn => btn.dataset.feedbackReason);
+    const note = String(panel.querySelector("[data-feedback-note]")?.value || "").trim();
+    if (!selected.length && !note) throw new Error("Choose at least one feedback reason or add a note.");
+    const payload = {reasons:selected,note};
+    const insert = await db.from("creative_usage_events").insert({
+      user_id: session.user.id,
+      product_id: idea.product_id,
+      idea_id: idea.id,
+      asset_kind: "concept",
+      action: "feedback",
+      content_snapshot: idea.title || idea.hook || "",
+      notes: JSON.stringify(payload)
+    });
+    if (insert.error) throw insert.error;
+    const update = await db.from("ai_ideas").update({
+      last_feedback_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }).eq("id",idea.id);
+    if (update.error) throw update.error;
+    $("ideas-status").textContent = "Feedback saved. Avonent will read it the next time it generates creative.";
+    await loadData();
+  }
+
   async function recordUsage(idea, kind, content, index=null) {
     const now = new Date().toISOString();
     const existing = usageEvents.find(e => e.idea_id === idea.id && e.asset_kind === kind && (index == null || Number(e.asset_index) === Number(index)) && e.action === "used");
@@ -919,8 +989,24 @@
         const scriptId = event.target.getAttribute("data-script");
         const hookId = event.target.getAttribute("data-copy-hook");
         const copyScriptId = event.target.getAttribute("data-copy-script");
+        const feedbackReason = event.target.getAttribute("data-feedback-reason");
+        const feedbackId = event.target.getAttribute("data-save-feedback");
 
         try {
+          if (feedbackReason) {
+            const pressed = event.target.getAttribute("aria-pressed") === "true";
+            event.target.setAttribute("aria-pressed", String(!pressed));
+            event.target.classList.toggle("selected", !pressed);
+            return;
+          }
+          if (feedbackId) {
+            const idea = ideas.find(i => i.id === feedbackId);
+            const panel = event.target.closest("[data-feedback-panel]");
+            if (idea && panel) {
+              event.target.disabled = true;
+              try { return await saveFeedback(idea,panel); } finally { event.target.disabled = false; }
+            }
+          }
           if (useHookId) {
             const idea = ideas.find(i => i.id === useHookId);
             if (!idea) return;
