@@ -41,7 +41,7 @@ Always output one valid JSON object, with no markdown fences.`;
 
 const IDEA_PROMPT=BASE+`
 Generate exactly 5 materially different original advertising concepts, ranked strongest first.
-Each idea must include: title, audience, angle, format, hook, hooks (exactly 4 varied strings), first_frame,
+Each idea must include: title, audience, angle, format, hook, hooks (exactly 4 materially different hook variations), first_frame,
 first_three_seconds ({say,show,on_screen_text}), primary_text (complete ad copy), headline, description, cta,
 video_concept, recommended_duration_seconds (number), production_style (string), shot_directions (array),
 timed_script (array of {time,say,show,on_screen_text}), proof_to_show, execution, why_test, hypothesis,
@@ -67,7 +67,7 @@ Generate ONE original, production-ready advertising concept. The request include
 5 = offer / comparison / decision trigger
 Do not repeat generic angles.
 Return JSON {"idea":{title,audience,angle,format,hook,hooks,first_frame,first_three_seconds,primary_text,headline,description,cta,video_concept,recommended_duration_seconds,production_style,shot_directions,timed_script,proof_to_show,execution,why_test,hypothesis,inspiration,source_ad_ids,source_observations,ai_inferences,product_fact_checks,unsupported_claim_checks,animation_prompts,scores,overall_score,risk}}.
-hooks must contain exactly 4 varied strings. timed_script must cover the full recommended duration through CTA. Keep the response tight and production-ready rather than verbose. Use only supplied source IDs.
+hooks must contain exactly 4 materially different hook variations. timed_script must cover the full recommended duration through CTA. Keep the response tight and production-ready rather than verbose. Use only supplied source IDs.
 `;
 
 const SCRIPT_PROMPT=BASE+`
@@ -86,7 +86,7 @@ Do not fabricate source evidence or product proof.
 function validateResult(task:string,result:any){
   if(task==="idea"){
     const idea=result?.idea;
-    if(!idea||!idea.title||!idea.hook)throw new Error("AI returned an incomplete idea.");
+    if(!idea||!idea.title||!idea.hook)throw new Error("AI output validation failed: incomplete idea.");
     if(!Array.isArray(idea.hooks))idea.hooks=[idea.hook];
     if(!Array.isArray(idea.source_ad_ids))idea.source_ad_ids=[];
     if(!Array.isArray(idea.shot_directions))idea.shot_directions=[];
@@ -97,7 +97,7 @@ function validateResult(task:string,result:any){
     if(!Array.isArray(idea.unsupported_claim_checks))idea.unsupported_claim_checks=[];
     if(!Array.isArray(idea.animation_prompts))idea.animation_prompts=[];
   }else if(task==="ideas"){
-    if(!Array.isArray(result?.ideas)||result.ideas.length!==5)throw new Error("AI returned an invalid ideas structure (expected five ideas).");
+    if(!Array.isArray(result?.ideas)||result.ideas.length!==5)throw new Error("AI output validation failed: expected five ideas.");
     for(const idea of result.ideas){
       if(!idea||!idea.title||!idea.hook)throw new Error("AI returned an incomplete idea.");
       if(!Array.isArray(idea.hooks))idea.hooks=[idea.hook];
@@ -111,7 +111,7 @@ function validateResult(task:string,result:any){
       if(!Array.isArray(idea.animation_prompts))idea.animation_prompts=[];
     }
   }else if(!result?.script||!Array.isArray(result.script.beats)||!result.script.beats.length){
-    throw new Error("AI returned an incomplete script.");
+    throw new Error("AI output validation failed: incomplete script.");
   }
   return result;
 }
