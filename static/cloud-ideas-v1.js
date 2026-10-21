@@ -14,7 +14,6 @@
   let sourceAds = [];
   let watchlist = [];
   let usageEvents = [];
-  let workspaceMode = "concepts";
   let progressTimer = null;
   let progressStartedAt = 0;
 
@@ -135,7 +134,7 @@
     const mode = $("ideas-filter").value;
     const active = ideas.filter(i => i.lifecycle_status !== "archived");
     if (mode === "today") return active.filter(i => i.generated_for_date === today() && i.status !== "Rejected");
-    if (mode === "approved") return active.filter(i => i.approved || i.status === "Approved" || i.lifecycle_status === "saved");
+    if (mode === "approved") return active.filter(i => i.approved || i.status === "Approved" || i.lifecycle_status === "saved" || i.strategy?.saved_script || i.strategy?.saved_hook_indexes?.length);
     if (mode === "scripted") return active.filter(i => i.ai_script);
     if (mode === "used") return ideas.filter(i => i.lifecycle_status === "used");
     if (mode === "archive") return ideas.filter(i => i.lifecycle_status === "archived");
@@ -238,6 +237,61 @@
     '</section>';
   }
 
+  function wordCount(value) {
+    return String(value || "").trim().split(/\s+/).filter(Boolean).length;
+  }
+
+  function scriptDurationSeconds(strategy, timed) {
+    const stated = Number(strategy?.recommended_duration_seconds || 0);
+    if (Number.isFinite(stated) && stated > 0) return Math.round(stated);
+    const last = timed?.[timed.length - 1];
+    const match = String(last?.time || "").match(/[-–—]\s*(\d+):(\d{2})\s*$/);
+    return match ? Number(match[1]) * 60 + Number(match[2]) : 0;
+  }
+
+  function modelRateRange(beat) {
+    const label = String([beat?.provider, beat?.video_model].filter(Boolean).join(" ")).toLowerCase();
+    if (/kling/.test(label)) return [0.8, 3.0];
+    if (/seedance/.test(label)) return [0.6, 2.5];
+    if (/hailuo|minimax/.test(label)) return [0.5, 2.0];
+    return [0.5, 2.5];
+  }
+
+  function productionPlanHtml(strategy, timed) {
+    const duration = scriptDurationSeconds(strategy, timed);
+    const aiBeats = timed.filter(beat => /^AI_/i.test(String(beat?.footage_type || "")) || /kling|seedance|hailuo|minimax|higgsfield/i.test(String([beat?.provider,beat?.video_model].filter(Boolean).join(" "))));
+    const realBeats = Math.max(0, timed.length - aiBeats.length);
+    const tools = [...new Set(aiBeats.map(beat => [beat?.provider, beat?.video_model].filter(Boolean).join(" · ")).filter(Boolean))];
+    let low = 0, high = 0;
+    aiBeats.forEach(beat => {
+      const [a,b] = modelRateRange(beat);
+      low += a * 2;
+      high += b * 3;
+    });
+    const budget = aiBeats.length ? "$" + Math.max(1,Math.round(low)) + "–$" + Math.max(Math.round(low)+1,Math.round(high)) : "$0";
+    return '<section class="production-plan">' +
+      '<div class="production-plan-head"><div><span class="eyebrow">PRODUCTION PLAN</span><strong>How to make this ad</strong></div><span class="production-estimate-note">planning estimate</span></div>' +
+      '<div class="production-metrics">' +
+        '<div><span>Length</span><strong>' + (duration ? esc(duration + " sec") : "—") + '</strong></div>' +
+        '<div><span>AI shots</span><strong>' + aiBeats.length + '</strong></div>' +
+        '<div><span>Real shots</span><strong>' + realBeats + '</strong></div>' +
+        '<div><span>AI budget</span><strong>' + budget + '</strong></div>' +
+      '</div>' +
+      (tools.length ? '<div class="production-tools"><span>Recommended AI</span>' + tools.map(tool => '<b>' + esc(tool) + '</b>').join("") + '</div>' : '<div class="production-tools"><span>Recommended production</span><b>Camera / editor</b></div>') +
+      '<p class="production-cost-note">Budget is a rough planning estimate assuming roughly 2–3 generations per AI shot. Actual subscription/credit pricing can differ.</p>' +
+    '</section>';
+  }
+
+  function sourceCopyMeta(idea, strategy) {
+    const sourceId = String(strategy?.source_adaptation?.ad_archive_id || idea?.source_ad_ids?.[0] || "");
+    const source = sourceAds.find(ad => String(ad.ad_archive_id) === sourceId);
+    const sourceWords = wordCount(source?.primary_text);
+    const ownWords = wordCount(strategy?.primary_text);
+    if (!sourceWords || !ownWords) return "";
+    const ratio = Math.round(ownWords / sourceWords * 100);
+    return '<div class="copy-length-meta"><span>Source copy <b>' + sourceWords + ' words</b></span><span>Your copy <b>' + ownWords + ' words</b></span><span><b>' + ratio + '%</b> of source length</span></div>';
+  }
+
   function hooksFor(idea) {
     return [idea.hook, ...(Array.isArray(idea.strategy?.hooks) ? idea.strategy.hooks : [])]
       .filter(Boolean).filter((hook,index,all) => all.indexOf(hook) === index);
@@ -261,21 +315,21 @@
     $("ideas-used-count").textContent = String(ideas.filter(i => i.lifecycle_status === "used").length);
     $("ideas-archive-count").textContent = String(ideas.filter(i => i.lifecycle_status === "archived").length);
     $("ideas-source-count").textContent = String(sourceAds.length);
-    const savedView = workspaceMode === "saved";
-    const rows = savedView ? ideas.filter(i => i.approved || i.strategy?.saved_script || i.strategy?.saved_hook_indexes?.length) : filteredIdeas();
+    const rows = filteredIdeas();
     $("cloud-ideas-grid").innerHTML = rows.length ? rows.map((idea,index) => {
       const strategy = idea.strategy || {};
       const hooks = hooksFor(idea);
       const savedPack = !!idea.approved;
-      const visibleHooks = hooks.map((hook,n) => ({hook,n})).filter(({n}) => !savedView || savedPack || savedAsset(idea,"hook",n));
+      const visibleHooks = hooks.map((hook,n) => ({hook,n}));
       const hookHtml = '<div class="idea-hooks-accordion">' + visibleHooks.map(({hook,n}) =>
         '<details class="idea-hook-fold"' + (n === 0 ? ' open' : '') + '>' +
           '<summary><span>Hook ' + (n+1) + '</span><span class="hook-chevron" aria-hidden="true"></span></summary>' +
           '<div class="idea-hook-body"><p>' + esc(hook) + '</p><div class="idea-inline-actions"><button class="copy-inline" data-copy-library-hook="' + esc(idea.id) + '" data-hook-index="' + n + '">Copy</button>' + assetButton(idea,"hook",n) + '<button class="copy-inline" data-use-hook="' + esc(idea.id) + '" data-hook-index="' + n + '" aria-pressed="' + !!usageFor(idea.id,"hook",n) + '">' + (usageFor(idea.id,"hook",n) ? 'Used ✓ · Undo' : 'Use hook') + '</button></div></div>' +
         '</details>').join("") + '</div>';
       const timed = Array.isArray(strategy.timed_script) ? strategy.timed_script : [];
-      const script = (idea.ai_script ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre>' : timed.length ? '<div class="timed-script">' + timed.map(timedBeatHtml).join("") + '</div>' : '<p>Generate a complete 60–90 second production script.</p>') +
-        '<div class="idea-inline-actions">' + assetButton(idea,"script") + '<button class="copy-inline" data-copy-script="' + esc(idea.id) + '">Copy script</button><button class="copy-inline" data-use-script="' + esc(idea.id) + '">' + (usageFor(idea.id,"script") ? 'Used ✓ · Undo' : 'Use script') + '</button><button class="button secondary mini" data-script="' + esc(idea.id) + '">' + (idea.ai_script || timed.length ? 'Regenerate · 60–90 sec' : 'Generate · 60–90 sec') + '</button></div>';
+      const script = productionPlanHtml(strategy, timed) +
+        (idea.ai_script ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre>' : timed.length ? '<div class="timed-script">' + timed.map(timedBeatHtml).join("") + '</div>' : '<p>Generate a complete 60–90 second production script.</p>') +
+        '<div class="idea-inline-actions">' + assetButton(idea,"script") + '<button class="copy-inline" data-copy-script="' + esc(idea.id) + '">Copy script</button><button class="copy-inline" data-use-script="' + esc(idea.id) + '">' + (usageFor(idea.id,"script") ? 'Used ✓ · Undo' : 'Use script') + '</button><button class="button secondary mini" data-script="' + esc(idea.id) + '">' + (idea.ai_script || timed.length ? 'Regenerate production script' : 'Generate production script') + '</button></div>';
       const brief = (strategy.audience ? '<h4>Audience</h4><p>' + esc(strategy.audience) + '</p>' : '') +
         (idea.angle ? '<h4>Angle</h4><p>' + esc(idea.angle) + '</p>' : '') +
         (idea.first_frame ? '<h4>First frame</h4><p>' + esc(idea.first_frame) + '</p>' : '') +
@@ -283,19 +337,19 @@
         hookAdaptationHtml(strategy) + storyArcHtml(strategy) + visualRecipeHtml(strategy) + sourceAdaptationHtml(strategy) +
         (Array.isArray(strategy.source_claims) && strategy.source_claims.length ? '<div class="source-claims-note"><strong>Claims carried from source ads</strong>' + strategy.source_claims.map(x => '<p>' + esc(typeof x === "string" ? x : (x.claim || JSON.stringify(x))) + '</p>').join("") + '<small>Creative research notes — check before launch.</small></div>' : '') +
         '<button class="button secondary mini" data-copy-pack="' + esc(idea.id) + '">Copy creative brief</button>';
-      const primary = '<p class="primary-copy">' + esc(strategy.primary_text || 'No primary text generated yet.') + '</p>' +
+      const primary = sourceCopyMeta(idea, strategy) + '<p class="primary-copy">' + esc(strategy.primary_text || 'No primary text generated yet.') + '</p>' +
         (strategy.headline ? '<h4>Headline</h4><p>' + esc(strategy.headline) + '</p>' : '') +
         (strategy.description ? '<h4>Description</h4><p>' + esc(strategy.description) + '</p>' : '') +
         (idea.cta ? '<h4>CTA</h4><p>' + esc(idea.cta) + '</p>' : '') +
         '<button class="button secondary mini" data-copy-primary="' + esc(idea.id) + '">Copy primary text</button>';
       return '<article class="cloud-idea-card" data-idea="' + esc(idea.id) + '"><div class="idea-card-top"><div><span class="idea-number">' + esc(idea.format || 'CONCEPT') + '</span><h2>' + esc(idea.title || idea.angle || 'Ad idea') + '</h2></div></div>' + hookHtml +
-        ((!savedView || savedPack || savedAsset(idea,"script")) ? fold('Script',script) : '') + fold('Full creative brief',brief) + fold('Primary text',primary) +
+        fold('Script · production plan',script) + fold('Full creative brief',brief) + fold('Primary text',primary) +
         '<div class="idea-decision-row"><button class="decision-button" data-approve="' + esc(idea.id) + '">' + (savedPack ? 'Saved pack ✓ · Unsave' : 'Save whole pack') + '</button><button class="decision-button" data-reject="' + esc(idea.id) + '">' + (idea.status === 'Rejected' ? 'Not for me ✓ · Undo' : 'Not for me') + '</button><button class="decision-button" data-archive="' + esc(idea.id) + '">' + (idea.lifecycle_status === 'archived' ? 'Restore' : 'Archive') + '</button><button class="source-link" data-sources="' + esc(idea.id) + '">Source ads</button></div>' +
         (idea.lifecycle_status === 'used'
           ? '<div class="idea-performance-row"><span class="helper">How did it perform?</span><button class="copy-inline" data-outcome="winner" data-outcome-id="' + esc(idea.id) + '">Winner</button><button class="copy-inline" data-outcome="loser" data-outcome-id="' + esc(idea.id) + '">Loser</button><button class="copy-inline" data-results="' + esc(idea.id) + '">Add results</button>' + (outcomeFor(idea.id) ? '<span class="pill">' + esc(outcomeFor(idea.id).action) + '</span>' : '') + '</div>'
           : '') +
         '</article>';
-    }).join("") : '<div class="empty wide">' + (savedView ? 'No saved hooks or scripts yet. Tap Save hook, Save script, or Save whole pack.' : 'No ideas in this view yet.') + '</div>';
+    }).join("") : '<div class="empty wide">No ideas in this view yet.</div>';
   }
 
   async function toggleSavedAsset(idea, kind, index) {
@@ -781,18 +835,6 @@
       $("ideas-product").onchange = loadData;
       $("ideas-filter").onchange = render;
       $("generate-more-ideas").onclick = generateIdeas;
-
-      document.querySelectorAll("[data-ideas-workspace]").forEach(button => {
-        button.onclick = () => {
-          workspaceMode = button.dataset.ideasWorkspace || "concepts";
-          document.querySelectorAll("[data-ideas-workspace]").forEach(item => {
-            const active = item === button;
-            item.classList.toggle("active", active);
-            item.setAttribute("aria-selected", String(active));
-          });
-          render();
-        };
-      });
 
       document.querySelectorAll("[data-close-sources]").forEach(el => el.onclick = closeSources);
 
