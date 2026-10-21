@@ -101,7 +101,7 @@ test("prepared strategist requires source evidence and complete production field
     assert.match(ideasUi, new RegExp(field));
   }
   assert.match(creativeAi, /four usable hooks/);
-  assert.match(creativeAi, /production script is incomplete/);
+  assert.match(creativeAi, /production script needs at least five complete spoken\/visual beats/);
   assert.match(creativeAi, /primary_source_ad_id/);
   assert.match(ideasUi, /"SAY: " \+ \(b\.say \|\| ""\)/);
   assert.match(ideasUi, /"SHOW: " \+ \(b\.show \|\| ""\)/);
