@@ -70,7 +70,7 @@ timed_script beats must have {time,say,show,on_screen_text,footage_type,provider
 `;
 
 const ONE_IDEA_PROMPT=BASE+`
-Generate ONE production-ready concept by deeply adapting a SINGLE source ad. variation (1-5) changes the creative angle and source choice, NOT a forced generic template. Prefer a distinct source advertiser/ad and source architecture for each variation. Do not create five near-identical moringa scare campaigns.
+Generate ONE production-ready concept by deeply adapting a SINGLE source ad. If primary_source_ad_id is supplied, that exact ad is the primary source and must be used in source_adaptation.ad_archive_id. variation (1-5) changes the creative execution, not the source evidence. Do not create five near-identical moringa scare campaigns.
 Read the source ad's actual primary_text and headline; quote its observed opening accurately in source_adaptation.observed_opening_text. Do not say you heard the video's spoken opening without transcript.
 Produce JSON {"idea":{title,audience,angle,format,hook,hooks,first_frame,first_three_seconds,primary_text,headline,description,cta,video_concept,recommended_duration_seconds,production_style,shot_directions,timed_script,proof_to_show,execution,why_test,hypothesis,inspiration,source_ad_ids,source_observations,ai_inferences,product_fact_checks,unsupported_claim_checks,animation_prompts,scores,overall_score,risk,source_adaptation}}.
 source_adaptation:{ad_archive_id,advertiser_name,observed_opening_text,opening_type:"primary_text" or "spoken_transcript",observed_sequence,adapted_sequence,spoken_hook_available:boolean,why_selected}.
@@ -92,9 +92,12 @@ function validateResult(task:string,result:any){
     if(!idea||!idea.title||!idea.hook)throw new Error("AI output validation failed: incomplete idea.");
     if(!Array.isArray(idea.timed_script)||idea.timed_script.length<4||idea.timed_script.some((b:any)=>!String(b?.say||"").trim()||!String(b?.show||"").trim()||!String(b?.on_screen_text||"").trim()||!String(b?.time||"").trim()))throw new Error("AI output validation failed: script has empty SAY/SHOW/ON-SCREEN fields.");
     if(!Array.isArray(idea.hooks))idea.hooks=[idea.hook];
+    if(idea.hooks.filter((x:any)=>String(x||"").trim()).length<4)throw new Error("AI output validation failed: expected four usable hooks.");
     if(!Array.isArray(idea.source_ad_ids))idea.source_ad_ids=[];
+    if(!idea?.source_adaptation?.ad_archive_id)throw new Error("AI output validation failed: source adaptation is missing.");
     if(!Array.isArray(idea.shot_directions))idea.shot_directions=[];
     if(!Array.isArray(idea.timed_script))idea.timed_script=[];
+    if(idea.timed_script.some((b:any)=>!String(b?.footage_type||"").trim()||!String(b?.provider||"").trim()))throw new Error("AI output validation failed: every script beat needs footage type and provider.");
     if(!Array.isArray(idea.source_observations))idea.source_observations=[];
     if(!Array.isArray(idea.ai_inferences))idea.ai_inferences=[];
     if(!Array.isArray(idea.product_fact_checks))idea.product_fact_checks=[];
@@ -140,7 +143,7 @@ Deno.serve(async(req)=>{
 
     if(auth.userId&&product?.id&&!ads.length){
       const rows=await admin.from("competitor_ads")
-        .select("ad_archive_id,advertiser_name,primary_text,headline,description,cta_text,landing_url,display_format,media_kind,started_at,days_running,source_url,ai_analysis")
+        .select("ad_archive_id,advertiser_name,primary_text,headline,description,cta_text,landing_url,display_format,media_kind,media_url,media_thumbnail_url,started_at,days_running,source_url,video_transcript,video_transcript_segments,video_duration_seconds,transcription_status,ai_analysis")
         .eq("user_id",auth.userId)
         .eq("product_id",product.id)
         .eq("is_active",true)
@@ -159,8 +162,16 @@ Deno.serve(async(req)=>{
       description:String(a.description||"").slice(0,task==="idea"?700:1200),
       format:a.display_format||a.media_kind,
       source_url:a.source_url,
-      transcript:a.transcript||a.video_transcript||a.ai_analysis?.transcript||null,
-      analysis:JSON.stringify(a.ai_analysis||{}).slice(0,task==="idea"?1800:3500)
+      transcript:a.video_transcript||a.transcript||a.ai_analysis?.transcript||null,
+      transcript_segments:Array.isArray(a.video_transcript_segments)?a.video_transcript_segments.slice(0,80):[],
+      video_duration_seconds:a.video_duration_seconds||null,
+      media_url:a.media_url||"",
+      media_thumbnail_url:a.media_thumbnail_url||"",
+      exact_spoken_opening:a.ai_analysis?.exact_spoken_opening||a.ai_analysis?.spoken_hook||"",
+      visual_hook:a.ai_analysis?.visual_hook||"",
+      first_frame:a.ai_analysis?.first_frame||"",
+      observed_sequence:a.ai_analysis?.observed_sequence||[],
+      analysis:JSON.stringify(a.ai_analysis||{}).slice(0,task==="idea"?3200:5000)
     }));
 
     const model=task==="script"
@@ -187,6 +198,7 @@ Deno.serve(async(req)=>{
       },
       competitor_research:research,
       selected_idea:body?.idea||null,
+      primary_source_ad_id:String(body?.primary_source_ad_id||""),
       variation:Number(body?.variation||1)
     };
 
