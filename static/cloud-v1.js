@@ -23,16 +23,28 @@
     return s;
   }
 
-  async function invoke(name,body){
+  async function invoke(name,body,options={}){
     const s=await requireSession();
-    const r=await fetch(cfg.supabaseUrl.replace(/\/$/,"")+"/functions/v1/"+name,{
-      method:"POST",
-      headers:{
-        "authorization":"Bearer "+s.access_token,
-        "content-type":"application/json"
-      },
-      body:JSON.stringify(body||{})
-    });
+    const timeoutMs=Math.max(5000,Number(options.timeoutMs||75000));
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),timeoutMs);
+    let r;
+    try{
+      r=await fetch(cfg.supabaseUrl.replace(/\/$/,"")+"/functions/v1/"+name,{
+        method:"POST",
+        headers:{
+          "authorization":"Bearer "+s.access_token,
+          "content-type":"application/json"
+        },
+        body:JSON.stringify(body||{}),
+        signal:controller.signal
+      });
+    }catch(error){
+      if(error?.name==="AbortError")throw new Error("AI request timed out instead of finishing. Please try again.");
+      throw error;
+    }finally{
+      clearTimeout(timer);
+    }
     const data=await r.json().catch(()=>({}));
     if(!r.ok){
       const e=new Error(data.error||("Request failed: "+r.status));
