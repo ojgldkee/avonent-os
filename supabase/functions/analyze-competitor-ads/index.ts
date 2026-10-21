@@ -163,7 +163,7 @@ Deno.serve(async(req)=>{
     const auth=await authenticate(req,admin,body);
     if(!auth)return out(401,{error:"Unauthorized"});
     if(!key)return out(503,{setup_required:true,error:"OPENROUTER_API_KEY is not configured."});
-    const limit=Math.max(1,Math.min(Number(body?.limit||8),12));
+    const limit=Math.max(1,Math.min(Number(body?.limit||6),8));
     let q=admin.from("competitor_ads")
       .select("id,user_id,product_id,ad_archive_id,advertiser_name,primary_text,headline,description,cta_text,landing_url,display_format,media_kind,media_url,media_thumbnail_url,started_at,days_running,source_url,video_transcript,video_transcript_segments,video_duration_seconds,transcription_status")
       .eq("is_active",true)
@@ -177,60 +177,60 @@ Deno.serve(async(req)=>{
 
     const textModel=Deno.env.get("AVONENT_ANALYSIS_MODEL")||"qwen/qwen3-30b-a3b-instruct-2507:nitro";
     const visualModel=Deno.env.get("AVONENT_VISUAL_MODEL")||"qwen/qwen3-vl-30b-a3b-instruct:nitro";
-    let analyzed=0;
-    const errors:any[]=[];
+    const jobs=(rows.data||[]).map(async(ad:any)=>{
+      const opening=exactSpokenOpening(ad.video_transcript_segments||[],ad.video_transcript||"");
+      const hasTranscript=Boolean(String(ad.video_transcript||"").trim());
+      const canInspectVideo=hasTranscript&&ad.media_kind==="video"&&Boolean(ad.media_url);
+      let result:any;
+      let visual=false;
 
-    for(const ad of rows.data||[]){
-      try{
-        const opening=exactSpokenOpening(ad.video_transcript_segments||[],ad.video_transcript||"");
-        const hasTranscript=Boolean(String(ad.video_transcript||"").trim());
-        const canInspectVideo=hasTranscript&&ad.media_kind==="video"&&Boolean(ad.media_url);
-        let result:any;
-        let visual=false;
-        if(canInspectVideo){
-          try{
-            result=await callOpenRouter(key,visualModel,ad,opening,true);
-            visual=true;
-          }catch(videoError){
-            console.warn("visual fallback",ad.ad_archive_id,videoError instanceof Error?videoError.message:String(videoError));
-            result=await callOpenRouter(key,textModel,ad,opening,false);
-          }
-        }else{
+      if(canInspectVideo){
+        try{
+          result=await callOpenRouter(key,visualModel,ad,opening,true);
+          visual=true;
+        }catch(videoError){
+          console.warn("visual fallback",ad.ad_archive_id,videoError instanceof Error?videoError.message:String(videoError));
           result=await callOpenRouter(key,textModel,ad,opening,false);
         }
-
-        const analysis={
-          ...result.analysis,
-          exact_spoken_opening:opening||"",
-          spoken_hook:opening||"",
-          transcript_available:hasTranscript,
-          visual_analysis_available:visual,
-          analysis_scope:visual?"video_transcript_visual":hasTranscript?"transcript_and_copy":"copy_only",
-          analysis_model:result.model,
-          analyzed_at:new Date().toISOString()
-        };
-        if(!hasTranscript){
-          analysis.exact_spoken_opening="";
-          analysis.spoken_hook="";
-        }
-        if(!visual){
-          analysis.visual_hook="";
-          analysis.first_frame="";
-        }
-
-        const upd=await admin.from("competitor_ads").update({
-          ai_analysis:analysis,
-          analyzed_at:new Date().toISOString(),
-          updated_at:new Date().toISOString()
-        }).eq("id",ad.id);
-        if(upd.error)throw upd.error;
-        analyzed++;
-      }catch(e){
-        errors.push({ad_archive_id:ad.ad_archive_id,error:e instanceof Error?e.message:String(e)});
+      }else{
+        result=await callOpenRouter(key,textModel,ad,opening,false);
       }
-    }
 
-    return out(200,{ok:true,found:(rows.data||[]).length,analyzed,errors,text_model:textModel,visual_model:visualModel});
+      const analysis:any={
+        ...result.analysis,
+        exact_spoken_opening:opening||"",
+        spoken_hook:opening||"",
+        transcript_available:hasTranscript,
+        visual_analysis_available:visual,
+        analysis_scope:visual?"video_transcript_visual":hasTranscript?"transcript_and_copy":"copy_only",
+        analysis_model:result.model,
+        analyzed_at:new Date().toISOString()
+      };
+      if(!hasTranscript){
+        analysis.exact_spoken_opening="";
+        analysis.spoken_hook="";
+      }
+      if(!visual){
+        analysis.visual_hook="";
+        analysis.first_frame="";
+      }
+
+      const upd=await admin.from("competitor_ads").update({
+        ai_analysis:analysis,
+        analyzed_at:new Date().toISOString(),
+        updated_at:new Date().toISOString()
+      }).eq("id",ad.id);
+      if(upd.error)throw upd.error;
+      return {ad_archive_id:ad.ad_archive_id,visual,scope:analysis.analysis_scope};
+    });
+
+    const settled=await Promise.allSettled(jobs);
+    const successes=settled.filter((x:any)=>x.status==="fulfilled").map((x:any)=>x.value);
+    const errors=settled.map((x:any,index:number)=>x.status==="rejected"
+      ? {ad_archive_id:(rows.data||[])[index]?.ad_archive_id||"",error:x.reason instanceof Error?x.reason.message:String(x.reason)}
+      : null).filter(Boolean);
+
+    return out(200,{ok:true,found:(rows.data||[]).length,analyzed:successes.length,results:successes,errors,text_model:textModel,visual_model:visualModel});
   }catch(e){
     console.error("analyze-competitor-ads",e instanceof Error?e.message:String(e));
     return out(500,{error:e instanceof Error?e.message:"Competitor analysis failed."});
