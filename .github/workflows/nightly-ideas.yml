@@ -1,0 +1,30 @@
+name: Avonent nightly creative ideas
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 10 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-creative-ideas
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Generate nightly ideas
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --show-error --silent \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{}' \
+            "https://rycaylyhgjgovyxwhgjg.supabase.co/functions/v1/generate-daily-ideas"
