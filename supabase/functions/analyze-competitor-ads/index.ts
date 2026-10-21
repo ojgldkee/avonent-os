@@ -175,7 +175,7 @@ Deno.serve(async(req)=>{
     const rows=await q;
     if(rows.error)throw rows.error;
 
-    const textModel=Deno.env.get("AVONENT_ANALYSIS_MODEL")||"qwen/qwen3-30b-a3b-instruct-2507:nitro";
+    const textModel=Deno.env.get("AVONENT_ANALYSIS_MODEL")||"qwen/qwen3-30b-a3b-instruct-2507";
     const visualModel=Deno.env.get("AVONENT_VISUAL_MODEL")||"google/gemini-3-flash-preview";
     const jobs=(rows.data||[]).map(async(ad:any)=>{
       const opening=exactSpokenOpening(ad.video_transcript_segments||[],ad.video_transcript||"");
