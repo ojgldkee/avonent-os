@@ -190,6 +190,7 @@ VALIDATION TARGETS:
 - If footage is AI, provider/model/prompt must be populated.
 - Keep the product claims inside verified facts. If the source ad's mechanism is not verified for this product, preserve only the storytelling/creative structure, not the claim.
 - Prioritize a compelling story and source fidelity over generic marketing theory.
+- Keep the JSON compact enough to finish reliably: concise strings, 6-8 timed beats, and no essay-length explanations. Aim to stay under about 3,800 output tokens.
 `;
 
 const SCRIPT_PROMPT=BASE+`
