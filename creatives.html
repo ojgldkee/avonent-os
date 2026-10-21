@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#000000">
   <title>Ideas · Avonent</title>
   <link rel="stylesheet" href="static/site.css?v=1">
-  <link rel="stylesheet" href="static/ui-v3.css?v=31">
+  <link rel="stylesheet" href="static/ui-v3.css?v=32">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="static/config.js?v=2"></script>
   <link rel="stylesheet" href="static/strategist.css?v=17">
@@ -44,7 +44,7 @@
       <select id="ideas-filter">
         <option value="today">Today</option>
         <option value="all">All ideas</option>
-        <option value="approved">Saved packs</option>
+        <option value="approved">Saved</option>
         <option value="scripted">AI scripts</option>
         <option value="used">Used</option>
         <option value="archive">Archive</option>
@@ -64,13 +64,7 @@
     <p id="ideas-status" class="helper span-2" role="status"></p>
   </section>
 
-  <div class="ideas-workspace-tabs" role="tablist" aria-label="Creative workspace">
-    <button type="button" class="active" data-ideas-workspace="concepts" aria-selected="true">Concepts</button>
-    <button type="button" data-ideas-workspace="hooks" aria-selected="false">Hooks + scripts</button>
-    <button type="button" data-ideas-workspace="saved" aria-selected="false">Saved</button>
-  </div>
-
-  <section class="production-controls panel"><div class="helper">Full scripts: 60–90 seconds, with a complete story and CTA.</div><div class="helper">Footage mix: AI recommends real UGC, product footage, animation and B-roll per scene.</div></section><section class="ideas-stats">
+  <section class="production-controls panel"><div class="helper"><strong>One creative workspace.</strong> Hooks, script, production plan, brief and ad copy all stay inside each idea.</div><div class="helper">Open <strong>Script</strong> when you are ready to produce it. Avonent shows the recommended models, footage mix, runtime and a rough AI-generation budget.</div></section><section class="ideas-stats">
     <div class="research-stat"><span>Ideas today</span><strong id="ideas-today-count">—</strong></div>
     <div class="research-stat"><span>Used</span><strong id="ideas-used-count">—</strong></div>
     <div class="research-stat"><span>Archived</span><strong id="ideas-archive-count">—</strong></div>
@@ -95,7 +89,7 @@
 
 <script src="static/cloud-v1.js?v=1"></script>
 <script src="static/research-utils.js?v=4"></script>
-<script src="static/cloud-ideas-v1.js?v=26"></script>
+<script src="static/cloud-ideas-v1.js?v=27"></script>
 <script src="static/ui-v3.js?v=11"></script>
 </body>
 </html>
