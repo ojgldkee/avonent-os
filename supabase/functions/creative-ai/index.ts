@@ -170,33 +170,47 @@ Do not replace removed claims with new wellness, biological, ingredient, testing
 If proof is unavailable, use neutral observable product language and put "Proof needed before use" in proof_to_show.
 Every script beat must remain complete. Return the exact same top-level JSON shape as the draft. JSON only.`;
 
-  const response=await fetch("https://openrouter.ai/api/v1/chat/completions",{
-    method:"POST",
-    headers:{"authorization":"Bearer "+key,"content-type":"application/json","HTTP-Referer":"https://ojgldkee.github.io/avonent-os/","X-Title":"Avonent OS"},
-    body:JSON.stringify({
-      model:"qwen/qwen3.7-flash",
-      temperature:0.25,
-      reasoning:{enabled:false},
-      response_format:{type:"json_object"},
-      messages:[
-        {role:"system",content:repairPrompt},
-        {role:"user",content:JSON.stringify({
-          verified_facts:facts,
-          unsupported_claims:issues,
-          draft:result
-        })}
-      ],
-      provider:{sort:"throughput",allow_fallbacks:true},
-      max_tokens:task==="script"?5200:3600
-    }),
-    signal:AbortSignal.timeout(task==="script"?45000:35000)
-  });
-  const raw=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(raw?.error?.message||("Claim repair failed with status "+response.status));
-  const message=raw?.choices?.[0]?.message?.content;
-  const text=typeof message==="string"?message:Array.isArray(message)?message.map((p:any)=>typeof p==="string"?p:(p?.text||"")).join(""):"";
-  if(!text.trim())throw new Error("Claim repair returned no text.");
-  return parseJson(text);
+  let lastError="Claim repair failed.";
+  for(const repairModel of ["qwen/qwen3.7-flash","google/gemini-3.8-flash"]){
+    try{
+      const response=await fetch("https://openrouter.ai/api/v1/chat/completions",{
+        method:"POST",
+        headers:{"authorization":"Bearer "+key,"content-type":"application/json","HTTP-Referer":"https://ojgldkee.github.io/avonent-os/","X-Title":"Avonent OS"},
+        body:JSON.stringify({
+          model:repairModel,
+          temperature:0.2,
+          ...(repairModel.includes("qwen3.7-flash")?{reasoning:{enabled:false}}:{}),
+          response_format:{type:"json_object"},
+          messages:[
+            {role:"system",content:repairPrompt},
+            {role:"user",content:JSON.stringify({
+              verified_facts:facts,
+              unsupported_claims:issues,
+              draft:result
+            })}
+          ],
+          provider:{sort:"throughput",allow_fallbacks:true},
+          max_tokens:task==="script"?5200:3600
+        }),
+        signal:AbortSignal.timeout(task==="script"?40000:32000)
+      });
+      const raw=await response.json().catch(()=>({}));
+      if(!response.ok){
+        lastError=raw?.error?.message||("Claim repair failed with status "+response.status);
+        continue;
+      }
+      const message=raw?.choices?.[0]?.message?.content;
+      const text=typeof message==="string"?message:Array.isArray(message)?message.map((p:any)=>typeof p==="string"?p:(p?.text||"")).join(""):"";
+      if(!text.trim()){
+        lastError="Claim repair returned no text.";
+        continue;
+      }
+      return parseJson(text);
+    }catch(error){
+      lastError=error instanceof Error?error.message:String(error);
+    }
+  }
+  throw new Error(lastError);
 }
 
 function validateResult(task:string,result:any){
@@ -328,10 +342,10 @@ Deno.serve(async(req)=>{
     };
 
     const candidates=task==="script"
-      ? [model,"qwen/qwen3.7-flash","deepseek/deepseek-v3.2"]
+      ? [model,"qwen/qwen3.7-flash","google/gemini-3.8-flash"]
       : task==="idea"
-        ? [model,"qwen/qwen3.7-flash","deepseek/deepseek-v3.2"]
-        : [model,"qwen/qwen3.7-flash","deepseek/deepseek-v3.2"];
+        ? [model,"qwen/qwen3.7-flash","google/gemini-3.8-flash"]
+        : [model,"qwen/qwen3.7-flash","google/gemini-3.8-flash"];
     let result:any=null;
     let raw:any=null;
     let usedModel=model;
