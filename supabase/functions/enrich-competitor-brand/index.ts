@@ -60,14 +60,17 @@ function brandFromHtml(html:string,base:string){
       }
     }
   }
-  const icon=html.match(/<link[^>]+rel=["'][^"']*(?:apple-touch-icon|icon)[^"']*["'][^>]+href=["']([^"']+)["']/i)
-    ||html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*(?:apple-touch-icon|icon)[^"']*["']/i);
+  const appleIcon=html.match(/<link[^>]+rel=["'][^"']*apple-touch-icon[^"']*["'][^>]+href=["']([^"']+)["']/i)
+    ||html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*apple-touch-icon[^"']*["']/i);
+  const icon=html.match(/<link[^>]+rel=["'][^"']*(?:shortcut\s+icon|icon)[^"']*["'][^>]+href=["']([^"']+)["']/i)
+    ||html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*(?:shortcut\s+icon|icon)[^"']*["']/i);
   const logoImg=html.match(/<img[^>]+(?:class|id)=["'][^"']*logo[^"']*["'][^>]+(?:src|data-src)=["']([^"']+)["']/i)
     ||html.match(/<img[^>]+(?:src|data-src)=["']([^"']+)["'][^>]+(?:class|id)=["'][^"']*logo[^"']*["']/i);
   const title=textOnly((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||"");
   const siteName=(meta(html,"og:site_name")||"").trim();
   name=name||siteName||title.split(/\s+[|–—-]\s+/)[0].trim();
-  logo=logo||abs(logoImg?.[1]||"",base)||abs(icon?.[1]||"",base)||abs(meta(html,"og:image")||"",base);
+  // Small square site icons work much better in Avonent's avatar than a wide header wordmark.
+  logo=abs(appleIcon?.[1]||"",base)||abs(icon?.[1]||"",base)||logo||abs(logoImg?.[1]||"",base)||abs(meta(html,"og:image")||"",base);
   const description=(meta(html,"og:description")||meta(html,"description")||"").trim().slice(0,700);
   return {name:name.slice(0,160),logo,description,title:title.slice(0,200)};
 }
@@ -207,7 +210,7 @@ Deno.serve(async req=>{
         brand_data:{...existingData,store_discovery:{products:info.products,categories:info.categories,facebook_candidates:info.facebook_candidates,page_title:info.page_title,discovered_at:new Date().toISOString()}},
         updated_at:new Date().toISOString()
       };
-      if(!row.logo_url&&info.logo_url)update.logo_url=info.logo_url;
+      if(info.logo_url)update.logo_url=info.logo_url;
       if(!row.facebook_page_url&&info.facebook_page_url)update.facebook_page_url=info.facebook_page_url;
       if(!row.meta_page_id&&info.meta_page_id){
         update.meta_page_id=info.meta_page_id;
