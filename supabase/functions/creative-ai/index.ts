@@ -203,8 +203,8 @@ Deno.serve(async(req)=>{
     }));
 
     const model=task==="script"
-      ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3-235b-a22b-2507")
-      : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3-30b-a3b-instruct-2507");
+      ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3-max")
+      : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3-max");
 
     const prompt=task==="script"?SCRIPT_PROMPT:task==="idea"?ONE_IDEA_PROMPT:IDEA_PROMPT;
     const input={
@@ -231,10 +231,10 @@ Deno.serve(async(req)=>{
     };
 
     const candidates=task==="script"
-      ? [model,"qwen/qwen3-30b-a3b-instruct-2507"]
+      ? [model,"qwen/qwen3-235b-a22b-2507","deepseek/deepseek-v3.2"]
       : task==="idea"
-        ? [model,"qwen/qwen3-235b-a22b-2507"]
-        : [model,"qwen/qwen3-235b-a22b-2507"];
+        ? [model,"qwen/qwen3-max","deepseek/deepseek-v3.2"]
+        : [model,"qwen/qwen3-max","deepseek/deepseek-v3.2"];
     let result:any=null;
     let raw:any=null;
     let usedModel=model;
@@ -255,9 +255,9 @@ Deno.serve(async(req)=>{
             ],
             response_format:{type:"json_object"},
             provider:{sort:"throughput",allow_fallbacks:true},
-            max_tokens:task==="script"?6500:task==="idea"?5200:8000
+            max_tokens:task==="script"?5600:task==="idea"?3600:7000
           }),
-          signal:AbortSignal.timeout(task==="script"?60000:task==="idea"?50000:60000)
+          signal:AbortSignal.timeout(task==="script"?55000:task==="idea"?42000:55000)
         });
         raw=await response.json().catch(()=>({}));
         if(!response.ok){
@@ -271,6 +271,14 @@ Deno.serve(async(req)=>{
             ? message.content.map((part:any)=>typeof part==="string"?part:(part?.text||"")).join("")
             : "";
         if(!generated.trim()){
+          console.warn("creative-ai empty",JSON.stringify({
+            candidate,
+            finish_reason:raw?.choices?.[0]?.finish_reason||"",
+            native_finish_reason:raw?.choices?.[0]?.native_finish_reason||"",
+            provider:raw?.provider||"",
+            message_keys:Object.keys(message||{}),
+            usage:raw?.usage||null
+          }));
           lastError="The model returned an empty response.";
           continue;
         }
