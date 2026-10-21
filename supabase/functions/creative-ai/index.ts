@@ -407,8 +407,8 @@ function validateResult(task:string,result:any){
 
     if(!Array.isArray(idea.timed_script))idea.timed_script=[];
     idea.timed_script=idea.timed_script.map((b:any,i:number)=>normalizeBeat(b,i,idea));
-    if(idea.timed_script.length<5||idea.timed_script.some((b:any)=>!b.say||!b.show)){
-      throw new Error("AI output validation failed: production script needs at least five complete spoken/visual beats.");
+    if(idea.timed_script.length<4||idea.timed_script.some((b:any)=>!b.say||!b.show)){
+      throw new Error("AI output validation failed: production script needs at least four complete spoken/visual beats.");
     }
 
     if(!idea.first_three_seconds||typeof idea.first_three_seconds!=="object")idea.first_three_seconds={};
