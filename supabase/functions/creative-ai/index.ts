@@ -8,17 +8,25 @@ const CORS={
 };
 const out=(status:number,body:unknown)=>new Response(JSON.stringify(body),{status,headers:CORS});
 
-async function authenticate(req:Request,admin:any){
+async function authenticate(req:Request,admin:any,body:any){
   const cron=Deno.env.get("AVONENT_CRON_SECRET")||"";
   const sent=req.headers.get("x-avonent-cron-secret")||"";
   if(cron&&sent&&sent===cron)return{mode:"cron",userId:null};
+
   const token=(req.headers.get("authorization")||"").replace(/^Bearer\s+/i,"").trim();
-  if(!token)return null;
   const service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
-  if(service&&token===service)return{mode:"service",userId:null};
-  const user=await admin.auth.getUser(token);
-  if(user.error||!user.data.user)return null;
-  return{mode:"user",userId:user.data.user.id};
+  if(service&&token&&token===service)return{mode:"service",userId:null};
+  if(token){
+    const user=await admin.auth.getUser(token);
+    if(!user.error&&user.data.user)return{mode:"user",userId:user.data.user.id};
+  }
+
+  const schedulerToken=String(body?.scheduler_token||"");
+  if(schedulerToken){
+    const secret=await admin.from("avonent_scheduler_secret").select("token").eq("id",true).maybeSingle();
+    if(!secret.error&&secret.data?.token&&String(secret.data.token)===schedulerToken)return{mode:"scheduler",userId:null};
+  }
+  return null;
 }
 function parseJson(text:string){
   let t=String(text||"").trim();
@@ -140,23 +148,32 @@ Deno.serve(async(req)=>{
     const key=Deno.env.get("OPENROUTER_API_KEY")||"";
     if(!url||!service)return out(503,{error:"Supabase server configuration missing"});
     const admin=createClient(url,service,{auth:{persistSession:false}});
-    const auth=await authenticate(req,admin);
+    const body=await req.json().catch(()=>({}));
+    const auth=await authenticate(req,admin,body);
     if(!auth)return out(401,{error:"Unauthorized"});
     if(!key)return out(503,{setup_required:true,error:"OPENROUTER_API_KEY is not configured."});
 
-    const body=await req.json().catch(()=>({}));
     const task=body?.task==="script"?"script":body?.task==="idea"?"idea":"ideas";
-    const product=body?.product||{};
+    let product=body?.product||{};
+    if(!product?.id&&body?.product_id){
+      let pq=admin.from("products").select("*").eq("id",String(body.product_id));
+      if(auth.userId)pq=pq.eq("user_id",auth.userId);
+      const found=await pq.maybeSingle();
+      if(found.error)throw found.error;
+      if(!found.data)return out(404,{error:"Product not found"});
+      product=found.data;
+    }
     let ads=Array.isArray(body?.competitor_ads)?body.competitor_ads.slice(0,task==="idea"?8:16):[];
 
-    if(auth.userId&&product?.id&&!ads.length){
-      const rows=await admin.from("competitor_ads")
+    if(product?.id&&!ads.length){
+      let rowsQuery=admin.from("competitor_ads")
         .select("ad_archive_id,advertiser_name,primary_text,headline,description,cta_text,landing_url,display_format,media_kind,media_url,media_thumbnail_url,started_at,days_running,source_url,video_transcript,video_transcript_segments,video_duration_seconds,transcription_status,ai_analysis")
-        .eq("user_id",auth.userId)
         .eq("product_id",product.id)
         .eq("is_active",true)
         .order("days_running",{ascending:false})
         .limit(task==="idea"?8:16);
+      if(auth.userId)rowsQuery=rowsQuery.eq("user_id",auth.userId);
+      const rows=await rowsQuery;
       if(rows.error)throw rows.error;
       ads=rows.data||[];
     }
