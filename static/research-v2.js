@@ -654,7 +654,7 @@
       location.href = "creatives.html?cloud=1";
     } catch (error) {
       $("research-status").textContent = error.data?.setup_required
-        ? "AI setup required: add OPENAI_API_KEY in Supabase → Edge Functions → Secrets. Use the AI setup link below."
+        ? "AI connection is not configured correctly."
         : (error.message || String(error));
     } finally {
       btn.disabled = false;
