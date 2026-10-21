@@ -84,7 +84,8 @@ PRODUCTION CONTRACT:
 - The model must NOT make up evidence of video analysis, transcript, scene-by-scene observation, or success metrics.
 FEEDBACK LOOP:
 - creative_brain contains the user's explicit persistent preferences, rules, customer insights and creative lessons. Treat these as the strongest taste/instruction signal after verified product facts. Pinned memories outrank unpinned memories; product-specific memories outrank global memories.
-- creative_feedback contains the user's real usage/winner/loser history when available.
+- creative_feedback contains the user's real usage/winner/loser/results/manual feedback history when available.
+- action="feedback" rows may store JSON in notes with reasons such as bad_hook, too_generic, wrong_product, source_too_different, bad_story, bad_visual, too_long, too_expensive, prefer_static, prefer_video, love_hook or good_source_match. Treat repeated reasons as persistent taste signals.
 - Prefer patterns similar to items marked winner. Avoid repeating patterns marked loser.
 - "used" means the user chose that hook/script for production; treat it as a positive taste signal, but weaker than "winner".
 - A recent creative with lifecycle_status="saved" is a mild positive taste signal.
@@ -111,9 +112,10 @@ FORMAT RULE:
 
 PRIMARY SOURCE RULE:
 - primary_source_ad_id identifies the source skeleton. Use that exact ad.
-- competitor_research may contain short_exact_hook. When short_exact_hook is present for the PRIMARY SOURCE, Hook 1 MUST equal it WORD-FOR-WORD. Do not change the person, relationship, age, location, event, insult, scandal, wording, or sentence order. This is deliberate source-hook reuse.
+- competitor_research may contain short_exact_hook. When it is a short story/opening with no competitor product or offer language, Hook 1 should preserve that short opening as closely as possible. If the short hook names the competitor, competitor product, price, discount, bundle or offer, preserve the sentence pattern but replace only those product/offer-specific details with the user's real brand/product/offer. Never leave another brand's product name inside the user's final hook.
 - If the primary source has no short_exact_hook, make Hook 1 the closest practical adaptation of exact_spoken_opening: preserve sentence count, POV, clause order, curiosity device, emotional turn, reveal placement, intensity and approximate length.
 - Never fill Hooks 2-4 from other products or unrelated source ads. If Hook 1 is a short reused source opening, return only that hook. Otherwise Hooks 2-4, when present, must be alternate executions of Hook 1's same characters, premise, product and angle.
+- For copied offer/product hooks, do not carry over unsupported competitor-specific bonuses, gifts, prices or claims. Use only the user's supplied offer/product facts.
 - Do NOT turn "mother-in-law + wedding dress" into "husband + wedding dress", "stepmom + Christmas" into "aunt + kitchen", or otherwise swap the source story for a new scenario. Preserve the actual source premise whenever a short exact hook is available.
 - If the source opening is a narrative story, preserve the narrative grammar and open loop. If the source says "character → surprising observation → time span → hidden relationship/secret → expected outcome → reversal", the adapted hook should follow that same sequence.
 - Keep strong source-derived claims/mechanisms in the creative draft when they are important to the source ad. Put each such claim in source_claims with the source ad ID and origin="competitor_ad_unverified" so it can be checked before launch.
@@ -259,6 +261,14 @@ For real UGC, specify the actor type, location, camera framing, movement, props 
 Do not reproduce the competitor's full script verbatim.
 `;
 
+
+function hookNeedsProductSubstitution(hook:any, advertiser:any){
+  const text=String(hook||"").toLowerCase();
+  const adv=String(advertiser||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  const advStem=adv.split(" ")[0]?.slice(0,6)||"";
+  if(advStem&&advStem.length>=4&&text.replace(/[^a-z0-9]+/g," ").includes(advStem))return true;
+  return /\b(?:available|sale|off|free gift|welcome kit|shop now|bundle|bottle|capsule|drops|cinnamon|moringa|oregano|supplement)\b/i.test(String(hook||""));
+}
 
 function sourceWordCount(value:any){
   return String(value||"").trim().split(/\s+/).filter(Boolean).length;
@@ -801,16 +811,19 @@ Deno.serve(async(req)=>{
         if(!seenExact.has(key)){seenExact.add(key);uniqueExact.push(item);}
       }
       const primaryExact=uniqueExact.find((item:any)=>item.ad_archive_id===String(primary.ad_archive_id||""))?.hook||"";
+      const needsSwap=Boolean(primaryExact&&hookNeedsProductSubstitution(primaryExact,primary.advertiser_name));
+      const modelAdapted=String(result.idea.hook_adaptation?.adapted_hook||result.idea.hook||"").trim();
       result.idea.hook_adaptation={
         ...(result.idea.hook_adaptation||{}),
         source_hook_exact:observed,
         source_hook_type:String(primary.spoken_hook_type||""),
-        copy_mode:primaryExact?"verbatim_short_source_hook":"close_source_adaptation",
-        exact_source_hook_used:Boolean(primaryExact),
-        alt_source_hooks:uniqueExact.slice(1,4)
+        copy_mode:primaryExact?(needsSwap?"minimal_product_substitution":"verbatim_short_source_hook"):"close_source_adaptation",
+        exact_source_hook_used:Boolean(primaryExact&&!needsSwap),
+        product_substitution_used:Boolean(primaryExact&&needsSwap),
+        alt_source_hooks:[]
       };
       const generatedHooks=Array.isArray(result.idea.hooks)?result.idea.hooks.map((h:any)=>String(h||"").trim()).filter(Boolean):[];
-      const firstHook=primaryExact||String(result.idea.hook_adaptation?.adapted_hook||result.idea.hook||"").trim();
+      const firstHook=primaryExact?(needsSwap?(modelAdapted||primaryExact):primaryExact):(modelAdapted||String(result.idea.hook||"").trim());
       const mergedHooks=(primaryExact?[firstHook]:[firstHook,...generatedHooks])
         .filter(Boolean)
         .filter((h:string,i:number,list:string[])=>list.findIndex(x=>x.toLowerCase().replace(/\s+/g," ").trim()===h.toLowerCase().replace(/\s+/g," ").trim())===i)
@@ -819,10 +832,10 @@ Deno.serve(async(req)=>{
       result.idea.hooks=mergedHooks;
       result.idea.hook_adaptation.adapted_hook=firstHook;
       if(primaryExact&&result.idea.first_three_seconds&&typeof result.idea.first_three_seconds==="object"){
-        result.idea.first_three_seconds.say=primaryExact;
+        result.idea.first_three_seconds.say=firstHook;
       }
       if(primaryExact&&Array.isArray(result.idea.timed_script)&&result.idea.timed_script.length){
-        result.idea.timed_script[0].say=primaryExact;
+        result.idea.timed_script[0].say=firstHook;
       }
       result.idea.source_ad_ids=Array.from(new Set([
         String(primary.ad_archive_id||""),
