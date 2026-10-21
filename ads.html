@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#000000">
   <title>Research · Avonent</title>
   <link rel="stylesheet" href="static/site.css?v=1">
-  <link rel="stylesheet" href="static/ui-v3.css?v=31">
+  <link rel="stylesheet" href="static/ui-v3.css?v=32">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="static/config.js?v=2"></script>
   <link rel="stylesheet" href="static/strategist.css?v=16">
@@ -154,8 +154,8 @@
             <option value="over-240">4+ min</option>
             <option value="unknown">Unknown length</option>
           </select>
-          <label class="duration-custom-filter">Custom max
-            <span><input id="max-duration-filter" type="number" min="0.1" max="60" step="0.1" inputmode="decimal" placeholder="4"><b>min</b></span>
+          <label class="duration-custom-filter"><em>Custom max length</em>
+            <span><input id="max-duration-filter" type="text" inputmode="decimal" autocomplete="off" placeholder="4"><b>minutes</b></span>
           </label>
           <input id="keyword-filter" class="research-search" type="search" inputmode="search" placeholder="Search copy, headline, advertiser" aria-label="Search ads">
           <select id="sort-filter" aria-label="Sort ads">
@@ -196,7 +196,7 @@
 
 <script src="static/cloud-v1.js?v=1"></script>
 <script src="static/research-utils.js?v=4"></script>
-<script src="static/research-v2.js?v=24"></script>
+<script src="static/research-v2.js?v=25"></script>
 <script src="static/ui-v3.js?v=11"></script>
 </body>
 </html>
