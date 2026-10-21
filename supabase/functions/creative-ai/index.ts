@@ -67,7 +67,7 @@ Generate ONE original, production-ready advertising concept. The request include
 5 = offer / comparison / decision trigger
 Do not repeat generic angles.
 Return JSON {"idea":{title,audience,angle,format,hook,hooks,first_frame,first_three_seconds,primary_text,headline,description,cta,video_concept,recommended_duration_seconds,production_style,shot_directions,timed_script,proof_to_show,execution,why_test,hypothesis,inspiration,source_ad_ids,source_observations,ai_inferences,product_fact_checks,unsupported_claim_checks,animation_prompts,scores,overall_score,risk}}.
-hooks must contain exactly 4 materially different hook variations. timed_script must cover the full recommended duration through CTA. Keep the response tight and production-ready rather than verbose. Use only supplied source IDs.
+hooks must contain exactly 4 materially different hook variations. timed_script must cover the full recommended duration through CTA using 6-8 concise beats. Keep primary_text under 140 words, shot_directions to 4-6 items, source_observations to at most 3, product_fact_checks to at most 3, and animation_prompts to at most 2 scenes only when animation is genuinely useful. Keep the JSON compact and production-ready. Use only supplied source IDs.
 `;
 
 const SCRIPT_PROMPT=BASE+`
@@ -150,12 +150,12 @@ Deno.serve(async(req)=>{
       ad_archive_id:a.ad_archive_id,
       advertiser_name:a.advertiser_name,
       days_running:a.days_running,
-      primary_text:String(a.primary_text||"").slice(0,4500),
+      primary_text:String(a.primary_text||"").slice(0,task==="idea"?2200:4500),
       headline:String(a.headline||"").slice(0,500),
-      description:String(a.description||"").slice(0,1200),
+      description:String(a.description||"").slice(0,task==="idea"?700:1200),
       format:a.display_format||a.media_kind,
       source_url:a.source_url,
-      analysis:JSON.stringify(a.ai_analysis||{}).slice(0,3500)
+      analysis:JSON.stringify(a.ai_analysis||{}).slice(0,task==="idea"?1800:3500)
     }));
 
     const model=task==="script"
@@ -188,7 +188,7 @@ Deno.serve(async(req)=>{
     const candidates=task==="script"
       ? [model,"qwen/qwen3-30b-a3b-instruct-2507:nitro","qwen/qwen3-30b-a3b-instruct-2507"]
       : task==="idea"
-        ? [model,"qwen/qwen3-30b-a3b-instruct-2507"]
+        ? [model]
         : [model,"qwen/qwen3-30b-a3b-instruct-2507"];
     let result:any=null;
     let raw:any=null;
@@ -208,10 +208,11 @@ Deno.serve(async(req)=>{
               {role:"system",content:prompt},
               {role:"user",content:JSON.stringify(input)}
             ],
-            response_format:{type:"json_object"},
-            max_tokens:task==="script"?6000:task==="idea"?3600:8000
+            ...(task==="idea"?{}:{response_format:{type:"json_object"}}),
+            provider:{sort:"throughput",allow_fallbacks:true},
+            max_tokens:task==="script"?6000:task==="idea"?2600:8000
           }),
-          signal:AbortSignal.timeout(task==="script"?60000:task==="idea"?28000:60000)
+          signal:AbortSignal.timeout(task==="script"?60000:task==="idea"?50000:60000)
         });
         raw=await response.json().catch(()=>({}));
         if(!response.ok){
