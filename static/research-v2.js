@@ -126,10 +126,17 @@
     const t = Date.parse(value || "");
     return Number.isFinite(t) ? t : null;
   }
+  function isMetaGroupSummaryText(value) {
+    return /^\s*\d+\s+ads?\s+use\s+this\s+creative\s+and\s+text\s*$/i.test(String(value || ""));
+  }
+  function usablePrimaryText(ad) {
+    const text = String(ad?.primary_text || "").trim();
+    return isMetaGroupSummaryText(text) ? "" : text;
+  }
   function creativeFingerprint(ad) {
     const media = String(ad.media_url || ad.media_thumbnail_url || "").split("?")[0].trim();
     if (media) return "m:" + media;
-    const copy = String(ad.primary_text || "").toLowerCase().replace(/\s+/g," ").trim();
+    const copy = usablePrimaryText(ad).toLowerCase().replace(/\s+/g," ").trim();
     return copy ? "c:" + copy.slice(0,240) : "id:" + String(ad.ad_archive_id || ad.id || "");
   }
   function adScoreBreakdown(ad, brandAds) {
@@ -140,7 +147,7 @@
     const parts = {
       longevity: age === null ? 0 : Math.min(40, Math.round(Math.min(age, 90) / 90 * 40)),
       repetition: recurrence <= 1 ? 0 : Math.min(20, 8 + (recurrence - 2) * 4),
-      copy: ad.primary_text ? 10 : 0,
+      copy: usablePrimaryText(ad) ? 10 : 0,
       headline: ad.headline ? 5 : 0,
       destination: ad.landing_url ? 5 : 0,
       cta: ad.cta_text ? 5 : 0,
@@ -171,9 +178,10 @@
     document.querySelectorAll("[data-expand-ad]").forEach(button => {
       const ad = ads.find(a => String(a.id) === button.dataset.expandAd);
       if (!ad) return;
+      const cleanPrimary = usablePrimaryText(ad);
       const open = String(ad.id) === expandedAdId;
       const paragraph = document.getElementById(button.getAttribute("aria-controls"));
-      if (paragraph) paragraph.textContent = open ? ad.primary_text : copyExcerpt(ad.primary_text);
+      if (paragraph) paragraph.textContent = open ? cleanPrimary : copyExcerpt(cleanPrimary);
       button.textContent = open ? "Show less" : "Show more";
       button.setAttribute("aria-expanded", String(open));
     });
@@ -422,7 +430,7 @@
       const customMaxSeconds = customMaxMinutes * 60;
       rows = rows.filter(a => mediaKind(a) === "video" && videoDurationSeconds(a) !== null && videoDurationSeconds(a) <= customMaxSeconds);
     }
-    if (keyword) rows = rows.filter(a => [a.primary_text,a.headline,a.advertiser_name].some(value => String(value || "").toLowerCase().includes(keyword)));
+    if (keyword) rows = rows.filter(a => [usablePrimaryText(a),a.headline,a.advertiser_name].some(value => String(value || "").toLowerCase().includes(keyword)));
 
     rows.sort((a,b) => {
       if (sort === "score") {
@@ -470,7 +478,7 @@
       const avatar = brandAvatar({competitor_name:a.advertiser_name, logo_url:safeUrl(a.advertiser_logo_url || brandRow.logo_url), website_url:brandRow.website_url});
       const mediaUrl = safeUrl(a.media_url), poster = safeUrl(a.media_thumbnail_url);
       const durationSeconds = videoDurationSeconds(a);
-      let mediaHtml = '<div class="ad-media-empty"><span>Creative preview</span><p>Media was not captured by this source yet.</p></div>';
+      let mediaHtml = '<div class="capture-incomplete"><strong>Creative media not captured</strong><p>This row came from Meta without a usable image/video URL. Open the Meta ad or rescan the brand; it is not treated as having media.</p></div>';
       if (adKind === "video" && mediaUrl) {
         mediaHtml = '<div class="source-ad-media"><video controls playsinline preload="none" ' + (poster ? 'poster="' + esc(poster) + '" ' : '') + 'src="' + esc(mediaUrl) + '"></video></div>';
       } else if (adKind === "image" && mediaUrl) {
@@ -479,11 +487,12 @@
         mediaHtml = '<div class="source-ad-media media-unknown"><img loading="lazy" src="' + esc(poster) + '" alt=""><span>Media type unknown</span></div>';
       }
 
-      const primary = a.primary_text
-        ? '<div class="source-copy"><div class="source-copy-head"><span>Primary text</span><button class="copy-inline" type="button" data-copy-text="' + esc(a.id) + '">Copy</button></div><div class="source-copy-body"><p id="copy-' + esc(a.id) + '" style="white-space:pre-wrap;overflow-wrap:anywhere">' + esc(expanded ? a.primary_text : copyExcerpt(a.primary_text)) + '</p></div>' +
-          (a.primary_text.length > 200 ? '<div class="source-copy-footer"><button type="button" class="copy-inline" data-expand-ad="' + esc(a.id) + '" aria-controls="copy-' + esc(a.id) + '" aria-expanded="' + expanded + '">' + (expanded ? 'Show less' : 'Show more') + '</button></div>' : '') +
+      const cleanPrimary = usablePrimaryText(a);
+      const primary = cleanPrimary
+        ? '<div class="source-copy"><div class="source-copy-head"><span>Primary text</span><button class="copy-inline" type="button" data-copy-text="' + esc(a.id) + '">Copy</button></div><div class="source-copy-body"><p id="copy-' + esc(a.id) + '" style="white-space:pre-wrap;overflow-wrap:anywhere">' + esc(expanded ? cleanPrimary : copyExcerpt(cleanPrimary)) + '</p></div>' +
+          (cleanPrimary.length > 200 ? '<div class="source-copy-footer"><button type="button" class="copy-inline" data-expand-ad="' + esc(a.id) + '" aria-controls="copy-' + esc(a.id) + '" aria-expanded="' + expanded + '">' + (expanded ? 'Show less' : 'Show more') + '</button></div>' : '') +
           (a.raw?.primary_text_complete === false ? '<small class="source-copy-note">Source text may be incomplete.</small>' : '') + '</div>'
-        : '<div class="source-copy muted-copy"><div class="source-copy-body"><p>Primary text not captured yet.</p></div></div>';
+        : '';
 
       const transcriptStatus = String(a.transcription_status || "");
       const spokenOpening = String(a.ai_analysis?.exact_spoken_opening || a.ai_analysis?.spoken_hook || "").trim();
@@ -515,11 +524,11 @@
 
       return '<article class="source-ad-card">' +
         '<div class="source-ad-top">' + avatar + '<div><span class="pill">' + esc(a.advertiser_name || "Tracked brand") + '</span><h3>Ad ' + esc(a.ad_archive_id || "") + '</h3></div>' +
-        '<div class="source-score-stack"><div class="research-score" title="Research signal only — not profitability"><strong>' + researchScore + '</strong><span>score</span></div>' +
+        '<div class="source-score-stack"><div class="research-score" title="Research usefulness heuristic — not ad performance"><strong>' + researchScore + '</strong><span>research</span></div>' +
         '<div class="days-badge ' + (qualifies(a) ? 'qualified' : '') + '"><strong>' + (ageDays === null ? '—' : ageDays) + '</strong><span>' + (ageDays === null ? 'unknown' : 'days') + '</span></div></div></div>' +
         '<div class="source-rank-line"><span>Sample rank #' + (researchRank.rank || '—') + ' of ' + researchRank.total + (creativeUses > 1 ? ' · creative repeated ' + creativeUses + '×' : '') + '</span><span>' + (aiScore ? 'AI copy score ' + aiScore + '/100 · ' : '') + 'Research score · not profitability</span></div>' +
-        '<details class="score-breakdown"><summary>Why ' + researchScore + '/100?</summary><div><span>Longevity <b>' + scoreParts.longevity + '/40</b></span><span>Creative repetition <b>' + scoreParts.repetition + '/20</b></span><span>Primary copy <b>' + scoreParts.copy + '/10</b></span><span>Media <b>' + scoreParts.media + '/10</b></span><span>Headline <b>' + scoreParts.headline + '/5</b></span><span>Landing page <b>' + scoreParts.destination + '/5</b></span><span>CTA <b>' + scoreParts.cta + '/5</b></span><span>Active <b>' + scoreParts.active + '/5</b></span></div></details>' +
-        mediaHtml + (adKind === "video" && !poster ? '<p class="helper">Preview unavailable · press play to view video.</p>' : '') + transcriptBlock + analysisBlock + headline + primary + '<p class="helper">Impressions: ' + esc(impressionLabel(a)) + '</p>' +
+        '<details class="score-breakdown"><summary>Why this research signal is ' + researchScore + '/100</summary><p class="score-explainer">This is a heuristic for research usefulness, not a prediction of sales or ROAS. Points come only from the evidence below.</p><div><span>Longevity <b>' + scoreParts.longevity + '/40</b></span><span>Creative repetition <b>' + scoreParts.repetition + '/20</b></span><span>Primary copy captured <b>' + scoreParts.copy + '/10</b></span><span>Media captured <b>' + scoreParts.media + '/10</b></span><span>Headline captured <b>' + scoreParts.headline + '/5</b></span><span>Landing page captured <b>' + scoreParts.destination + '/5</b></span><span>CTA captured <b>' + scoreParts.cta + '/5</b></span><span>Still active <b>' + scoreParts.active + '/5</b></span></div></details>' +
+        mediaHtml + (adKind === "video" && !poster ? '<p class="helper">Preview unavailable · press play to view video.</p>' : '') + transcriptBlock + analysisBlock + headline + primary +
         '<div class="source-meta"><span>' + (a.started_at ? 'Started ' + esc(new Date(a.started_at + 'T00:00:00Z').toLocaleDateString(undefined, {month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})) : 'Start date unavailable') + '</span>' +
           '<span>' + esc(adKind === "unknown" ? "Unknown media" : adKind === "video" ? "Video" : "Image") + '</span>' +
           (adKind === "video" ? '<span class="duration-label">' + esc(formatDuration(durationSeconds)) + '</span>' : '') +
