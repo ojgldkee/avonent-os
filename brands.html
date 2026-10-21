@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="static/ui-v3.css?v=28">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="static/config.js?v=2"></script>
-  <link rel="stylesheet" href="static/strategist.css?v=1">
+  <link rel="stylesheet" href="static/strategist.css?v=13">
 </head>
 <body data-page="products-cloud">
 <header class="topbar">
@@ -35,14 +35,42 @@
     <p class="sub">Your storefront supplies the facts. Avonent uses them as context when planning creative, so you can focus on strategy instead of filling out forms.</p>
   </section>
 
-  <div class="strategy-lead"><span class="strategy-chip">Connected storefront · avonent.com</span><span class="strategy-chip">Creative strategy context</span></div><section class="product-scan panel">
+  <section class="panel connected-sites-panel">
+    <div class="section-head">
+      <div><p class="eyebrow">CONNECTED SITES</p><h2>Your storefronts</h2><p class="strategy-helper">Each site gets its own product catalog and creative context.</p></div>
+      <button id="show-add-site" class="button secondary mini" type="button">+ Add site</button>
+    </div>
+    <div class="connected-site-picker">
+      <label>Active site
+        <select id="connected-site-select"></select>
+      </label>
+      <div id="connected-site-meta" class="connected-site-meta"></div>
+    </div>
+    <form id="add-site-form" class="add-site-form hidden">
+      <label>Website URL
+        <input id="new-site-url" type="url" required inputmode="url" autocomplete="url" placeholder="https://yourstore.com">
+      </label>
+      <label>Site name
+        <input id="new-site-name" maxlength="120" placeholder="Your Store">
+      </label>
+      <label>Brand name
+        <input id="new-site-brand" maxlength="120" placeholder="Brand shown on products">
+      </label>
+      <div class="add-site-actions">
+        <button class="button" type="submit">Connect site</button>
+        <button id="cancel-add-site" class="button secondary" type="button">Cancel</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="product-scan panel">
     <div>
       <p class="eyebrow">WEBSITE SCAN</p>
-      <h2>avonent.com</h2>
-      <p class="helper">No Shopify app required. Avonent checks the public product catalog, sitemap and product pages.</p>
+      <h2 id="scan-site-title">Connected site</h2>
+      <p class="helper">Avonent checks the public product catalog, sitemap and product pages for the selected site.</p>
     </div>
     <div class="product-scan-actions">
-      <button id="scan-website" class="button" type="button">Scan avonent.com</button>
+      <button id="scan-website" class="button" type="button">Scan selected site</button>
       <button id="refresh-products" class="button secondary" type="button">Refresh</button>
     </div>
     <p id="product-status" class="helper span-2"></p>
@@ -144,7 +172,7 @@
 </main>
 
 <script src="static/cloud-v1.js?v=1"></script>
-<script src="static/website-products-v1.js?v=2"></script>
+<script src="static/website-products-v1.js?v=3"></script>
 <script src="static/ui-v3.js?v=11"></script>
 </body>
 </html>
