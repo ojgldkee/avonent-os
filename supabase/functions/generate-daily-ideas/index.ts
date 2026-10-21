@@ -81,7 +81,7 @@ Deno.serve(async(req)=>{
     if(!authorized)return out(401,{error:"Scheduler authorization required"});
 
     const today=new Date().toISOString().slice(0,10);
-    const archiveBefore=new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+    const archiveBefore=new Date(Date.now()-3*86400000).toISOString().slice(0,10);
 
     // Keep the live inbox small: untouched ideas older than 7 days move to Archive.
     const archiveOld=await admin.from("ai_ideas").update({
@@ -143,8 +143,8 @@ Deno.serve(async(req)=>{
 
       const slots=Array.from({length:needed},(_,i)=>existingCount+i+1);
       const rankedAds=[...ads].sort((a:any,b:any)=>{
-        const freshnessA=recentlyUsedSourceIds.has(String(a.ad_archive_id||""))?-1200:0;
-        const freshnessB=recentlyUsedSourceIds.has(String(b.ad_archive_id||""))?-1200:0;
+        const freshnessA=recentlyUsedSourceIds.has(String(a.ad_archive_id||""))?-10000:0;
+        const freshnessB=recentlyUsedSourceIds.has(String(b.ad_archive_id||""))?-10000:0;
         const as=freshnessA+Number(Boolean(a.video_transcript))*1000+Number(Boolean(a.ai_analysis?.visual_analysis_available))*500+Number(a.ai_analysis?.research_score||0)*3+Number(a.days_running||0);
         const bs=freshnessB+Number(Boolean(b.video_transcript))*1000+Number(Boolean(b.ai_analysis?.visual_analysis_available))*500+Number(b.ai_analysis?.research_score||0)*3+Number(b.days_running||0);
         return bs-as;
