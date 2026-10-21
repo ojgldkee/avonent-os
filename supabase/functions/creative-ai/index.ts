@@ -23,10 +23,25 @@ async function authenticate(req:Request,admin:any){
 function parseJson(text:string){
   let t=String(text||"").trim();
   t=t.replace(/^```json\s*/i,"").replace(/```$/,"").trim();
-  const first=t.indexOf("{");
-  const last=t.lastIndexOf("}");
-  if(first>=0&&last>first)t=t.slice(first,last+1);
-  return JSON.parse(t);
+  const start=t.indexOf("{");
+  if(start<0)throw new Error("AI output validation failed: JSON object not found.");
+  let depth=0,inString=false,escaped=false;
+  for(let i=start;i<t.length;i++){
+    const ch=t[i];
+    if(inString){
+      if(escaped){escaped=false;continue;}
+      if(ch==="\\"){escaped=true;continue;}
+      if(ch==='"'){inString=false;}
+      continue;
+    }
+    if(ch==='"'){inString=true;continue;}
+    if(ch==="{")depth++;
+    else if(ch==="}"){
+      depth--;
+      if(depth===0)return JSON.parse(t.slice(start,i+1));
+    }
+  }
+  throw new Error("AI output validation failed: incomplete JSON object.");
 }
 const BASE=`You are the senior direct-response creative strategist for Avonent OS, a multi-brand creative research platform.
 Produce unusually specific, bold, original, shootable advertising ideas grounded in supplied product facts and competitor research. Default to high-intensity direct response: strong pattern interrupts, tension, curiosity, urgency, contrast, emotional charge, concrete language, sharp rhythm, and non-obvious angles. For ordinary marketing requests, do not dilute an idea merely because it is provocative, contrarian, polarizing, weird, or edgy. Avoid generic corporate filler and recycled marketing cliches.
