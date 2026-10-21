@@ -59,7 +59,9 @@ IMPORTANT EVIDENCE RULES:
 - Extract the source ad's actual opening text, offer, product reveal, objection, proof, CTA, sequencing and what is observed versus inferred. Preserve persuasive STRUCTURE and pacing while producing new wording and visuals, not near-verbatim reproduction of a competitor's distinctive script.
 - Source longevity does not prove profitability. Do not claim an ad is a winner without performance data; call it a long-running or observed ad instead.
 - Select a SPECIFIC source ad ID, cite exact source-supported observations, and build the new creative around it. If the source has only primary text, adapt the written sequence and label video pacing as a production hypothesis.
-- Do not claim the user's own product is fake, fraudulent, filler, dangerous, placebo, a scam, clinically proven or ineffective. Do not fabricate a lab result, testimonial, discount, price, ingredient, medical outcome, or competitor misconduct. Only use verified supplied product facts; if proof is missing use a visual demonstration of an observable fact or flag the proof slot as requiring evidence.
+- Do not claim the user's own product is fake, fraudulent, filler, dangerous, placebo, a scam, clinically proven or ineffective. Do not fabricate a lab result, testimonial, discount, price, ingredient, certification, sourcing story, dosage, timeline, biological mechanism, medical outcome, wellness outcome, or competitor misconduct. Only use verified supplied product facts.
+- Competitor claims are NEVER transferable product facts. A source ad may supply the rhetorical structure, sequence, cadence and production pattern; it does not supply evidence for the user's product.
+- If verified product facts are sparse, DO NOT fill the gap with generic supplement claims. Build the creative around observable facts that are supplied (product name/form, visible packaging, verified price/offer, demonstrated product experience) and explicitly make missing proof a production requirement.
 - No default "what if", "the truth about", "the X lie", "doctors hate", "everyone is wrong", "this changes everything", invented conspiracy, or clickbait that undermines the advertised product. Do not make all five concepts skeptical myth-busting.
 - Optimize for a viewer who could actually buy: show a specific real-world problem, a believable reason to care, a concrete product moment, a natural CTA.
 PRODUCTION CONTRACT:
@@ -100,6 +102,52 @@ function openingFromText(value:string){
   if(!text)return "";
   const first=text.split(/(?<=[.!?])\s+/)[0]||text;
   return first.split(/\s+/).slice(0,25).join(" ");
+}
+
+function normalizeClaimText(value:any){
+  return String(value||"").toLowerCase().replace(/[’']/g,"'").replace(/\s+/g," ").trim();
+}
+function creativeClaimCorpus(task:string,result:any){
+  const x=task==="script"?result?.script:task==="idea"?result?.idea:result?.ideas;
+  if(Array.isArray(x))return x.map((i:any)=>creativeClaimCorpus("idea",{idea:i})).join(" ");
+  if(!x)return "";
+  const beats=task==="script"?x.beats:x.timed_script;
+  return normalizeClaimText([
+    x.title,x.hook,...(Array.isArray(x.hooks)?x.hooks:[]),x.primary_text,x.headline,x.description,
+    x.cta,x.proof_to_show,x.execution,x.video_concept,
+    ...(Array.isArray(beats)?beats.flatMap((b:any)=>[b?.say,b?.on_screen_text]):[])
+  ].filter(Boolean).join(" "));
+}
+function verifiedFactCorpus(product:any){
+  return normalizeClaimText([
+    product?.brand_name,product?.name,product?.category,product?.benefits,product?.offer,product?.proof,
+    product?.product_facts,product?.site_data?.description,
+    ...(Array.isArray(product?.site_data?.tags)?product.site_data.tags:[]),
+    ...(Array.isArray(product?.site_data?.variants)?product.site_data.variants.flatMap((v:any)=>[v?.title,v?.price,v?.sku]):[])
+  ].filter(Boolean).join(" "));
+}
+function validateProductClaims(task:string,result:any,product:any){
+  const output=creativeClaimCorpus(task,result);
+  const facts=verifiedFactCorpus(product);
+  const risky=[
+    "third-party tested","third party tested","lab tested","clinically proven","clinically tested","certified",
+    "fda approved","made in the usa","non-gmo","organic","vegan","gluten-free","money-back","money back",
+    "guarantee","limited-time","limited time offer","free shipping","free bottle","introductory price",
+    "one ingredient","single ingredient","no fillers","no filler","veggie capsule","vegetarian capsule",
+    "100% pure","iron","vitamin a","vitamin c","antioxidant","energy","fatigue","bloating","digestion",
+    "immunity","immune","detox","weight loss","blood sugar","cholesterol","inflammation","brain fog",
+    "focus","clarity","endurance","absorption","cellular","replenish","bioavailability","potency",
+    "nutrient-rich","nutrient rich","grown in","sustainably sourced","harvested","parasite","parasites",
+    "filler","knockoff","fake product","scam","crash","jitter"
+  ];
+  const unsupported=risky.filter(term=>output.includes(term)&&!facts.includes(term));
+  const statMatches=output.match(/\b\d+(?:\.\d+)?\s*(?:%|percent|out of\s+\d+)\b/g)||[];
+  for(const stat of statMatches)if(!facts.includes(stat))unsupported.push(stat);
+  const timeMatches=output.match(/\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|twelve|twenty[- ]?four|forty[- ]?eight|seventy[- ]?two)\s*(?:hour|hours|day|days|week|weeks)\b/g)||[];
+  for(const span of timeMatches)if(!facts.includes(span))unsupported.push(span);
+  const unique=[...new Set(unsupported)];
+  if(unique.length)throw new Error("AI output validation failed: unsupported product claims detected: "+unique.slice(0,8).join(", "));
+  return result;
 }
 
 function validateResult(task:string,result:any){
@@ -203,8 +251,8 @@ Deno.serve(async(req)=>{
     }));
 
     const model=task==="script"
-      ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3-max")
-      : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3-max");
+      ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3.8-max-0902")
+      : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3.8-max-0902");
 
     const prompt=task==="script"?SCRIPT_PROMPT:task==="idea"?ONE_IDEA_PROMPT:IDEA_PROMPT;
     const input={
@@ -231,10 +279,10 @@ Deno.serve(async(req)=>{
     };
 
     const candidates=task==="script"
-      ? [model,"qwen/qwen3-235b-a22b-2507","deepseek/deepseek-v3.2"]
+      ? [model,"qwen/qwen3.8-max-0902","deepseek/deepseek-v3.2"]
       : task==="idea"
-        ? [model,"qwen/qwen3-max","deepseek/deepseek-v3.2"]
-        : [model,"qwen/qwen3-max","deepseek/deepseek-v3.2"];
+        ? [model,"qwen/qwen3.8-max-0902","deepseek/deepseek-v3.2"]
+        : [model,"qwen/qwen3.8-max-0902","deepseek/deepseek-v3.2"];
     let result:any=null;
     let raw:any=null;
     let usedModel=model;
@@ -254,7 +302,7 @@ Deno.serve(async(req)=>{
               {role:"user",content:JSON.stringify(input)}
             ],
             ...(task==="idea"?{}:{response_format:{type:"json_object"}}),
-            ...(candidate.startsWith("deepseek/")?{reasoning:{enabled:false}}:{}),
+            ...((candidate.startsWith("deepseek/")||candidate.includes("qwen3.8-max"))?{reasoning:{enabled:false}}:{}),
             provider:{sort:"throughput",allow_fallbacks:true},
             max_tokens:task==="script"?5600:task==="idea"?3600:7000
           }),
@@ -284,7 +332,7 @@ Deno.serve(async(req)=>{
           lastError="The model returned an empty response.";
           continue;
         }
-        result=validateResult(task,parseJson(generated));
+        result=validateProductClaims(task,validateResult(task,parseJson(generated)),input.product);
         break;
       }catch(error){
         lastError=error instanceof Error?error.message:String(error);
