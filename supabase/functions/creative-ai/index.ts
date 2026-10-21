@@ -160,6 +160,20 @@ function validateProductClaims(task:string,result:any,product:any){
   return result;
 }
 
+function deepMergeCreative(base:any, patch:any):any{
+  if(Array.isArray(patch))return patch;
+  if(!patch||typeof patch!=="object")return patch===undefined?base:patch;
+  const output={...(base&&typeof base==="object"&&!Array.isArray(base)?base:{})};
+  for(const [key,value] of Object.entries(patch)){
+    if(value&&typeof value==="object"&&!Array.isArray(value)&&output[key]&&typeof output[key]==="object"&&!Array.isArray(output[key])){
+      output[key]=deepMergeCreative(output[key],value);
+    }else{
+      output[key]=value;
+    }
+  }
+  return output;
+}
+
 async function repairUnsupportedClaims(key:string,task:string,result:any,product:any,issues:string[]){
   const facts=verifiedFactCorpus(product);
   const repairPrompt=`You are a strict factual editor for advertising production.
@@ -168,7 +182,7 @@ Rewrite ONLY what is needed to remove unsupported product claims.
 You may use only VERIFIED_FACTS below for factual claims about the advertised product.
 Do not replace removed claims with new wellness, biological, ingredient, testing, certification, offer, dosage, timeline, or outcome claims.
 If proof is unavailable, use neutral observable product language and put "Proof needed before use" in proof_to_show.
-Every script beat must remain complete. Return the exact same top-level JSON shape as the draft. JSON only.`;
+Every script beat must remain complete. Return either the full corrected object or a same-shaped JSON patch containing only fields you changed. Never rename the top-level "idea" or "script" key. JSON only.`;
 
   let lastError="Claim repair failed.";
   for(const repairModel of ["qwen/qwen3.7-flash","google/gemini-3.8-flash"]){
@@ -205,7 +219,8 @@ Every script beat must remain complete. Return the exact same top-level JSON sha
         lastError="Claim repair returned no text.";
         continue;
       }
-      return parseJson(text);
+      const patch=parseJson(text);
+      return deepMergeCreative(result,patch);
     }catch(error){
       lastError=error instanceof Error?error.message:String(error);
     }
@@ -314,8 +329,8 @@ Deno.serve(async(req)=>{
     }));
 
     const model=task==="script"
-      ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3.7-flash")
-      : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3.7-flash");
+      ? (Deno.env.get("AVONENT_SCRIPT_MODEL")||"qwen/qwen3.8-27b")
+      : (Deno.env.get("AVONENT_IDEA_MODEL")||"qwen/qwen3.8-27b");
 
     const prompt=task==="script"?SCRIPT_PROMPT:task==="idea"?ONE_IDEA_PROMPT:IDEA_PROMPT;
     const input={
@@ -364,8 +379,8 @@ Deno.serve(async(req)=>{
               {role:"system",content:prompt},
               {role:"user",content:JSON.stringify(input)}
             ],
-            ...((task!=="idea"||candidate.includes("qwen3.7-flash"))?{response_format:{type:"json_object"}}:{}),
-            ...((candidate.startsWith("deepseek/")||candidate.includes("qwen3.7-flash"))?{reasoning:{enabled:false}}:{}),
+            response_format:{type:"json_object"},
+            ...((candidate.includes("qwen3.8-27b")||candidate.includes("qwen3.7-flash"))?{reasoning:{enabled:false}}:{}),
             provider:{sort:"throughput",allow_fallbacks:true},
             max_tokens:task==="script"?5600:task==="idea"?3600:7000
           }),
