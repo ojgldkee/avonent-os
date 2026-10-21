@@ -362,43 +362,107 @@ Every script beat must remain complete. Return either the full corrected object 
   throw new Error(lastError);
 }
 
+function compactCaption(text:any){
+  return String(text||"").replace(/\s+/g," ").trim().split(/\s+/).slice(0,9).join(" ");
+}
+
+function normalizeBeat(beat:any,index:number,script:any){
+  const b={...(beat||{})};
+  b.time=String(b.time||"").trim()||("Beat "+(index+1));
+  b.say=String(b.say||"").trim();
+  b.show=String(b.show||"").trim();
+  b.on_screen_text=String(b.on_screen_text||"").trim()||compactCaption(b.say);
+  b.footage_type=String(b.footage_type||"").trim()||"REAL_UGC";
+  b.visual_style=String(b.visual_style||"").trim()||String(b.show||"natural direct-response social video").trim();
+  b.camera=String(b.camera||"").trim()||"Vertical 9:16 social framing; camera choice follows the described shot.";
+  b.setting=String(b.setting||"").trim()||"Setting follows the described shot.";
+  b.actor_or_subject=String(b.actor_or_subject||"").trim()||"Primary speaker or product shown in the scene.";
+  b.action=String(b.action||"").trim()||String(b.show||"Perform the described visual action.").trim();
+  b.transition=String(b.transition||"").trim()||(index===0?"Hard open":"Fast direct-response cut");
+  b.provider=String(b.provider||"").trim()||(/^AI_/i.test(b.footage_type)?"Higgsfield":"camera/editor");
+  b.video_model=String(b.video_model||"").trim();
+  b.animation_style=String(b.animation_style||"").trim();
+  b.animation_prompt=String(b.animation_prompt||"").trim();
+  b.source_reference=String(b.source_reference||"").trim()||("Primary source beat "+(index+1));
+  if(/^AI_/i.test(b.footage_type)&&!b.video_model){
+    b.video_model=b.footage_type==="AI_PERSON"?"Kling 3.0 Pro":b.footage_type==="AI_CLAYMATION"?"Seedance 2.5":"Seedance 2.5";
+  }
+  if(/^AI_/i.test(b.footage_type)&&!b.animation_prompt){
+    b.animation_prompt="Generate the described vertical 9:16 scene: "+b.show+" Style: "+b.visual_style+". Camera: "+b.camera+". Setting: "+b.setting+". Action: "+b.action+".";
+  }
+  return b;
+}
+
 function validateResult(task:string,result:any){
   if(task==="idea"){
     const idea=result?.idea;
-    if(!idea||!idea.title||!idea.hook)throw new Error("AI output validation failed: incomplete idea.");
-    if(!idea?.hook_adaptation?.adapted_hook||!idea?.hook_adaptation?.source_hook_blueprint)throw new Error("AI output validation failed: hook adaptation is missing.");
-    if(!idea?.story_arc?.adapted_story_spine||!Array.isArray(idea.story_arc.adapted_story_spine)||idea.story_arc.adapted_story_spine.length<3)throw new Error("AI output validation failed: story arc is missing.");
-    if(!idea?.visual_recipe?.overall_style)throw new Error("AI output validation failed: visual recipe is missing.");
-    if(!idea?.first_three_seconds||!String(idea.first_three_seconds.say||"").trim()||!String(idea.first_three_seconds.show||"").trim()||!String(idea.first_three_seconds.on_screen_text||"").trim())throw new Error("AI output validation failed: first 3 seconds are incomplete.");
-    if(!Array.isArray(idea.timed_script)||idea.timed_script.length<6||idea.timed_script.some((b:any)=>!String(b?.say||"").trim()||!String(b?.show||"").trim()||!String(b?.on_screen_text||"").trim()||!String(b?.time||"").trim()||!String(b?.footage_type||"").trim()||!String(b?.visual_style||"").trim()||!String(b?.provider||"").trim()||!String(b?.source_reference||"").trim()))throw new Error("AI output validation failed: production script is incomplete.");
-    if(!Array.isArray(idea.hooks))idea.hooks=[idea.hook];
-    if(idea.hooks.filter((x:any)=>String(x||"").trim()).length<4)throw new Error("AI output validation failed: expected four usable hooks.");
-    if(!Array.isArray(idea.source_ad_ids))idea.source_ad_ids=[];
-    if(!idea?.source_adaptation?.ad_archive_id)throw new Error("AI output validation failed: source adaptation is missing.");
-    if(!Array.isArray(idea.shot_directions))idea.shot_directions=[];
+    if(!idea||!String(idea.title||"").trim()||!String(idea.hook||"").trim())throw new Error("AI output validation failed: incomplete idea.");
+
+    if(!Array.isArray(idea.hooks))idea.hooks=[];
+    idea.hooks=[idea.hook,...idea.hooks].map((x:any)=>String(x||"").trim()).filter(Boolean)
+      .filter((x:string,i:number,a:string[])=>a.indexOf(x)===i).slice(0,4);
+    if(idea.hooks.length<4)throw new Error("AI output validation failed: expected four usable hooks.");
+
     if(!Array.isArray(idea.timed_script))idea.timed_script=[];
-    if(idea.timed_script.some((b:any)=>!String(b?.footage_type||"").trim()||!String(b?.provider||"").trim()))throw new Error("AI output validation failed: every script beat needs footage type and provider.");
+    idea.timed_script=idea.timed_script.map((b:any,i:number)=>normalizeBeat(b,i,idea));
+    if(idea.timed_script.length<5||idea.timed_script.some((b:any)=>!b.say||!b.show)){
+      throw new Error("AI output validation failed: production script needs at least five complete spoken/visual beats.");
+    }
+
+    if(!idea.first_three_seconds||typeof idea.first_three_seconds!=="object")idea.first_three_seconds={};
+    const first=idea.timed_script[0]||{};
+    idea.first_three_seconds.say=String(idea.first_three_seconds.say||first.say||idea.hook||"").trim();
+    idea.first_three_seconds.show=String(idea.first_three_seconds.show||first.show||idea.first_frame||"").trim();
+    idea.first_three_seconds.on_screen_text=String(idea.first_three_seconds.on_screen_text||first.on_screen_text||compactCaption(idea.hook)).trim();
+    idea.first_three_seconds.footage_type=String(idea.first_three_seconds.footage_type||first.footage_type||"REAL_UGC");
+    idea.first_three_seconds.visual_style=String(idea.first_three_seconds.visual_style||first.visual_style||"native social ad");
+    idea.first_three_seconds.provider=String(idea.first_three_seconds.provider||first.provider||"camera/editor");
+    idea.first_three_seconds.video_model=String(idea.first_three_seconds.video_model||first.video_model||"");
+    if(!idea.first_three_seconds.say||!idea.first_three_seconds.show||!idea.first_three_seconds.on_screen_text){
+      throw new Error("AI output validation failed: first 3 seconds are incomplete.");
+    }
+
+    if(!idea.hook_adaptation||typeof idea.hook_adaptation!=="object")idea.hook_adaptation={};
+    idea.hook_adaptation.adapted_hook=String(idea.hook_adaptation.adapted_hook||idea.hook||"");
+    idea.hook_adaptation.source_hook_blueprint=String(idea.hook_adaptation.source_hook_blueprint||"Mirror the primary source hook's POV, pacing, curiosity mechanism and reveal pattern.");
+
+    if(!idea.story_arc||typeof idea.story_arc!=="object")idea.story_arc={};
+    if(!Array.isArray(idea.story_arc.adapted_story_spine)||idea.story_arc.adapted_story_spine.length<3){
+      idea.story_arc.adapted_story_spine=idea.timed_script.slice(0,6).map((b:any)=>b.source_reference||b.say);
+    }
+
+    if(!idea.visual_recipe||typeof idea.visual_recipe!=="object")idea.visual_recipe={};
+    idea.visual_recipe.overall_style=String(idea.visual_recipe.overall_style||idea.production_style||idea.timed_script[0]?.visual_style||"Native vertical direct-response video");
+    if(!Array.isArray(idea.visual_recipe.provider_stack))idea.visual_recipe.provider_stack=[
+      ...new Set(idea.timed_script.map((b:any)=>[b.provider,b.video_model].filter(Boolean).join(" / ")).filter(Boolean))
+    ];
+
+    if(!Array.isArray(idea.source_ad_ids))idea.source_ad_ids=[];
+    if(!idea.source_adaptation||typeof idea.source_adaptation!=="object")idea.source_adaptation={};
+    if(!Array.isArray(idea.shot_directions))idea.shot_directions=[];
     if(!Array.isArray(idea.source_observations))idea.source_observations=[];
+    if(!Array.isArray(idea.source_claims))idea.source_claims=[];
     if(!Array.isArray(idea.ai_inferences))idea.ai_inferences=[];
     if(!Array.isArray(idea.product_fact_checks))idea.product_fact_checks=[];
     if(!Array.isArray(idea.unsupported_claim_checks))idea.unsupported_claim_checks=[];
     if(!Array.isArray(idea.animation_prompts))idea.animation_prompts=[];
   }else if(task==="ideas"){
     if(!Array.isArray(result?.ideas)||result.ideas.length!==5)throw new Error("AI output validation failed: expected five ideas.");
-    for(const idea of result.ideas){
-      if(!idea||!idea.title||!idea.hook)throw new Error("AI returned an incomplete idea.");
-      if(!Array.isArray(idea.hooks))idea.hooks=[idea.hook];
-      if(!Array.isArray(idea.source_ad_ids))idea.source_ad_ids=[];
-      if(!Array.isArray(idea.shot_directions))idea.shot_directions=[];
-      if(!Array.isArray(idea.timed_script))idea.timed_script=[];
-      if(!Array.isArray(idea.source_observations))idea.source_observations=[];
-      if(!Array.isArray(idea.ai_inferences))idea.ai_inferences=[];
-      if(!Array.isArray(idea.product_fact_checks))idea.product_fact_checks=[];
-      if(!Array.isArray(idea.unsupported_claim_checks))idea.unsupported_claim_checks=[];
-      if(!Array.isArray(idea.animation_prompts))idea.animation_prompts=[];
+    result.ideas=result.ideas.map((idea:any)=>validateResult("idea",{idea}).idea);
+  }else{
+    const script=result?.script;
+    if(!script||!Array.isArray(script.beats))throw new Error("AI output validation failed: incomplete script.");
+    script.beats=script.beats.map((b:any,i:number)=>normalizeBeat(b,i,script));
+    if(script.beats.length<5||script.beats.some((b:any)=>!b.say||!b.show)){
+      throw new Error("AI output validation failed: final script needs at least five complete spoken/visual beats.");
     }
-  }else if(!result?.script||!Array.isArray(result.script.beats)||result.script.beats.length<4||result.script.beats.some((b:any)=>!String(b?.say||"").trim()||!String(b?.show||"").trim()||!String(b?.on_screen_text||"").trim()||!String(b?.footage_type||"").trim()||!String(b?.provider||b?.video_model||"").trim()||!String(b?.source_reference||"").trim())){
-    throw new Error("AI output validation failed: final script is missing dialogue, visuals, footage provider, or source mapping.");
+    if(!script.first_three_seconds||typeof script.first_three_seconds!=="object")script.first_three_seconds={};
+    const first=script.beats[0]||{};
+    script.first_three_seconds.say=String(script.first_three_seconds.say||first.say||script.hook||"");
+    script.first_three_seconds.show=String(script.first_three_seconds.show||first.show||"");
+    script.first_three_seconds.on_screen_text=String(script.first_three_seconds.on_screen_text||first.on_screen_text||compactCaption(script.hook||first.say));
+    if(!script.visual_recipe||typeof script.visual_recipe!=="object")script.visual_recipe={overall_style:first.visual_style||"Native vertical direct-response video"};
+    if(!script.story_arc||typeof script.story_arc!=="object")script.story_arc={adapted_story_spine:script.beats.slice(0,6).map((b:any)=>b.source_reference||b.say)};
   }
   return result;
 }
@@ -538,9 +602,9 @@ Deno.serve(async(req)=>{
             response_format:{type:"json_object"},
             ...((candidate.includes("qwen3.8-27b")||candidate.includes("qwen3.7-flash"))?{reasoning:{enabled:false}}:{}),
             provider:{sort:"throughput",allow_fallbacks:true},
-            max_tokens:task==="script"?4200:task==="idea"?2800:5600
+            max_tokens:task==="script"?5200:task==="idea"?3800:6200
           }),
-          signal:AbortSignal.timeout(task==="script"?32000:task==="idea"?24000:32000)
+          signal:AbortSignal.timeout(task==="script"?40000:task==="idea"?32000:40000)
         });
         raw=await response.json().catch(()=>({}));
         if(!response.ok){
