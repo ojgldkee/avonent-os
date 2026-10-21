@@ -63,15 +63,15 @@ IMPORTANT EVIDENCE RULES:
 - Never blend the primary source's opening with a different source's sequence. One idea has one primary source skeleton. Secondary ads may only contribute supporting patterns.
 - Source longevity does not prove profitability. Do not claim an ad is a winner without performance data; call it a long-running or observed ad instead.
 - Select a SPECIFIC source ad ID, cite exact source-supported observations, and build the new creative around it. If the source has only primary text, adapt the written sequence and label video pacing as a production hypothesis.
-- Do not claim the user's own product is fake, fraudulent, filler, dangerous, placebo, a scam, clinically proven or ineffective. Do not fabricate a lab result, testimonial, discount, price, ingredient, certification, sourcing story, dosage, timeline, biological mechanism, medical outcome, wellness outcome, or competitor misconduct. Only use verified supplied product facts.
-- Competitor claims are NEVER transferable product facts. A source ad may supply the rhetorical structure, sequence, cadence and production pattern; it does not supply evidence for the user's product.
-- If verified product facts are sparse, DO NOT fill the gap with generic supplement claims. Build the creative around observable facts that are supplied (product name/form, visible packaging, verified price/offer, demonstrated product experience) and explicitly make missing proof a production requirement.
+- Treat competitor claims, mechanisms, testimonials, timelines, offers and dramatic statements as CREATIVE SOURCE MATERIAL. They may be retained or closely adapted in the draft when that is what makes the source ad powerful.
+- Do not silently present a source-derived claim as verified product truth. Preserve it in the creative, but record its origin in source_claims with origin="competitor_ad_unverified". The user will verify landing-page/product-page support before launch.
+- Do not weaken a strong source hook or story merely because its claims are not yet verified. This system is for ad spying, concepting and script development first.
 - No default "what if", "the truth about", "the X lie", "doctors hate", "everyone is wrong", "this changes everything", invented conspiracy, or clickbait that undermines the advertised product. Do not make all five concepts skeptical myth-busting.
 - Optimize for a viewer who could actually buy: show a specific real-world problem, a believable reason to care, a concrete product moment, a natural CTA.
 PRODUCTION CONTRACT:
 - Deliver a complete shootable script. Every timed beat MUST contain nonempty time, say, show, on_screen_text, footage_type, and provider. No placeholder fields. SAY is exact spoken dialogue; SHOW is camera/action direction; ON-SCREEN is actual caption. Footage types: UGC, PRODUCT, B_ROLL, AI_VIDEO, GRAPHIC. For non-AI footage provider is "camera/editor"; for AI_VIDEO choose a suggested model/provider (e.g. Higgsfield Seedance or MiniMax Hailuo), plus detailed generation prompt. Recommend AI only for shots impossible or impractical to film. Never imply AI-generated illustrations are clinical evidence.
 - Use 5-8 sequential timestamped beats covering the entire duration including a spoken CTA. Match speech to realistic pacing (~2-2.7 words/second). Video length is chosen from the idea, not a fixed template.
-- Every concept must contain 4 distinct, spoken, natural-sounding ORIGINAL hook options. The source's actual opening must be listed separately as research evidence, not disguised as original.
+- Every concept must contain 4 strong hook options. Hook 1 should be the closest usable adaptation of the primary source hook. Hooks 2-4 should be clearly different executions built from other observed source patterns, not generic filler.
 - Describe filming setup, shot changes, cut timing, product shots, transitions, camera behavior, casting and any animation prompt/provider when relevant.
 - VISUAL SPECIFICITY IS REQUIRED. Do not say only "AI animation" or "UGC." State what it looks like: e.g. real iPhone UGC in a parked car, photoreal AI spokesperson, stop-motion claymation, glossy 3D product macro, paper-cut collage, cinematic AI reenactment, medical-style explanatory animation, screen-recording, or practical B-roll.
 - For AI_PERSON scenes, recommend Higgsfield + Kling 3.0 Pro by default unless another model better fits. For stylized/high-motion AI_VIDEO, Seedance 2.5 is a strong default. For character animation, Hailuo may be used. Always name provider + model and give a paste-ready prompt.
@@ -160,6 +160,7 @@ Return:
 "proof_to_show":"","execution":"","why_test":"","hypothesis":"","inspiration":"",
 "source_ad_ids":[],
 "source_observations":[],
+"source_claims":[],
 "ai_inferences":[],
 "product_fact_checks":[],
 "unsupported_claim_checks":[],
@@ -546,20 +547,7 @@ Deno.serve(async(req)=>{
           lastError="The model returned an empty response.";
           continue;
         }
-        const parsed=validateResult(task,parseJson(generated));
-        const claimIssues=findUnsupportedProductClaims(task,parsed,input.product);
-        if(claimIssues.length){
-          const target=task==="script"?parsed.script:task==="idea"?parsed.idea:null;
-          if(target){
-            target.claim_review_required=true;
-            target.unsupported_claim_checks=[
-              ...(Array.isArray(target.unsupported_claim_checks)?target.unsupported_claim_checks:[]),
-              ...claimIssues.map((claim:string)=>({status:"needs_review",claim,reason:"Not verified in product facts"}))
-            ];
-          }
-          console.warn("creative-ai claim warnings",JSON.stringify({candidate,issues:claimIssues.slice(0,8)}));
-        }
-        result=parsed;
+        result=validateResult(task,parseJson(generated));
         break;
       }catch(error){
         lastError=error instanceof Error?error.message:String(error);
