@@ -367,7 +367,7 @@
           '<button class="decision-button approve ' + (approved ? "active" : "") + '" type="button" data-approve="' + idea.id + '">' + (approved ? '✓ Saved' : 'Save') + '</button>' +
           '<button class="decision-button reject ' + (rejected ? "active" : "") + '" type="button" data-reject="' + idea.id + '">× Reject</button>' +
           '<button class="decision-button" type="button" data-archive="' + idea.id + '">' + (idea.lifecycle_status === "archived" ? 'Restore' : 'Archive') + '</button>' +
-          (idea.lifecycle_status === "used" ? '<button class="decision-button ' + (outcomeFor(idea.id)?.action === "winner" ? 'approve active' : '') + '" type="button" data-outcome="winner" data-outcome-id="' + idea.id + '">Winner</button><button class="decision-button ' + (outcomeFor(idea.id)?.action === "loser" ? 'reject active' : '') + '" type="button" data-outcome="loser" data-outcome-id="' + idea.id + '">Loser</button>' : '') +
+          (idea.lifecycle_status === "used" ? '<button class="decision-button ' + (outcomeFor(idea.id)?.action === "winner" ? 'approve active' : '') + '" type="button" data-outcome="winner" data-outcome-id="' + idea.id + '">Winner</button><button class="decision-button ' + (outcomeFor(idea.id)?.action === "loser" ? 'reject active' : '') + '" type="button" data-outcome="loser" data-outcome-id="' + idea.id + '">Loser</button><button class="decision-button" type="button" data-results="' + idea.id + '">Add results</button>' : '') +
         '</div>' +
 
         scriptBlock +
@@ -638,6 +638,42 @@
     await loadData();
   }
 
+  async function addResults(idea) {
+    const ask = (label) => {
+      const raw = window.prompt(label + " (optional — leave blank to skip)", "");
+      if (raw == null || String(raw).trim() === "") return null;
+      const n = Number(String(raw).replace(/[$,%x]/gi,"").trim());
+      return Number.isFinite(n) ? n : null;
+    };
+    const performance = {
+      spend: ask("Spend $"),
+      ctr: ask("CTR %"),
+      cpc: ask("CPC $"),
+      cpa: ask("CPA $"),
+      roas: ask("ROAS")
+    };
+    const notes = window.prompt("Optional note about what happened with this ad", "") || "";
+    const insert = await db.from("creative_usage_events").insert({
+      user_id: session.user.id,
+      product_id: idea.product_id,
+      idea_id: idea.id,
+      asset_kind: idea.ai_script ? "script" : "concept",
+      action: "results",
+      content_snapshot: idea.ai_script || idea.hook || idea.title || "",
+      performance,
+      notes
+    });
+    if (insert.error) throw insert.error;
+    const update = await db.from("ai_ideas").update({
+      performance: {...(idea.performance || {}), ...performance, notes},
+      last_feedback_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }).eq("id", idea.id);
+    if (update.error) throw update.error;
+    $("ideas-status").textContent = "Results saved. Future creative can learn from them.";
+    await loadData();
+  }
+
   async function generateScript(idea) {
     const p = currentProduct();
     if (!p) return;
@@ -768,6 +804,7 @@
         const archiveId = event.target.getAttribute("data-archive");
         const outcome = event.target.getAttribute("data-outcome");
         const outcomeId = event.target.getAttribute("data-outcome-id");
+        const resultsId = event.target.getAttribute("data-results");
         const approveId = event.target.getAttribute("data-approve");
         const rejectId = event.target.getAttribute("data-reject");
         const sourceId = event.target.getAttribute("data-sources");
@@ -795,6 +832,10 @@
           if (outcome && outcomeId) {
             const idea = ideas.find(i => i.id === outcomeId);
             if (idea) return await markOutcome(idea,outcome);
+          }
+          if (resultsId) {
+            const idea = ideas.find(i => i.id === resultsId);
+            if (idea) return await addResults(idea);
           }
           if (approveId) return await setDecision(approveId, "approve");
           if (rejectId) return await setDecision(rejectId, "reject");
