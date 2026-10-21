@@ -82,6 +82,7 @@ FEEDBACK LOOP:
 - "used" means the user chose that hook/script for production; treat it as positive taste signal, but weaker than "winner".
 - "results" may include spend, CTR, CPC, CPA and ROAS. Use those numbers as the strongest optimization signal when they are present.
 - Do not simply repeat a previous used hook. Learn the structural preference and apply it to a different source ad.
+- recent_creatives lists recent hooks/angles/source IDs. Avoid near-duplicates. Today's concept should feel materially different in hook mechanism, story premise and visual execution from recent creatives unless the user explicitly marked a pattern as a winner.
 
 Return one valid JSON object only, no markdown.`;
 
@@ -97,11 +98,11 @@ Generate ONE production-ready ad by closely adapting ONE primary source ad.
 
 PRIMARY SOURCE RULE:
 - primary_source_ad_id identifies the source skeleton. Use that exact ad.
-- If exact_spoken_opening exists, Hook 1 MUST be a close structural rewrite of it: preserve sentence count, POV, clause order, curiosity device, emotional turn, reveal placement and approximate length. Change only what must change for the user's product and verified facts.
-- Hooks 2-4 are controlled variants of Hook 1 using the SAME mechanism, not unrelated generic hooks.
+- If exact_spoken_opening exists, Hook 1 MUST be the closest practical adaptation of it: preserve sentence count, POV, clause order, curiosity device, emotional turn, reveal placement, intensity and approximate length. Do not replace it with generic wellness copy.
+- Hooks 2-4 must be genuinely different hook executions sourced from other observed patterns in competitor_research while staying compatible with the same concept. Do not give four tiny rewrites of one sentence.
 - If the source opening is a narrative story, preserve the narrative grammar and open loop. If the source says "character → surprising observation → time span → hidden relationship/secret → expected outcome → reversal", the adapted hook should follow that same sequence.
-- Do not import the primary source's health claims, statistics, testimonials or mechanisms as facts for the user's product.
-- If no real testimonial/story exists for the user's product, use a clearly dramatized narrative concept and set narrative_truth_mode="DRAMATIZED_SCENARIO". Do not fake a customer result.
+- Keep strong source-derived claims/mechanisms in the creative draft when they are important to the source ad. Put each such claim in source_claims with the source ad ID and origin="competitor_ad_unverified" so it can be checked before launch.
+- If no real testimonial/story exists for the user's product, you may create a dramatized story concept, but label narrative_truth_mode="DRAMATIZED_SCENARIO" rather than pretending it is a verified customer testimonial.
 
 STORY RULE:
 - Build story_arc.source_story_spine directly from the primary source.
@@ -188,8 +189,8 @@ VALIDATION TARGETS:
 - timed_script 6-10 beats covering at least 60 seconds through a spoken CTA, with at least 120 spoken words. A hook-only 25-second timeline is invalid.
 - Every beat has substantive SAY/SHOW, footage_type, visual_style, provider and source_reference.
 - If footage is AI, provider/model/prompt must be populated.
-- Keep the product claims inside verified facts. If the source ad's mechanism is not verified for this product, preserve only the storytelling/creative structure, not the claim.
-- Prioritize a compelling story and source fidelity over generic marketing theory.
+- Do not sanitize the draft just because a competitor claim is unverified. Preserve useful source-derived claims in source_claims and keep them visible in the draft for creative review.
+- Prioritize a compelling story, source fidelity, specificity and emotional intensity over generic marketing theory.
 - Keep the JSON compact enough to finish reliably: concise strings, 6-8 timed beats, and no essay-length explanations. Aim to stay under about 3,800 output tokens.
 `;
 
@@ -205,7 +206,7 @@ This is NOT a generic rewrite. Keep the exact source-ad creative architecture al
 - product reveal position
 - CTA position
 
-The final script must feel like the same creative FORMAT rebuilt for the user's brand while using original wording and verified facts.
+The final script must feel like the same creative FORMAT rebuilt for the user's brand. Preserve the useful source claims/mechanisms in the draft when they drive the ad, while labeling them as source-derived/unverified rather than silently treating them as proven facts.
 
 Return:
 {"script":{
@@ -233,7 +234,7 @@ Return:
 }}
 
 Every beat must be fully populated and shootable. Use 6-10 beats covering 60–90 seconds (at least 120 spoken words). If selected_idea has a short draft, expand it into a complete story rather than preserving its short duration. End with the spoken CTA.
-For story ads, write an actual beginning, escalation, reveal and resolution rather than a list of claims.
+For story ads, write an actual beginning, escalation, reveal and resolution rather than a list of claims. Mirror the source story's emotional intensity and pacing; do not flatten it into cautious generic wellness copy.
 For AI scenes, explain exactly what the viewer sees and how it should be generated. Name provider/model and write a paste-ready prompt.
 For real UGC, specify the actor type, location, camera framing, movement, props and edit rhythm.
 Do not reproduce the competitor's full script verbatim.
@@ -569,6 +570,7 @@ Deno.serve(async(req)=>{
 
     const prompt=task==="script"?SCRIPT_PROMPT:task==="idea"?ONE_IDEA_PROMPT:IDEA_PROMPT;
     let creativeFeedback:any[]=[];
+    let recentCreatives:any[]=[];
     if(product?.id){
       let fq=admin.from("creative_usage_events")
         .select("asset_kind,action,content_snapshot,performance,notes,created_at")
@@ -578,10 +580,29 @@ Deno.serve(async(req)=>{
       if(auth.userId)fq=fq.eq("user_id",auth.userId);
       const feedback=await fq;
       if(!feedback.error)creativeFeedback=feedback.data||[];
+
+      let rq=admin.from("ai_ideas")
+        .select("title,hook,angle,format,source_ad_ids,strategy,created_at,lifecycle_status,status")
+        .eq("product_id",product.id)
+        .order("created_at",{ascending:false})
+        .limit(40);
+      if(auth.userId)rq=rq.eq("user_id",auth.userId);
+      const recent=await rq;
+      if(!recent.error)recentCreatives=(recent.data||[]).map((row:any)=>({
+        title:row.title||"",
+        hook:row.hook||"",
+        angle:row.angle||"",
+        format:row.format||"",
+        source_ad_ids:row.source_ad_ids||[],
+        source_hook_blueprint:row.strategy?.hook_adaptation?.source_hook_blueprint||"",
+        lifecycle_status:row.lifecycle_status||"new",
+        status:row.status||"Idea"
+      }));
     }
 
     const input={
       creative_feedback:creativeFeedback,
+      recent_creatives:recentCreatives,
       product:{
         id:product.id||"",
         brand_name:product.brand_name||"",
