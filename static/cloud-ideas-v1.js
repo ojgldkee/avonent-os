@@ -280,7 +280,11 @@
         '<button class="button secondary mini" data-copy-primary="' + esc(idea.id) + '">Copy primary text</button>';
       return '<article class="cloud-idea-card" data-idea="' + esc(idea.id) + '"><div class="idea-card-top"><div><span class="idea-number">' + esc(idea.format || 'CONCEPT') + '</span><h2>' + esc(idea.title || idea.angle || 'Ad idea') + '</h2></div></div>' + hookHtml +
         ((!savedView || savedPack || savedAsset(idea,"script")) ? fold('Script',script) : '') + fold('Full creative brief',brief) + fold('Primary text',primary) +
-        '<div class="idea-decision-row"><button class="decision-button" data-approve="' + esc(idea.id) + '">' + (savedPack ? 'Saved pack ✓ · Unsave' : 'Save whole pack') + '</button><button class="decision-button" data-archive="' + esc(idea.id) + '">' + (idea.lifecycle_status === 'archived' ? 'Restore' : 'Archive') + '</button><button class="source-link" data-sources="' + esc(idea.id) + '">Source ads</button></div></article>';
+        '<div class="idea-decision-row"><button class="decision-button" data-approve="' + esc(idea.id) + '">' + (savedPack ? 'Saved pack ✓ · Unsave' : 'Save whole pack') + '</button><button class="decision-button" data-archive="' + esc(idea.id) + '">' + (idea.lifecycle_status === 'archived' ? 'Restore' : 'Archive') + '</button><button class="source-link" data-sources="' + esc(idea.id) + '">Source ads</button></div>' +
+        (idea.lifecycle_status === 'used'
+          ? '<div class="idea-performance-row"><span class="helper">How did it perform?</span><button class="copy-inline" data-outcome="winner" data-outcome-id="' + esc(idea.id) + '">Winner</button><button class="copy-inline" data-outcome="loser" data-outcome-id="' + esc(idea.id) + '">Loser</button><button class="copy-inline" data-results="' + esc(idea.id) + '">Add results</button>' + (outcomeFor(idea.id) ? '<span class="pill">' + esc(outcomeFor(idea.id).action) + '</span>' : '') + '</div>'
+          : '') +
+        '</article>';
     }).join("") : '<div class="empty wide">' + (savedView ? 'No saved hooks or scripts yet. Tap Save hook, Save script, or Save whole pack.' : 'No ideas in this view yet.') + '</div>';
   }
 
