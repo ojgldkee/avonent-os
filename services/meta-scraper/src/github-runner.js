@@ -325,6 +325,7 @@ async function collectBrand(brand) {
   for (const ad of sourceAds) {
     const id = String(ad.ad_archive_id || "").trim();
     if (!/^\d{5,30}$/.test(id)) continue;
+    if (ad.group_summary && !ad.media_url && !ad.media_thumbnail_url && !ad.primary_text && !ad.headline && !ad.landing_url) continue;
 
     const sourceUrl = /^https:\/\/www\.facebook\.com\/ads\/library\//i.test(String(ad.source_url || ""))
       ? String(ad.source_url)
