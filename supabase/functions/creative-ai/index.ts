@@ -77,7 +77,7 @@ PRIMARY TEXT ADAPTATION:
 PRODUCTION CONTRACT:
 - Deliver a complete shootable script. Every timed beat MUST contain nonempty time, say, show, on_screen_text, footage_type, and provider. No placeholder fields. SAY is exact spoken dialogue; SHOW is camera/action direction; ON-SCREEN is actual caption. Footage types: UGC, PRODUCT, B_ROLL, AI_VIDEO, GRAPHIC. For non-AI footage provider is "camera/editor"; for AI_VIDEO choose a suggested model/provider (e.g. Higgsfield Seedance or MiniMax Hailuo), plus detailed generation prompt. Recommend AI only for shots impossible or impractical to film. Never imply AI-generated illustrations are clinical evidence.
 - Write a complete 60–90 second ad by default, never a 20–25 second opening alone. Use 6–10 sequential timestamped beats starting at 0:00 and covering the entire story through a spoken CTA. Write 130–230 spoken words total at realistic pacing (~2–2.7 words/second). Each beat can span 8–15 seconds; do not force five-second scenes. recommended_duration_seconds must match the final timestamp. Longer source-led stories may run up to 120 seconds with enough dialogue. Keep production directions concise, not the spoken story.
-- Every concept must contain 4 strong hook options. Hook 1 should be the closest usable adaptation of the primary source hook. Hooks 2-4 should be clearly different executions built from other observed source patterns, not generic filler.
+- Hook count depends on the source mode. If a short source hook is being reused, return ONE hook only. Do not pad the idea with unrelated hooks from other products or other source ads. If the main hook is an adaptation/original, you may return up to 4 variations of that SAME premise and product; Hooks 2-4 are variants, not unrelated source hooks.
 - Describe filming setup, shot changes, cut timing, product shots, transitions, camera behavior, casting and any animation prompt/provider when relevant.
 - VISUAL SPECIFICITY IS REQUIRED. Do not say only "AI animation" or "UGC." State what it looks like: e.g. real iPhone UGC in a parked car, photoreal AI spokesperson, stop-motion claymation, glossy 3D product macro, paper-cut collage, cinematic AI reenactment, medical-style explanatory animation, screen-recording, or practical B-roll.
 - For AI_PERSON scenes, recommend Higgsfield + Kling 3.0 Pro by default unless another model better fits. For stylized/high-motion AI_VIDEO, Seedance 2.5 is a strong default. For character animation, Hailuo may be used. Always name provider + model and give a paste-ready prompt.
@@ -104,12 +104,16 @@ timed_script beats must have {time,say,show,on_screen_text,footage_type,provider
 
 const ONE_IDEA_PROMPT=BASE+`
 Generate ONE production-ready ad by closely adapting ONE primary source ad.
+FORMAT RULE:
+- requested_format=STATIC means create a static/image ad, not a video script. Use the source image ad's visual hierarchy/persuasion as research inspiration and build a new static for the user's product.
+- requested_format=VIDEO means create the full video concept/script.
+- For STATIC, seasonal_theme should consider current_date. Around seasonal retail moments, propose a timely offer creative only when it makes sense for the brand; never reuse an expired holiday such as July 4 in October.
 
 PRIMARY SOURCE RULE:
 - primary_source_ad_id identifies the source skeleton. Use that exact ad.
 - competitor_research may contain short_exact_hook. When short_exact_hook is present for the PRIMARY SOURCE, Hook 1 MUST equal it WORD-FOR-WORD. Do not change the person, relationship, age, location, event, insult, scandal, wording, or sentence order. This is deliberate source-hook reuse.
 - If the primary source has no short_exact_hook, make Hook 1 the closest practical adaptation of exact_spoken_opening: preserve sentence count, POV, clause order, curiosity device, emotional turn, reveal placement, intensity and approximate length.
-- Hooks 2-4 should preferentially use short_exact_hook from the other supplied source ads, word-for-word, when available. Only invent/adapt a hook when there are not enough usable short source openings.
+- Never fill Hooks 2-4 from other products or unrelated source ads. If Hook 1 is a short reused source opening, return only that hook. Otherwise Hooks 2-4, when present, must be alternate executions of Hook 1's same characters, premise, product and angle.
 - Do NOT turn "mother-in-law + wedding dress" into "husband + wedding dress", "stepmom + Christmas" into "aunt + kitchen", or otherwise swap the source story for a new scenario. Preserve the actual source premise whenever a short exact hook is available.
 - If the source opening is a narrative story, preserve the narrative grammar and open loop. If the source says "character → surprising observation → time span → hidden relationship/secret → expected outcome → reversal", the adapted hook should follow that same sequence.
 - Keep strong source-derived claims/mechanisms in the creative draft when they are important to the source ad. Put each such claim in source_claims with the source ad ID and origin="competitor_ad_unverified" so it can be checked before launch.
@@ -131,8 +135,8 @@ VISUAL RULE:
 
 Return:
 {"idea":{
-"title":"","audience":"","angle":"","format":"",
-"hook":"","hooks":["","","",""],
+"title":"","audience":"","angle":"","format":"","creative_type":"VIDEO|STATIC",
+"hook":"","hooks":[],
 "hook_adaptation":{
   "source_hook_exact":"",
   "source_hook_type":"",
@@ -154,6 +158,7 @@ Return:
 "first_three_seconds":{"say":"","show":"","on_screen_text":"","footage_type":"","visual_style":"","provider":"","video_model":""},
 "primary_text":"","headline":"","description":"","cta":"",
 "video_concept":"",
+"static_concept":{"headline_text":"","subhead":"","offer_badge":"","product_placement":"","visual_hierarchy":"","background":"","seasonal_theme":"","image_prompt":"","design_notes":[],"aspect_ratios":["4:5","1:1","9:16"]},
 "recommended_duration_seconds":0,
 "production_style":"",
 "visual_recipe":{
@@ -196,10 +201,11 @@ Return:
 }}
 
 VALIDATION TARGETS:
-- hooks exactly 4; hook === hook_adaptation.adapted_hook === hooks[0].
-- first_three_seconds SAY/SHOW/ON-SCREEN all nonempty.
-- timed_script 6-10 beats covering at least 60 seconds through a spoken CTA, with at least 120 spoken words. A hook-only 25-second timeline is invalid.
-- Every beat has substantive SAY/SHOW, footage_type, visual_style, provider and source_reference.
+- hooks contains 1-4 entries. If hook_adaptation.copy_mode indicates a short reused source hook, hooks must contain only Hook 1. Otherwise any extra hooks must be variations of the same premise/product, never another product.
+- For VIDEO: first_three_seconds SAY/SHOW/ON-SCREEN are nonempty; timed_script has 6-10 beats covering at least 60 seconds through a spoken CTA, with at least 120 spoken words.
+- For STATIC: static_concept is complete, recommended_duration_seconds is 0, and timed_script may be empty. Build a real direct-response image concept with headline hierarchy, product placement, offer/CTA treatment, background/art direction and a paste-ready image prompt.
+- If current_date is provided, use it to identify timely seasonal opportunities. Use upcoming/relevant holidays rather than expired promotions. A seasonal static must fit the user's product and current calendar; do not blindly copy another brand's holiday.
+- Every VIDEO beat has substantive SAY/SHOW, footage_type, visual_style, provider and source_reference.
 - If footage is AI, provider/model/prompt must be populated.
 - Do not sanitize the draft just because a competitor claim is unverified. Preserve useful source-derived claims in source_claims and keep them visible in the draft for creative review.
 - Prioritize a compelling story, source fidelity, specificity and emotional intensity over generic marketing theory.
@@ -448,18 +454,39 @@ function validateResult(task:string,result:any){
 
     if(!Array.isArray(idea.hooks))idea.hooks=[];
     idea.hooks=[idea.hook,...idea.hooks].map((x:any)=>String(x||"").trim()).filter(Boolean)
-      .filter((x:string,i:number,a:string[])=>a.indexOf(x)===i).slice(0,4);
-    if(idea.hooks.length<4)throw new Error("AI output validation failed: expected four usable hooks.");
+      .filter((x:string,i:number,list:string[])=>list.indexOf(x)===i).slice(0,4);
+    if(!idea.hooks.length)idea.hooks=[String(idea.hook||"").trim()];
 
-    if(!Array.isArray(idea.timed_script))idea.timed_script=[];
-    idea.timed_script=idea.timed_script.map((b:any,i:number)=>normalizeBeat(b,i,idea));
-    if(idea.timed_script.length<4||idea.timed_script.some((b:any)=>!b.say||!b.show)){
-      throw new Error("AI output validation failed: production script needs at least four complete spoken/visual beats.");
+    const staticIdea=/static|image/i.test(String(idea.creative_type||idea.format||""));
+    if(staticIdea){
+      idea.creative_type="STATIC";
+      idea.recommended_duration_seconds=0;
+      idea.timed_script=[];
+      if(!idea.static_concept||typeof idea.static_concept!=="object")throw new Error("AI output validation failed: static concept is incomplete.");
+      for(const key of ["headline_text","product_placement","visual_hierarchy","background","image_prompt"]){
+        if(!String(idea.static_concept[key]||"").trim())throw new Error("AI output validation failed: static concept needs "+key+".");
+      }
+      if(!Array.isArray(idea.static_concept.design_notes))idea.static_concept.design_notes=[];
+      if(!Array.isArray(idea.static_concept.aspect_ratios)||!idea.static_concept.aspect_ratios.length)idea.static_concept.aspect_ratios=["4:5","1:1","9:16"];
+      if(!idea.first_three_seconds||typeof idea.first_three_seconds!=="object")idea.first_three_seconds={};
+      idea.first_three_seconds.say="";
+      idea.first_three_seconds.show=String(idea.static_concept.visual_hierarchy||idea.first_frame||"");
+      idea.first_three_seconds.on_screen_text=String(idea.static_concept.headline_text||idea.hook||"");
+      idea.first_three_seconds.footage_type="GRAPHIC";
+      idea.first_three_seconds.visual_style=String(idea.static_concept.background||"direct-response static");
+      idea.first_three_seconds.provider="designer/image model";
+      idea.first_three_seconds.video_model="";
+    }else{
+      idea.creative_type="VIDEO";
+      if(!Array.isArray(idea.timed_script))idea.timed_script=[];
+      idea.timed_script=idea.timed_script.map((b:any,i:number)=>normalizeBeat(b,i,idea));
+      if(idea.timed_script.length<4||idea.timed_script.some((b:any)=>!b.say||!b.show)){
+        throw new Error("AI output validation failed: production script needs at least four complete spoken/visual beats.");
+      }
+      if(!idea.first_three_seconds||typeof idea.first_three_seconds!=="object")idea.first_three_seconds={};
+      validateScriptDuration(idea,idea.timed_script);
     }
-
-    if(!idea.first_three_seconds||typeof idea.first_three_seconds!=="object")idea.first_three_seconds={};
-    validateScriptDuration(idea,idea.timed_script);
-    const first=idea.timed_script[0]||{};
+    const first=idea.timed_script?.[0]||{};
     idea.first_three_seconds.say=String(idea.first_three_seconds.say||first.say||idea.hook||"").trim();
     idea.first_three_seconds.show=String(idea.first_three_seconds.show||first.show||idea.first_frame||"").trim();
     idea.first_three_seconds.on_screen_text=String(idea.first_three_seconds.on_screen_text||first.on_screen_text||compactCaption(idea.hook)).trim();
@@ -467,7 +494,7 @@ function validateResult(task:string,result:any){
     idea.first_three_seconds.visual_style=String(idea.first_three_seconds.visual_style||first.visual_style||"native social ad");
     idea.first_three_seconds.provider=String(idea.first_three_seconds.provider||first.provider||"camera/editor");
     idea.first_three_seconds.video_model=String(idea.first_three_seconds.video_model||first.video_model||"");
-    if(!idea.first_three_seconds.say||!idea.first_three_seconds.show||!idea.first_three_seconds.on_screen_text){
+    if(idea.creative_type==="VIDEO"&&(!idea.first_three_seconds.say||!idea.first_three_seconds.show||!idea.first_three_seconds.on_screen_text)){
       throw new Error("AI output validation failed: first 3 seconds are incomplete.");
     }
 
@@ -655,6 +682,8 @@ Deno.serve(async(req)=>{
     }
 
     const input={
+      requested_format:String(body?.requested_format||"").toUpperCase(),
+      current_date:String(body?.current_date||new Date().toISOString().slice(0,10)),
       creative_brain:creativeBrain,
       creative_feedback:creativeFeedback,
       recent_creatives:recentCreatives,
@@ -781,11 +810,10 @@ Deno.serve(async(req)=>{
         alt_source_hooks:uniqueExact.slice(1,4)
       };
       const generatedHooks=Array.isArray(result.idea.hooks)?result.idea.hooks.map((h:any)=>String(h||"").trim()).filter(Boolean):[];
-      const exactHooks=uniqueExact.map((item:any)=>item.hook);
       const firstHook=primaryExact||String(result.idea.hook_adaptation?.adapted_hook||result.idea.hook||"").trim();
-      const mergedHooks=[firstHook,...exactHooks.filter((h:string)=>h!==firstHook),...generatedHooks]
+      const mergedHooks=(primaryExact?[firstHook]:[firstHook,...generatedHooks])
         .filter(Boolean)
-        .filter((h:string,i:number,a:string[])=>a.findIndex(x=>x.toLowerCase().replace(/\s+/g," ").trim()===h.toLowerCase().replace(/\s+/g," ").trim())===i)
+        .filter((h:string,i:number,list:string[])=>list.findIndex(x=>x.toLowerCase().replace(/\s+/g," ").trim()===h.toLowerCase().replace(/\s+/g," ").trim())===i)
         .slice(0,4);
       result.idea.hook=firstHook;
       result.idea.hooks=mergedHooks;
