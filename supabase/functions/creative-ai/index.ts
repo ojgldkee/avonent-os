@@ -184,10 +184,10 @@ Deno.serve(async(req)=>{
     };
 
     const candidates=task==="script"
-      ? [model,"qwen/qwen3-30b-a3b-instruct-2507:nitro"]
+      ? [model,"qwen/qwen3-30b-a3b-instruct-2507:nitro","qwen/qwen3-30b-a3b-instruct-2507"]
       : task==="idea"
-        ? [model,"qwen/qwen3-235b-a22b-2507:nitro"]
-        : [model,"qwen/qwen3-30b-a3b-instruct-2507:nitro"];
+        ? [model,"qwen/qwen3-30b-a3b-instruct-2507"]
+        : [model,"qwen/qwen3-30b-a3b-instruct-2507"];
     let result:any=null;
     let raw:any=null;
     let usedModel=model;
@@ -207,9 +207,9 @@ Deno.serve(async(req)=>{
               {role:"user",content:JSON.stringify(input)}
             ],
             response_format:{type:"json_object"},
-            max_tokens:task==="script"?6500:task==="idea"?4200:8500
+            max_tokens:task==="script"?6000:task==="idea"?3600:8000
           }),
-          signal:AbortSignal.timeout(task==="script"?70000:task==="idea"?42000:70000)
+          signal:AbortSignal.timeout(task==="script"?60000:task==="idea"?28000:60000)
         });
         raw=await response.json().catch(()=>({}));
         if(!response.ok){
