@@ -87,6 +87,28 @@
     const stop = ad.is_active ? now : Date.parse(ad.ended_at + (ad.ended_at.length === 10 ? "T00:00:00Z" : ""));
     return Number.isFinite(start) && Number.isFinite(stop) && stop >= start ? Math.floor((stop - start) / 86400000) : null;
   }
+  function videoDurationSeconds(ad) {
+    const values = [
+      ad?.video_duration_seconds,
+      ad?.raw?.video_duration_seconds,
+      ad?.ai_analysis?.video_duration_seconds
+    ];
+    for (const value of values) {
+      const n = Number(value);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    return null;
+  }
+
+  function formatDuration(seconds) {
+    const total = Number(seconds);
+    if (!Number.isFinite(total) || total <= 0) return "Unknown length";
+    const rounded = Math.round(total);
+    const mins = Math.floor(rounded / 60);
+    const secs = rounded % 60;
+    return mins ? mins + ":" + String(secs).padStart(2, "0") : secs + " sec";
+  }
+
   function qualifies(ad, days = 30) {
     const age = adAge(ad);
     return ad.is_active && age !== null && age >= days;
@@ -380,6 +402,8 @@
     const brand = $("brand-filter")?.value || "all";
     const media = $("media-filter")?.value || "all";
     const age = $("age-filter")?.value || "all";
+    const duration = $("duration-filter")?.value || "all";
+    const customMaxMinutes = Number($("max-duration-filter")?.value || 0);
     const keyword = ($("keyword-filter")?.value || "").trim().toLowerCase();
     const sort = $("sort-filter")?.value || "newest";
 
@@ -388,6 +412,16 @@
     if (media !== "all") rows = rows.filter(a => mediaKind(a) === media);
     if (age === "unknown") rows = rows.filter(a => adAge(a) === null);
     if (/^days-\d+$/.test(age)) rows = rows.filter(a => qualifies(a, Number(age.slice(5))));
+    if (duration === "unknown") rows = rows.filter(a => mediaKind(a) === "video" && videoDurationSeconds(a) === null);
+    if (/^under-\d+$/.test(duration)) {
+      const max = Number(duration.slice(6));
+      rows = rows.filter(a => mediaKind(a) === "video" && videoDurationSeconds(a) !== null && videoDurationSeconds(a) <= max);
+    }
+    if (duration === "over-240") rows = rows.filter(a => mediaKind(a) === "video" && videoDurationSeconds(a) !== null && videoDurationSeconds(a) > 240);
+    if (customMaxMinutes > 0) {
+      const customMaxSeconds = customMaxMinutes * 60;
+      rows = rows.filter(a => mediaKind(a) === "video" && videoDurationSeconds(a) !== null && videoDurationSeconds(a) <= customMaxSeconds);
+    }
     if (keyword) rows = rows.filter(a => [a.primary_text,a.headline,a.advertiser_name].some(value => String(value || "").toLowerCase().includes(keyword)));
 
     rows.sort((a,b) => {
@@ -395,6 +429,13 @@
         const aPeers = ads.filter(x => x.competitor_id === a.competitor_id);
         const bPeers = ads.filter(x => x.competitor_id === b.competitor_id);
         return adResearchScore(b,bPeers) - adResearchScore(a,aPeers);
+      }
+      if (sort === "shortest" || sort === "longest") {
+        const ad = videoDurationSeconds(a), bd = videoDurationSeconds(b);
+        if (ad === null && bd === null) return 0;
+        if (ad === null) return 1;
+        if (bd === null) return -1;
+        return sort === "shortest" ? ad - bd : bd - ad;
       }
       if (sort === "collected") return (sortTime(b.last_seen_at || b.created_at || b.updated_at) || 0) - (sortTime(a.last_seen_at || a.created_at || a.updated_at) || 0);
       const at = sortTime(a.started_at), bt = sortTime(b.started_at);
@@ -406,7 +447,8 @@
 
     const total = rows.length;
     const unknownAge = rows.filter(a => adAge(a) === null).length;
-    if ($("ad-sample-count")) $("ad-sample-count").textContent = total + " matching sampled ads · " + unknownAge + " unknown age · up to 500 stored ads loaded";
+    const unknownDuration = rows.filter(a => mediaKind(a) === "video" && videoDurationSeconds(a) === null).length;
+    if ($("ad-sample-count")) $("ad-sample-count").textContent = total + " matching sampled ads · " + unknownAge + " unknown age · " + unknownDuration + " unknown video length · up to 500 stored ads loaded";
     rows = rows.slice(0, visibleLimit);
     if ($("load-more-ads")) $("load-more-ads").hidden = visibleLimit >= total;
     if (!rows.length) {
@@ -427,6 +469,7 @@
       const aiScore = Number(a.ai_analysis?.research_score || 0);
       const avatar = brandAvatar({competitor_name:a.advertiser_name, logo_url:safeUrl(a.advertiser_logo_url || brandRow.logo_url), website_url:brandRow.website_url});
       const mediaUrl = safeUrl(a.media_url), poster = safeUrl(a.media_thumbnail_url);
+      const durationSeconds = videoDurationSeconds(a);
       let mediaHtml = '<div class="ad-media-empty"><span>Creative preview</span><p>Media was not captured by this source yet.</p></div>';
       if (adKind === "video" && mediaUrl) {
         mediaHtml = '<div class="source-ad-media"><video controls playsinline preload="none" ' + (poster ? 'poster="' + esc(poster) + '" ' : '') + 'src="' + esc(mediaUrl) + '"></video></div>';
@@ -479,6 +522,7 @@
         mediaHtml + (adKind === "video" && !poster ? '<p class="helper">Preview unavailable · press play to view video.</p>' : '') + transcriptBlock + analysisBlock + headline + primary + '<p class="helper">Impressions: ' + esc(impressionLabel(a)) + '</p>' +
         '<div class="source-meta"><span>' + (a.started_at ? 'Started ' + esc(new Date(a.started_at + 'T00:00:00Z').toLocaleDateString(undefined, {month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})) : 'Start date unavailable') + '</span>' +
           '<span>' + esc(adKind === "unknown" ? "Unknown media" : adKind === "video" ? "Video" : "Image") + '</span>' +
+          (adKind === "video" ? '<span class="duration-label">' + esc(formatDuration(durationSeconds)) + '</span>' : '') +
           (qualifies(a) ? '<span class="qualified-label">Long-running</span>' : '') +
           (transcript ? '<span class="qualified-label">Transcript ready</span>' : '') +
           (a.ai_analysis?.visual_analysis_available ? '<span class="qualified-label">Video analyzed</span>' : a.analyzed_at ? '<span class="qualified-label">AI analyzed</span>' : '') +
@@ -814,14 +858,25 @@
       $("analyze-ads").onclick = analyzeResearch;
       $("generate-ideas").onclick = generateIdeas;
       if ($("load-more-ads")) $("load-more-ads").onclick = () => { visibleLimit += 24; renderAds(); };
-      ["brand-filter","media-filter","age-filter","sort-filter"].forEach(id => {
-        if ($(id)) $(id).onchange = () => { visibleLimit = 24; renderAds(); };
+      ["brand-filter","media-filter","age-filter","duration-filter","sort-filter"].forEach(id => {
+        if ($(id)) $(id).onchange = () => {
+          if (id === "duration-filter" && $(id).value !== "all" && $("max-duration-filter")) $("max-duration-filter").value = "";
+          visibleLimit = 24;
+          renderAds();
+        };
       });
+      if ($("max-duration-filter")) $("max-duration-filter").oninput = () => {
+        if ($("max-duration-filter").value && $("duration-filter")) $("duration-filter").value = "all";
+        visibleLimit = 24;
+        renderAds();
+      };
       if ($("keyword-filter")) $("keyword-filter").oninput = () => { visibleLimit = 24; renderAds(); };
       if ($("clear-filters")) $("clear-filters").onclick = () => {
         $("brand-filter").value = "all";
         $("media-filter").value = "all";
         $("age-filter").value = "all";
+        $("duration-filter").value = "all";
+        $("max-duration-filter").value = "";
         $("keyword-filter").value = "";
         $("sort-filter").value = "score";
         visibleLimit = 24;
