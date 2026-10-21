@@ -93,24 +93,29 @@ test("frontend exposes combined media, age, keyword and sort filtering", () => {
 });
 
 
-test("prepared strategist requires evidence, claim checks, and production-ready script fields", () => {
+test("prepared strategist requires source evidence and complete production fields", () => {
   const creativeAi = readFileSync(new URL("supabase/functions/creative-ai/index.ts", root), "utf8");
   const ideasUi = readFileSync(new URL("static/cloud-ideas-v1.js", root), "utf8");
-  for (const field of ["audience","first_three_seconds","video_concept","shot_directions","timed_script","source_observations","ai_inferences","product_fact_checks","unsupported_claim_checks"]) {
+  for (const field of ["audience","first_three_seconds","video_concept","shot_directions","timed_script","source_adaptation","source_observations","product_fact_checks","unsupported_claim_checks","footage_type","provider"]) {
     assert.match(creativeAi, new RegExp(field));
     assert.match(ideasUi, new RegExp(field));
   }
-  assert.match(creativeAi, /exactly 4 materially different hook variations/);
-  assert.match(creativeAi, /AI output validation failed/);
+  assert.match(creativeAi, /four usable hooks/);
+  assert.match(creativeAi, /script has empty SAY\/SHOW\/ON-SCREEN fields/);
+  assert.match(creativeAi, /primary_source_ad_id/);
   assert.match(ideasUi, /"SAY: " \+ \(b\.say \|\| ""\)/);
   assert.match(ideasUi, /"SHOW: " \+ \(b\.show \|\| ""\)/);
+  assert.match(ideasUi, /"FOOTAGE: " \+ \(b\.footage_type \|\| ""\)/);
 });
 
-test("copy-only analysis never claims it watched or heard a video", () => {
+test("competitor analysis only reports transcript and visuals when evidence exists", () => {
   const analysisFn = readFileSync(new URL("supabase/functions/analyze-competitor-ads/index.ts", root), "utf8");
-  assert.match(analysisFn, /spoken_hook: ""/);
-  assert.match(analysisFn, /visual_hook: ""/);
-  assert.match(analysisFn, /analysis_scope:"copy_only"/);
+  assert.match(analysisFn, /exactSpokenOpening/);
+  assert.match(analysisFn, /transcript_available/);
+  assert.match(analysisFn, /visual_analysis_available/);
+  assert.match(analysisFn, /analysis_scope:visual\?"video_transcript_visual":hasTranscript\?"transcript_and_copy":"copy_only"/);
+  assert.match(analysisFn, /analysis\.visual_hook=""/);
+  assert.match(analysisFn, /analysis\.first_frame=""/);
 });
 
 
@@ -140,13 +145,15 @@ test("primary copy expansion uses a footer control instead of overlaying text", 
   assert.match(strategistCss, /source-copy \.source-copy-body>p\{max-height:none!important;overflow:visible!important/);
 });
 
-test("ideas have dedicated concepts hooks and scripts workspaces", () => {
+test("ideas have concepts and combined hooks plus scripts workspaces", () => {
   const ideasHtml = readFileSync(new URL("creatives.html", root), "utf8");
   const ideasUi = readFileSync(new URL("static/cloud-ideas-v1.js", root), "utf8");
-  for (const mode of ["concepts","hooks","scripts"]) assert.match(ideasHtml, new RegExp('data-ideas-workspace="'+mode+'"'));
+  for (const mode of ["concepts","hooks"]) assert.match(ideasHtml, new RegExp('data-ideas-workspace="'+mode+'"'));
+  assert.doesNotMatch(ideasHtml, /data-ideas-workspace="scripts"/);
+  assert.match(ideasHtml, /Hooks \+ scripts/);
   assert.match(ideasUi, /renderHooksWorkspace/);
-  assert.match(ideasUi, /renderScriptsWorkspace/);
   assert.match(ideasUi, /data-copy-library-hook/);
+  assert.match(ideasUi, /Generate production script/);
 });
 
 
