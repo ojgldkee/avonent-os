@@ -275,7 +275,7 @@ Deno.serve(async(req)=>{
       ads=rows.data||[];
     }
 
-    const primarySourceId=String(body?.primary_source_ad_id||"");
+    const primarySourceId=String(body?.primary_source_ad_id||body?.idea?.source_adaptation?.ad_archive_id||"");
     const research=ads.map((a:any)=>({
       ad_archive_id:a.ad_archive_id,
       advertiser_name:a.advertiser_name,
