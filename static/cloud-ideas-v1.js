@@ -147,6 +147,7 @@
       '<span>SHOW</span><p>' + esc(beat?.show || "") + '</p>' +
       '<span>ON-SCREEN</span><p>' + esc(beat?.on_screen_text || "") + '</p>' +
       '<span>FOOTAGE</span><p><strong>' + esc(type) + '</strong> · ' + esc(provider) + '</p>' +
+      (beat?.source_reference ? '<span>SOURCE BEAT</span><p>' + esc(beat.source_reference) + '</p>' : '') +
       (beat?.animation_prompt ? '<span>AI VIDEO PROMPT</span><p>' + esc(beat.animation_prompt) + '</p>' : '') +
     '</div>';
   }
@@ -511,7 +512,7 @@
     const script = result.result?.script;
     const scriptText = result.text || (script ? [
       script.title, "Duration: " + (script.recommended_duration_seconds || "—") + " seconds",
-      ...(Array.isArray(script.beats) ? script.beats.map(b => [b.time, "SAY: " + (b.say || ""), "SHOW: " + (b.show || ""), "ON SCREEN: " + (b.on_screen_text || ""), "FOOTAGE: " + (b.footage_type || "") + " · " + (b.provider || b.video_model || "camera/editor"), ...(b.animation_prompt ? ["AI VIDEO PROMPT: " + b.animation_prompt] : [])].join("\n")) : []),
+      ...(Array.isArray(script.beats) ? script.beats.map(b => [b.time, "SAY: " + (b.say || ""), "SHOW: " + (b.show || ""), "ON SCREEN: " + (b.on_screen_text || ""), "FOOTAGE: " + (b.footage_type || "") + " · " + (b.provider || b.video_model || "camera/editor"), ...(b.source_reference ? ["SOURCE BEAT: " + b.source_reference] : []), ...(b.animation_prompt ? ["AI VIDEO PROMPT: " + b.animation_prompt] : [])].join("\n")) : []),
       "CTA: " + (script.cta || ""), "Alternative openings: " + JSON.stringify(script.three_alt_openings || []),
       "Observed evidence: " + JSON.stringify(script.source_observations || []),
       "AI inferences: " + JSON.stringify(script.ai_inferences || []),
