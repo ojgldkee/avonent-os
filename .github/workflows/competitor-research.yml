@@ -85,14 +85,8 @@ jobs:
           WHISPER_MODEL: small.en
         run: python src/transcribe-videos.py
 
-      - name: Analyze transcript and video structure
-        run: |
-          curl --fail-with-body --show-error --silent \
-            --request POST \
-            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            --header "Content-Type: application/json" \
-            --data '{"limit":12}' \
-            "$SUPABASE_URL/functions/v1/analyze-competitor-ads"
+      - name: Queue source analysis
+        run: echo "Transcripts saved. Supabase cron analyzes transcript/video structure every 10 minutes."
 
       - name: Print collector log on failure
         if: failure()
