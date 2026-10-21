@@ -1,6 +1,9 @@
 name: Avonent nightly creative ideas
 
 on:
+  push:
+    paths:
+      - '.github/workflows/nightly-ideas.yml'
   workflow_dispatch:
   schedule:
     - cron: "0 10 * * *"
