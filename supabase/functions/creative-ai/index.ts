@@ -107,8 +107,10 @@ Generate ONE production-ready ad by closely adapting ONE primary source ad.
 
 PRIMARY SOURCE RULE:
 - primary_source_ad_id identifies the source skeleton. Use that exact ad.
-- If exact_spoken_opening exists, Hook 1 MUST be the closest practical adaptation of it: preserve sentence count, POV, clause order, curiosity device, emotional turn, reveal placement, intensity and approximate length. Do not replace it with generic wellness copy.
-- Hooks 2-4 must be genuinely different hook executions sourced from other observed patterns in competitor_research while staying compatible with the same concept. Do not give four tiny rewrites of one sentence.
+- competitor_research may contain short_exact_hook. When short_exact_hook is present for the PRIMARY SOURCE, Hook 1 MUST equal it WORD-FOR-WORD. Do not change the person, relationship, age, location, event, insult, scandal, wording, or sentence order. This is deliberate source-hook reuse.
+- If the primary source has no short_exact_hook, make Hook 1 the closest practical adaptation of exact_spoken_opening: preserve sentence count, POV, clause order, curiosity device, emotional turn, reveal placement, intensity and approximate length.
+- Hooks 2-4 should preferentially use short_exact_hook from the other supplied source ads, word-for-word, when available. Only invent/adapt a hook when there are not enough usable short source openings.
+- Do NOT turn "mother-in-law + wedding dress" into "husband + wedding dress", "stepmom + Christmas" into "aunt + kitchen", or otherwise swap the source story for a new scenario. Preserve the actual source premise whenever a short exact hook is available.
 - If the source opening is a narrative story, preserve the narrative grammar and open loop. If the source says "character → surprising observation → time span → hidden relationship/secret → expected outcome → reversal", the adapted hook should follow that same sequence.
 - Keep strong source-derived claims/mechanisms in the creative draft when they are important to the source ad. Put each such claim in source_claims with the source ad ID and origin="competitor_ad_unverified" so it can be checked before launch.
 - primary_text MUST also be closely source-shaped: use the primary source's copy length and formatting metadata and mirror its persuasive sequence without copying its sentences.
@@ -250,6 +252,20 @@ For real UGC, specify the actor type, location, camera framing, movement, props 
 Do not reproduce the competitor's full script verbatim.
 `;
 
+
+function sourceWordCount(value:any){
+  return String(value||"").trim().split(/\s+/).filter(Boolean).length;
+}
+function shortExactSourceHook(ad:any){
+  const exact=String(ad?.exact_spoken_opening||"").trim().replace(/^["“]|["”]$/g,"");
+  const written=String(ad?.primary_text||ad?.headline||"").trim();
+  const candidate=exact||written.split(/\n+/).map((x:string)=>x.trim()).find(Boolean)||"";
+  if(!candidate)return "";
+  if(sourceWordCount(candidate)<=25)return candidate;
+  const sentences=candidate.match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[];
+  const first=String(sentences[0]||"").trim();
+  return first&&sourceWordCount(first)<=25?first:"";
+}
 
 function normalizeClaimText(value:any){
   return String(value||"").toLowerCase().replace(/[’']/g,"'").replace(/[-–—]+/g," ").replace(/\s+/g," ").trim();
@@ -571,6 +587,11 @@ Deno.serve(async(req)=>{
       media_url:a.media_url||"",
       media_thumbnail_url:a.media_thumbnail_url||"",
       exact_spoken_opening:a.ai_analysis?.exact_spoken_opening||a.ai_analysis?.spoken_hook||"",
+      short_exact_hook:shortExactSourceHook({
+        exact_spoken_opening:a.ai_analysis?.exact_spoken_opening||a.ai_analysis?.spoken_hook||"",
+        primary_text:fullPrimary,
+        headline:a.headline||""
+      }),
       spoken_hook_type:a.ai_analysis?.spoken_hook_type||"",
       visual_hook:a.ai_analysis?.visual_hook||"",
       first_frame:a.ai_analysis?.first_frame||"",
@@ -738,16 +759,38 @@ Deno.serve(async(req)=>{
         source_pacing:String(primary.pacing||""),
         source_visual_production_notes:Array.isArray(primary.visual_production_notes)?primary.visual_production_notes:[]
       };
+      const exactSourceHooks=research.map((ad:any)=>({
+        hook:String(ad.short_exact_hook||"").trim(),
+        ad_archive_id:String(ad.ad_archive_id||""),
+        advertiser_name:String(ad.advertiser_name||"")
+      })).filter((item:any)=>item.hook);
+      const uniqueExact:any[]=[];
+      const seenExact=new Set<string>();
+      for(const item of exactSourceHooks){
+        const key=item.hook.toLowerCase().replace(/\s+/g," ").trim();
+        if(!seenExact.has(key)){seenExact.add(key);uniqueExact.push(item);}
+      }
+      const primaryExact=uniqueExact.find((item:any)=>item.ad_archive_id===String(primary.ad_archive_id||""))?.hook||"";
       result.idea.hook_adaptation={
         ...(result.idea.hook_adaptation||{}),
         source_hook_exact:observed,
         source_hook_type:String(primary.spoken_hook_type||""),
+        copy_mode:primaryExact?"verbatim_short_source_hook":"close_source_adaptation",
+        exact_source_hook_used:Boolean(primaryExact),
+        alt_source_hooks:uniqueExact.slice(1,4)
       };
-      if(result.idea.hook_adaptation?.adapted_hook){
-        result.idea.hook=result.idea.hook_adaptation.adapted_hook;
-        if(Array.isArray(result.idea.hooks)){
-          result.idea.hooks=[result.idea.hook_adaptation.adapted_hook,...result.idea.hooks.filter((h:any)=>String(h)!==String(result.idea.hook_adaptation.adapted_hook))].slice(0,4);
-        }
+      const generatedHooks=Array.isArray(result.idea.hooks)?result.idea.hooks.map((h:any)=>String(h||"").trim()).filter(Boolean):[];
+      const exactHooks=uniqueExact.map((item:any)=>item.hook);
+      const firstHook=primaryExact||String(result.idea.hook_adaptation?.adapted_hook||result.idea.hook||"").trim();
+      const mergedHooks=[firstHook,...exactHooks.filter((h:string)=>h!==firstHook),...generatedHooks]
+        .filter(Boolean)
+        .filter((h:string,i:number,a:string[])=>a.findIndex(x=>x.toLowerCase().replace(/\s+/g," ").trim()===h.toLowerCase().replace(/\s+/g," ").trim())===i)
+        .slice(0,4);
+      result.idea.hook=firstHook;
+      result.idea.hooks=mergedHooks;
+      result.idea.hook_adaptation.adapted_hook=firstHook;
+      if(primaryExact&&result.idea.first_three_seconds&&typeof result.idea.first_three_seconds==="object"){
+        result.idea.first_three_seconds.say=primaryExact;
       }
       result.idea.source_ad_ids=Array.from(new Set([
         String(primary.ad_archive_id||""),
