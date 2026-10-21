@@ -135,15 +135,28 @@ Deno.serve(async(req)=>{
     const supabaseUrl=Deno.env.get("SUPABASE_URL")||"";
     const anon=Deno.env.get("SUPABASE_ANON_KEY")||"";
     const service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
-    if(!token||!supabaseUrl||!anon||!service)return reply(401,{error:"Sign in to Avonent first."});
-
-    const authClient=createClient(supabaseUrl,anon,{auth:{persistSession:false}});
-    const auth=await authClient.auth.getUser(token);
-    if(auth.error||!auth.data.user)return reply(401,{error:"Invalid Avonent session."});
-    const user=auth.data.user;
+    if(!supabaseUrl||!anon||!service)return reply(503,{error:"Supabase server configuration missing."});
     const admin=createClient(supabaseUrl,service,{auth:{persistSession:false}});
-
     const body=await req.json().catch(()=>({}));
+
+    let userId="";
+    if(token){
+      if(token===service)userId=String(body?.user_id||"");
+      else{
+        const authClient=createClient(supabaseUrl,anon,{auth:{persistSession:false}});
+        const auth=await authClient.auth.getUser(token);
+        if(!auth.error&&auth.data.user)userId=auth.data.user.id;
+      }
+    }
+    if(!userId&&body?.scheduler_token){
+      const secret=await admin.from("avonent_scheduler_secret").select("token").eq("id",true).maybeSingle();
+      if(!secret.error&&secret.data?.token&&String(secret.data.token)===String(body.scheduler_token)){
+        userId=String(body?.user_id||"");
+      }
+    }
+    if(!userId)return reply(401,{error:"Invalid Avonent session."});
+    const user={id:userId};
+
     const requestedSiteId=String(body?.site_id||"").trim();
     let siteRow:any=null;
     if(requestedSiteId){
