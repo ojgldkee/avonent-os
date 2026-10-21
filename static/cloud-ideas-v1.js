@@ -12,6 +12,7 @@
   let products = [];
   let ideas = [];
   let sourceAds = [];
+  let usageEvents = [];
   let workspaceMode = "concepts";
   let progressTimer = null;
   let progressStartedAt = 0;
@@ -105,29 +106,44 @@
     if (!productId) {
       ideas = [];
       sourceAds = [];
+      usageEvents = [];
       render();
       return;
     }
 
     const results = await Promise.all([
       db.from("ai_ideas").select("*").eq("product_id", productId).order("created_at", { ascending: false }).limit(300),
-      db.from("competitor_ads").select("*").eq("product_id", productId).order("days_running", { ascending: false }).limit(300)
+      db.from("competitor_ads").select("*").eq("product_id", productId).order("days_running", { ascending: false }).limit(300),
+      db.from("creative_usage_events").select("*").eq("product_id", productId).order("created_at", { ascending: false }).limit(500)
     ]);
 
     if (results[0].error) throw results[0].error;
     if (results[1].error) throw results[1].error;
+    if (results[2].error) throw results[2].error;
     ideas = results[0].data || [];
     sourceAds = results[1].data || [];
+    usageEvents = results[2].data || [];
     render();
   }
 
   function filteredIdeas() {
     const mode = $("ideas-filter").value;
-    if (mode === "today") return ideas.filter(i => i.generated_for_date === today() && i.status !== "Rejected");
-    if (mode === "approved") return ideas.filter(i => i.approved || i.status === "Approved");
-    if (mode === "scripted") return ideas.filter(i => i.ai_script);
+    const active = ideas.filter(i => i.lifecycle_status !== "archived");
+    if (mode === "today") return active.filter(i => i.generated_for_date === today() && i.status !== "Rejected");
+    if (mode === "approved") return active.filter(i => i.approved || i.status === "Approved" || i.lifecycle_status === "saved");
+    if (mode === "scripted") return active.filter(i => i.ai_script);
+    if (mode === "used") return ideas.filter(i => i.lifecycle_status === "used");
+    if (mode === "archive") return ideas.filter(i => i.lifecycle_status === "archived");
     if (mode === "rejected") return ideas.filter(i => i.status === "Rejected");
-    return ideas;
+    return active.filter(i => i.status !== "Rejected");
+  }
+
+  function usageFor(ideaId, kind, index=null) {
+    return usageEvents.find(e => e.idea_id === ideaId && e.asset_kind === kind && (index == null || Number(e.asset_index) === Number(index)) && ["used","winner"].includes(e.action));
+  }
+
+  function outcomeFor(ideaId) {
+    return usageEvents.find(e => e.idea_id === ideaId && ["winner","loser"].includes(e.action));
   }
 
   function sourceCount() {
@@ -225,9 +241,10 @@
       return '<article class="hook-library-card">' +
         '<div class="hook-library-head"><div><span class="eyebrow">HOOK SET</span><h2>' + esc(idea.title || idea.angle || "Creative idea") + '</h2></div><span class="pill">' + esc(idea.angle || "Angle") + '</span></div>' +
         (strategy.audience ? '<p class="helper">Audience · ' + esc(strategy.audience) + '</p>' : '') +
-        '<div class="hook-library-list">' + hooks.map((hook,index) =>
-          '<div class="hook-library-row"><span>' + String(index + 1).padStart(2,"0") + '</span><p>' + esc(hook) + '</p><button type="button" class="copy-inline" data-copy-library-hook="' + esc(idea.id) + '" data-hook-index="' + index + '">Copy</button></div>'
-        ).join("") + '</div>' +
+        '<div class="hook-library-list">' + hooks.map((hook,index) => {
+          const used = usageFor(idea.id,"hook",index);
+          return '<div class="hook-library-row"><span>' + String(index + 1).padStart(2,"0") + '</span><p>' + esc(hook) + '</p><div class="hook-row-actions"><button type="button" class="copy-inline" data-copy-library-hook="' + esc(idea.id) + '" data-hook-index="' + index + '">Copy</button><button type="button" class="copy-inline ' + (used ? 'used' : '') + '" data-use-hook="' + esc(idea.id) + '" data-hook-index="' + index + '">' + (used ? 'Used ✓' : 'Use hook') + '</button></div></div>';
+        }).join("") + '</div>' +
         '<div class="hook-library-meta"><span>' + (Array.isArray(idea.source_ad_ids) ? idea.source_ad_ids.length : 0) + ' source ads</span><span>' + esc(idea.format || "Format TBD") + '</span></div>' +
         hookAdaptationHtml(strategy) +
         storyArcHtml(strategy) +
@@ -251,7 +268,7 @@
           (idea.ai_script ? '<span class="idea-state approved">Final script</span>' : '<span class="idea-state">Concept script</span>') + '</div>' +
         (strategy.first_three_seconds ? '<section class="script-opening"><span>First 3 seconds</span><div class="timed-beat"><span>SAY</span><p>' + esc(strategy.first_three_seconds.say || "") + '</p><span>SHOW</span><p>' + esc(strategy.first_three_seconds.show || "") + '</p><span>ON-SCREEN</span><p>' + esc(strategy.first_three_seconds.on_screen_text || "") + '</p></div></section>' : '') +
         (idea.ai_script
-          ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre><div class="idea-inline-actions"><button class="button secondary mini" type="button" data-copy-script="' + esc(idea.id) + '">Copy script</button><button class="button secondary mini" type="button" data-script="' + esc(idea.id) + '">Regenerate</button></div>'
+          ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre><div class="idea-inline-actions"><button class="button secondary mini" type="button" data-copy-script="' + esc(idea.id) + '">Copy script</button><button class="button secondary mini" type="button" data-use-script="' + esc(idea.id) + '">' + (usageFor(idea.id,"script") ? 'Used ✓' : 'Use script') + '</button><button class="button secondary mini" type="button" data-script="' + esc(idea.id) + '">Regenerate</button></div>'
           : hookAdaptationHtml(strategy) + storyArcHtml(strategy) + visualRecipeHtml(strategy) + sourceAdaptationHtml(strategy) + '<div class="timed-script">' + timed.map(timedBeatHtml).join("") + '</div><button class="button" type="button" data-script="' + esc(idea.id) + '">Generate final AI script</button>') +
       '</article>';
     }).join("") : '<div class="empty wide">No scripts in this view yet. Generate concepts first, then open Scripts.</div>';
@@ -259,8 +276,8 @@
 
   function render() {
     $("ideas-today-count").textContent = String(ideas.filter(i => i.generated_for_date === today()).length);
-    $("ideas-approved-count").textContent = String(ideas.filter(i => i.approved || i.status === "Approved").length);
-    $("ideas-script-count").textContent = String(ideas.filter(i => i.ai_script).length);
+    $("ideas-used-count").textContent = String(ideas.filter(i => i.lifecycle_status === "used").length);
+    $("ideas-archive-count").textContent = String(ideas.filter(i => i.lifecycle_status === "archived").length);
     $("ideas-source-count").textContent = String(sourceAds.length);
 
     const rows = filteredIdeas();
@@ -297,7 +314,7 @@
           '</div>' +
         '</div>' +
 
-        '<section class="idea-hook-block"><div class="idea-section-head"><span>Hook</span><button class="copy-inline" type="button" data-copy-hook="' + idea.id + '">Copy</button></div><p>' + esc(idea.hook || "") + '</p></section>' +
+        '<section class="idea-hook-block"><div class="idea-section-head"><span>Hook</span><div class="idea-inline-actions"><button class="copy-inline" type="button" data-copy-hook="' + idea.id + '">Copy</button><button class="copy-inline ' + (usageFor(idea.id,"hook",0) ? 'used' : '') + '" type="button" data-use-hook="' + idea.id + '" data-hook-index="0">' + (usageFor(idea.id,"hook",0) ? 'Used ✓' : 'Use hook') + '</button></div></div><p>' + esc(idea.hook || "") + '</p></section>' +
 
         '<details class="idea-copy-pack"><summary>Full creative brief</summary>' +
         (strategy.audience ? '<h4>Audience</h4><p>' + esc(strategy.audience) + '</p>' : '') +
@@ -347,8 +364,10 @@
         '</div>' +
 
         '<div class="idea-decision-row">' +
-          '<button class="decision-button approve ' + (approved ? "active" : "") + '" type="button" data-approve="' + idea.id + '">✓ Approve</button>' +
+          '<button class="decision-button approve ' + (approved ? "active" : "") + '" type="button" data-approve="' + idea.id + '">' + (approved ? '✓ Saved' : 'Save') + '</button>' +
           '<button class="decision-button reject ' + (rejected ? "active" : "") + '" type="button" data-reject="' + idea.id + '">× Reject</button>' +
+          '<button class="decision-button" type="button" data-archive="' + idea.id + '">' + (idea.lifecycle_status === "archived" ? 'Restore' : 'Archive') + '</button>' +
+          (idea.lifecycle_status === "used" ? '<button class="decision-button ' + (outcomeFor(idea.id)?.action === "winner" ? 'approve active' : '') + '" type="button" data-outcome="winner" data-outcome-id="' + idea.id + '">Winner</button><button class="decision-button ' + (outcomeFor(idea.id)?.action === "loser" ? 'reject active' : '') + '" type="button" data-outcome="loser" data-outcome-id="' + idea.id + '">Loser</button>' : '') +
         '</div>' +
 
         scriptBlock +
@@ -357,17 +376,32 @@
   }
 
   function pickPrimarySources(sources, count=5) {
+    const recentIds = new Set(
+      ideas.filter(i => i.created_at && (Date.now() - new Date(i.created_at).getTime()) < 30*86400000)
+        .flatMap(i => Array.isArray(i.source_ad_ids) ? i.source_ad_ids.map(String) : [])
+    );
+    const ranked = [...sources].sort((a,b) => {
+      const aFresh = recentIds.has(String(a.ad_archive_id)) ? -1200 : 0;
+      const bFresh = recentIds.has(String(b.ad_archive_id)) ? -1200 : 0;
+      const aScore = aFresh + (a.video_transcript ? 1000 : 0) + (a.ai_analysis?.visual_analysis_available ? 500 : 0) + Number(a.ai_analysis?.research_score || 0)*3 + Number(a.days_running || 0);
+      const bScore = bFresh + (b.video_transcript ? 1000 : 0) + (b.ai_analysis?.visual_analysis_available ? 500 : 0) + Number(b.ai_analysis?.research_score || 0)*3 + Number(b.days_running || 0);
+      return bScore-aScore;
+    });
     const chosen = [];
-    const seenAdvertisers = new Set();
-    for (const ad of sources) {
-      const key = String(ad.advertiser_name || "").toLowerCase().trim();
-      if (key && !seenAdvertisers.has(key)) {
+    const signatures = new Set();
+    for (const ad of ranked) {
+      const signature = [
+        String(ad.advertiser_name || "").toLowerCase(),
+        String(ad.ai_analysis?.story_structure || ad.ai_analysis?.spoken_hook_type || "").toLowerCase(),
+        String(ad.media_kind || ad.display_format || "").toLowerCase()
+      ].join("|");
+      if (!signatures.has(signature)) {
         chosen.push(ad);
-        seenAdvertisers.add(key);
-        if (chosen.length >= count) return chosen;
+        signatures.add(signature);
       }
+      if (chosen.length >= count) return chosen;
     }
-    for (const ad of sources) {
+    for (const ad of ranked) {
       if (!chosen.includes(ad)) chosen.push(ad);
       if (chosen.length >= count) break;
     }
@@ -378,7 +412,7 @@
     const p = currentProduct();
     if (!p) return;
 
-    const sources = researchSources(sourceAds).slice(0, 8);
+    const sources = researchSources(sourceAds, 80);
     if (!sources.length) {
       $("ideas-status").textContent = "No captured ad copy yet. Open Research and collect a brand’s ads first.";
       return;
@@ -402,7 +436,7 @@
               variation,
               primary_source_ad_id: primarySource?.ad_archive_id || "",
               product: p,
-              competitor_ads: sources
+              competitor_ads: [primarySource, ...sources.filter(ad => ad !== primarySource).slice(0, 7)]
             });
             const idea = result.result?.idea;
             if (!idea?.title || !idea?.hook) throw new Error("AI returned an incomplete concept.");
@@ -466,6 +500,7 @@
             visual_recipe: i.visual_recipe || null,
             source_adaptation: i.source_adaptation || null,
             source_observations: Array.isArray(i.source_observations) ? i.source_observations : [],
+            source_claims: Array.isArray(i.source_claims) ? i.source_claims : [],
             ai_inferences: Array.isArray(i.ai_inferences) ? i.ai_inferences : [],
             product_fact_checks: Array.isArray(i.product_fact_checks) ? i.product_fact_checks : [],
             unsupported_claim_checks: Array.isArray(i.unsupported_claim_checks) ? i.unsupported_claim_checks : [],
@@ -529,11 +564,77 @@
 
   async function setDecision(id, decision) {
     const update = decision === "approve"
-      ? { approved: true, status: "Approved", updated_at: new Date().toISOString() }
+      ? { approved: true, status: "Approved", lifecycle_status: "saved", updated_at: new Date().toISOString() }
       : { approved: false, status: "Rejected", updated_at: new Date().toISOString() };
 
     const r = await db.from("ai_ideas").update(update).eq("id", id);
     if (r.error) throw r.error;
+    await loadData();
+  }
+
+  async function recordUsage(idea, kind, content, index=null) {
+    const now = new Date().toISOString();
+    const existing = usageEvents.find(e => e.idea_id === idea.id && e.asset_kind === kind && (index == null || Number(e.asset_index) === Number(index)) && e.action === "used");
+    if (!existing) {
+      const insert = await db.from("creative_usage_events").insert({
+        user_id: session.user.id,
+        product_id: idea.product_id,
+        idea_id: idea.id,
+        asset_kind: kind,
+        asset_index: index,
+        action: "used",
+        content_snapshot: content || ""
+      });
+      if (insert.error) throw insert.error;
+    }
+    const update = await db.from("ai_ideas").update({
+      lifecycle_status: "used",
+      used_at: idea.used_at || now,
+      updated_at: now
+    }).eq("id", idea.id);
+    if (update.error) throw update.error;
+    $("ideas-status").textContent = kind === "hook" ? "Hook marked as used. Avonent will remember this choice." : "Script marked as used. Avonent will remember this choice.";
+    await loadData();
+  }
+
+  async function toggleArchive(idea) {
+    const restoring = idea.lifecycle_status === "archived";
+    const update = await db.from("ai_ideas").update({
+      lifecycle_status: restoring ? "new" : "archived",
+      archived_at: restoring ? null : new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }).eq("id", idea.id);
+    if (update.error) throw update.error;
+    await db.from("creative_usage_events").insert({
+      user_id: session.user.id,
+      product_id: idea.product_id,
+      idea_id: idea.id,
+      asset_kind: "concept",
+      action: restoring ? "restored" : "archived",
+      content_snapshot: idea.title || idea.hook || ""
+    });
+    await loadData();
+  }
+
+  async function markOutcome(idea, outcome) {
+    const note = window.prompt("Optional: add a quick note about why this ad was a " + outcome + " (you can leave this blank).", "") || "";
+    const insert = await db.from("creative_usage_events").insert({
+      user_id: session.user.id,
+      product_id: idea.product_id,
+      idea_id: idea.id,
+      asset_kind: idea.ai_script ? "script" : "concept",
+      action: outcome,
+      content_snapshot: idea.ai_script || idea.hook || idea.title || "",
+      notes: note
+    });
+    if (insert.error) throw insert.error;
+    const update = await db.from("ai_ideas").update({
+      performance: {...(idea.performance || {}), verdict: outcome, note},
+      last_feedback_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }).eq("id", idea.id);
+    if (update.error) throw update.error;
+    $("ideas-status").textContent = "Marked " + outcome + ". Future creative will learn from it.";
     await loadData();
   }
 
@@ -662,6 +763,11 @@
           catch { $("ideas-status").textContent = "Copy unavailable. Select the text to copy it."; }
           return;
         }
+        const useHookId = event.target.getAttribute("data-use-hook");
+        const useScriptId = event.target.getAttribute("data-use-script");
+        const archiveId = event.target.getAttribute("data-archive");
+        const outcome = event.target.getAttribute("data-outcome");
+        const outcomeId = event.target.getAttribute("data-outcome-id");
         const approveId = event.target.getAttribute("data-approve");
         const rejectId = event.target.getAttribute("data-reject");
         const sourceId = event.target.getAttribute("data-sources");
@@ -670,6 +776,26 @@
         const copyScriptId = event.target.getAttribute("data-copy-script");
 
         try {
+          if (useHookId) {
+            const idea = ideas.find(i => i.id === useHookId);
+            if (!idea) return;
+            const hooks = [idea.hook, ...(Array.isArray(idea.strategy?.hooks) ? idea.strategy.hooks : [])].filter(Boolean)
+              .filter((hook,index,arr) => arr.indexOf(hook) === index);
+            const index = Number(event.target.getAttribute("data-hook-index") || 0);
+            return await recordUsage(idea,"hook",hooks[index] || idea.hook || "",index);
+          }
+          if (useScriptId) {
+            const idea = ideas.find(i => i.id === useScriptId);
+            if (idea) return await recordUsage(idea,"script",idea.ai_script || JSON.stringify(idea.strategy?.timed_script || []),null);
+          }
+          if (archiveId) {
+            const idea = ideas.find(i => i.id === archiveId);
+            if (idea) return await toggleArchive(idea);
+          }
+          if (outcome && outcomeId) {
+            const idea = ideas.find(i => i.id === outcomeId);
+            if (idea) return await markOutcome(idea,outcome);
+          }
           if (approveId) return await setDecision(approveId, "approve");
           if (rejectId) return await setDecision(rejectId, "reject");
 
