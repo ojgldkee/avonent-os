@@ -38,7 +38,12 @@ function rowFromIdea(userId:string,product:any,idea:any,model:string,available:S
       shot_directions:Array.isArray(idea.shot_directions)?idea.shot_directions:[],
       timed_script:Array.isArray(idea.timed_script)?idea.timed_script:[],
       animation_prompts:Array.isArray(idea.animation_prompts)?idea.animation_prompts:[],
+      hook_adaptation:idea.hook_adaptation||null,
+      narrative_truth_mode:idea.narrative_truth_mode||"",
+      story_arc:idea.story_arc||null,
+      visual_recipe:idea.visual_recipe||null,
       source_adaptation:idea.source_adaptation||null,
+      source_claims:Array.isArray(idea.source_claims)?idea.source_claims:[],
       source_observations:Array.isArray(idea.source_observations)?idea.source_observations:[],
       ai_inferences:Array.isArray(idea.ai_inferences)?idea.ai_inferences:[],
       product_fact_checks:Array.isArray(idea.product_fact_checks)?idea.product_fact_checks:[],
@@ -76,6 +81,15 @@ Deno.serve(async(req)=>{
     if(!authorized)return out(401,{error:"Scheduler authorization required"});
 
     const today=new Date().toISOString().slice(0,10);
+    const archiveBefore=new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+
+    // Keep the live inbox small: untouched ideas older than 7 days move to Archive.
+    const archiveOld=await admin.from("ai_ideas").update({
+      lifecycle_status:"archived",
+      archived_at:new Date().toISOString(),
+      updated_at:new Date().toISOString()
+    }).eq("lifecycle_status","new").lt("generated_for_date",archiveBefore).neq("status","Approved");
+    if(archiveOld.error)throw archiveOld.error;
 
     const productsResult=await admin.from("products")
       .select("*")
@@ -101,13 +115,24 @@ Deno.serve(async(req)=>{
         continue;
       }
 
+      const recentIdeas=await admin.from("ai_ideas")
+        .select("source_ad_ids,created_at,lifecycle_status,status")
+        .eq("product_id",product.id)
+        .gte("created_at",new Date(Date.now()-30*86400000).toISOString())
+        .order("created_at",{ascending:false})
+        .limit(150);
+      if(recentIdeas.error)throw recentIdeas.error;
+      const recentlyUsedSourceIds=new Set(
+        (recentIdeas.data||[]).flatMap((row:any)=>Array.isArray(row.source_ad_ids)?row.source_ad_ids.map(String):[])
+      );
+
       const adsResult=await admin.from("competitor_ads")
         .select("ad_archive_id,advertiser_name,primary_text,headline,description,display_format,media_kind,media_url,media_thumbnail_url,started_at,days_running,source_url,video_transcript,video_transcript_segments,video_duration_seconds,transcription_status,ai_analysis")
         .eq("user_id",product.user_id)
         .eq("product_id",product.id)
         .eq("is_active",true)
         .order("days_running",{ascending:false})
-        .limit(8);
+        .limit(80);
       if(adsResult.error)throw adsResult.error;
       const ads=adsResult.data||[];
 
@@ -118,12 +143,35 @@ Deno.serve(async(req)=>{
 
       const slots=Array.from({length:needed},(_,i)=>existingCount+i+1);
       const rankedAds=[...ads].sort((a:any,b:any)=>{
-        const as=Number(Boolean(a.video_transcript))*1000+Number(Boolean(a.ai_analysis?.visual_analysis_available))*500+Number(a.ai_analysis?.research_score||0)*3+Number(a.days_running||0);
-        const bs=Number(Boolean(b.video_transcript))*1000+Number(Boolean(b.ai_analysis?.visual_analysis_available))*500+Number(b.ai_analysis?.research_score||0)*3+Number(b.days_running||0);
+        const freshnessA=recentlyUsedSourceIds.has(String(a.ad_archive_id||""))?-1200:0;
+        const freshnessB=recentlyUsedSourceIds.has(String(b.ad_archive_id||""))?-1200:0;
+        const as=freshnessA+Number(Boolean(a.video_transcript))*1000+Number(Boolean(a.ai_analysis?.visual_analysis_available))*500+Number(a.ai_analysis?.research_score||0)*3+Number(a.days_running||0);
+        const bs=freshnessB+Number(Boolean(b.video_transcript))*1000+Number(Boolean(b.ai_analysis?.visual_analysis_available))*500+Number(b.ai_analysis?.research_score||0)*3+Number(b.days_running||0);
         return bs-as;
       });
+
+      // Pick five materially different source ads: first diversify advertiser, then format,
+      // then fill remaining slots with the next-best unused source.
+      const diversified:any[]=[];
+      const seenAdvertisers=new Set<string>();
+      const seenFormats=new Set<string>();
+      for(const ad of rankedAds){
+        const adv=String(ad.advertiser_name||"").toLowerCase().trim();
+        const fmt=String(ad.media_kind||ad.display_format||"").toLowerCase();
+        if((adv&&!seenAdvertisers.has(adv)) || (fmt&&!seenFormats.has(fmt))){
+          diversified.push(ad);
+          if(adv)seenAdvertisers.add(adv);
+          if(fmt)seenFormats.add(fmt);
+        }
+        if(diversified.length>=5)break;
+      }
+      for(const ad of rankedAds){
+        if(diversified.length>=5)break;
+        if(!diversified.includes(ad))diversified.push(ad);
+      }
+
       const jobs=slots.map(async variation=>{
-        const primary=rankedAds[(variation-1)%rankedAds.length];
+        const primary=diversified[(variation-1)%diversified.length];
         const response=await fetch(url.replace(/\/$/,"")+"/functions/v1/creative-ai",{
           method:"POST",
           headers:{
@@ -135,7 +183,7 @@ Deno.serve(async(req)=>{
             variation:Math.min(5,variation),
             primary_source_ad_id:primary?.ad_archive_id||"",
             product,
-            competitor_ads:rankedAds
+            competitor_ads:rankedAds.slice(0,20)
           }),
           signal:AbortSignal.timeout(70000)
         });
