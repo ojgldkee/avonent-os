@@ -289,7 +289,7 @@ Deno.serve(async(req)=>{
       if(!found.data)return out(404,{error:"Product not found"});
       product=found.data;
     }
-    let ads=Array.isArray(body?.competitor_ads)?body.competitor_ads.slice(0,task==="idea"?8:16):[];
+    let ads=Array.isArray(body?.competitor_ads)?body.competitor_ads.slice(0,task==="idea"?5:10):[];
 
     if(product?.id&&!ads.length){
       let rowsQuery=admin.from("competitor_ads")
@@ -297,7 +297,7 @@ Deno.serve(async(req)=>{
         .eq("product_id",product.id)
         .eq("is_active",true)
         .order("days_running",{ascending:false})
-        .limit(task==="idea"?8:16);
+        .limit(task==="idea"?5:10);
       if(auth.userId)rowsQuery=rowsQuery.eq("user_id",auth.userId);
       const rows=await rowsQuery;
       if(rows.error)throw rows.error;
@@ -309,9 +309,9 @@ Deno.serve(async(req)=>{
       ad_archive_id:a.ad_archive_id,
       advertiser_name:a.advertiser_name,
       days_running:a.days_running,
-      primary_text:String(a.primary_text||"").slice(0,task==="idea"?2200:4500),
+      primary_text:String(a.primary_text||"").slice(0,task==="idea"?1400:3000),
       headline:String(a.headline||"").slice(0,500),
-      description:String(a.description||"").slice(0,task==="idea"?700:1200),
+      description:String(a.description||"").slice(0,task==="idea"?350:700),
       format:a.display_format||a.media_kind,
       source_url:a.source_url,
       transcript:String(a.ad_archive_id||"")===primarySourceId
@@ -325,7 +325,7 @@ Deno.serve(async(req)=>{
       visual_hook:a.ai_analysis?.visual_hook||"",
       first_frame:a.ai_analysis?.first_frame||"",
       observed_sequence:a.ai_analysis?.observed_sequence||[],
-      analysis:JSON.stringify(a.ai_analysis||{}).slice(0,task==="idea"?3200:5000)
+      analysis:JSON.stringify(a.ai_analysis||{}).slice(0,task==="idea"?1600:2800)
     }));
 
     const model=task==="script"
@@ -356,11 +356,7 @@ Deno.serve(async(req)=>{
       variation:Number(body?.variation||1)
     };
 
-    const candidates=task==="script"
-      ? [model,"qwen/qwen3.7-flash","google/gemini-3.8-flash"]
-      : task==="idea"
-        ? [model,"qwen/qwen3.7-flash","google/gemini-3.8-flash"]
-        : [model,"qwen/qwen3.7-flash","google/gemini-3.8-flash"];
+    const candidates=[model,"google/gemini-3.8-flash"];
     let result:any=null;
     let raw:any=null;
     let usedModel=model;
@@ -382,9 +378,9 @@ Deno.serve(async(req)=>{
             response_format:{type:"json_object"},
             ...((candidate.includes("qwen3.8-27b")||candidate.includes("qwen3.7-flash"))?{reasoning:{enabled:false}}:{}),
             provider:{sort:"throughput",allow_fallbacks:true},
-            max_tokens:task==="script"?5600:task==="idea"?3600:7000
+            max_tokens:task==="script"?4200:task==="idea"?2800:5600
           }),
-          signal:AbortSignal.timeout(task==="script"?50000:task==="idea"?38000:50000)
+          signal:AbortSignal.timeout(task==="script"?32000:task==="idea"?24000:32000)
         });
         raw=await response.json().catch(()=>({}));
         if(!response.ok){
@@ -410,13 +406,20 @@ Deno.serve(async(req)=>{
           lastError="The model returned an empty response.";
           continue;
         }
-        let parsed=validateResult(task,parseJson(generated));
+        const parsed=validateResult(task,parseJson(generated));
         const claimIssues=findUnsupportedProductClaims(task,parsed,input.product);
         if(claimIssues.length){
-          console.warn("creative-ai repairing claims",JSON.stringify({candidate,issues:claimIssues.slice(0,8)}));
-          parsed=validateResult(task,await repairUnsupportedClaims(key,task,parsed,input.product,claimIssues));
+          const target=task==="script"?parsed.script:task==="idea"?parsed.idea:null;
+          if(target){
+            target.claim_review_required=true;
+            target.unsupported_claim_checks=[
+              ...(Array.isArray(target.unsupported_claim_checks)?target.unsupported_claim_checks:[]),
+              ...claimIssues.map((claim:string)=>({status:"needs_review",claim,reason:"Not verified in product facts"}))
+            ];
+          }
+          console.warn("creative-ai claim warnings",JSON.stringify({candidate,issues:claimIssues.slice(0,8)}));
         }
-        result=validateProductClaims(task,parsed,input.product);
+        result=parsed;
         break;
       }catch(error){
         lastError=error instanceof Error?error.message:String(error);
