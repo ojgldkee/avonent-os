@@ -263,6 +263,7 @@ Deno.serve(async(req)=>{
         raw=await response.json().catch(()=>({}));
         if(!response.ok){
           lastError=raw?.error?.message||("OpenRouter request failed with status "+response.status);
+          console.warn("creative-ai provider error",JSON.stringify({candidate,status:response.status,error:lastError}));
           continue;
         }
         const message=raw?.choices?.[0]?.message;
@@ -287,6 +288,7 @@ Deno.serve(async(req)=>{
         break;
       }catch(error){
         lastError=error instanceof Error?error.message:String(error);
+        console.warn("creative-ai candidate failed",JSON.stringify({candidate,error:lastError}));
       }
     }
 
