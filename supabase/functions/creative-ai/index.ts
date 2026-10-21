@@ -253,7 +253,8 @@ Deno.serve(async(req)=>{
               {role:"system",content:prompt},
               {role:"user",content:JSON.stringify(input)}
             ],
-            response_format:{type:"json_object"},
+            ...(task==="idea"?{}:{response_format:{type:"json_object"}}),
+            ...(candidate.startsWith("deepseek/")?{reasoning:{enabled:false}}:{}),
             provider:{sort:"throughput",allow_fallbacks:true},
             max_tokens:task==="script"?5600:task==="idea"?3600:7000
           }),
