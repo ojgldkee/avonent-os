@@ -302,7 +302,7 @@ Deno.serve(async(req)=>{
               {role:"user",content:JSON.stringify(input)}
             ],
             ...(task==="idea"?{}:{response_format:{type:"json_object"}}),
-            ...((candidate.startsWith("deepseek/")||candidate.includes("qwen3.8-max"))?{reasoning:{enabled:false}}:{}),
+            ...(candidate.startsWith("deepseek/")?{reasoning:{enabled:false}}:candidate.includes("qwen3.8-max")?{reasoning:{effort:"low",exclude:true}}:{}),
             provider:{sort:"throughput",allow_fallbacks:true},
             max_tokens:task==="script"?5600:task==="idea"?3600:7000
           }),
