@@ -247,9 +247,11 @@
   }
 
   function brandAvatar(w) {
-    const src = w.logo_url || (w.website_url ? faviconFor(w.website_url) : "");
+    const icon = w.website_url ? faviconFor(w.website_url) : "";
+    const fallback = w.logo_url || "";
+    const src = icon || fallback;
     return '<div class="brand-avatar">' +
-      (src ? '<img src="' + esc(src) + '" alt="' + esc(w.competitor_name) + ' logo" loading="lazy" data-brand-avatar-img>' : '') +
+      (src ? '<img src="' + esc(src) + '" alt="' + esc(w.competitor_name) + ' icon" loading="lazy" data-brand-avatar-img data-fallback-logo="' + esc(fallback) + '">' : '') +
       '<span>' + esc(initials(w.competitor_name)) + '</span>' +
     '</div>';
   }
@@ -335,7 +337,15 @@
       '</article>';
     }).join("");
     box.querySelectorAll("[data-brand-avatar-img]").forEach(img => {
-      img.addEventListener("error", () => img.remove(), { once:true });
+      img.addEventListener("error", () => {
+        const fallback = img.getAttribute("data-fallback-logo") || "";
+        if (fallback && img.src !== fallback) {
+          img.removeAttribute("data-fallback-logo");
+          img.src = fallback;
+        } else {
+          img.remove();
+        }
+      });
     });
   }
 
@@ -440,7 +450,15 @@
         '<div class="source-actions">' + actions + '</div>' +
       '</article>';
     }).join("");
-    box.querySelectorAll("[data-brand-avatar-img]").forEach(img => img.addEventListener("error", () => img.remove(), {once:true}));
+    box.querySelectorAll("[data-brand-avatar-img]").forEach(img => img.addEventListener("error", () => {
+      const fallback = img.getAttribute("data-fallback-logo") || "";
+      if (fallback && img.src !== fallback) {
+        img.removeAttribute("data-fallback-logo");
+        img.src = fallback;
+      } else {
+        img.remove();
+      }
+    }));
     box.querySelectorAll("video").forEach(video => video.addEventListener("error", () => {
       const message = document.createElement("p"); message.className = "helper";
       message.textContent = "Video unavailable or expired. Open the Meta ad or refresh the brand.";
