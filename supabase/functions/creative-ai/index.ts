@@ -80,6 +80,7 @@ FEEDBACK LOOP:
 - creative_feedback contains the user's real usage/winner/loser history when available.
 - Prefer patterns similar to items marked winner. Avoid repeating patterns marked loser.
 - "used" means the user chose that hook/script for production; treat it as positive taste signal, but weaker than "winner".
+- "results" may include spend, CTR, CPC, CPA and ROAS. Use those numbers as the strongest optimization signal when they are present.
 - Do not simply repeat a previous used hook. Learn the structural preference and apply it to a different source ad.
 
 Return one valid JSON object only, no markdown.`;
