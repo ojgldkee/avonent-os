@@ -128,7 +128,7 @@ function verifiedFactCorpus(product:any){
     ...(Array.isArray(product?.site_data?.variants)?product.site_data.variants.flatMap((v:any)=>[v?.title,v?.price,v?.sku]):[])
   ].filter(Boolean).join(" "));
 }
-function validateProductClaims(task:string,result:any,product:any){
+function findUnsupportedProductClaims(task:string,result:any,product:any){
   const output=creativeClaimCorpus(task,result);
   const facts=verifiedFactCorpus(product);
   const risky=[
@@ -152,9 +152,51 @@ function validateProductClaims(task:string,result:any,product:any){
   for(const span of timeMatches)if(!facts.includes(span))unsupported.push(span);
   const dosageMatches=output.match(/\b(?:take|taking|use|using)\s+(?:one|two|three|four|\d+)\s+(?:capsule|capsules|softgel|softgels|soft gel|soft gels)\b/g)||[];
   for(const dose of dosageMatches)if(!facts.includes(dose))unsupported.push(dose);
-  const unique=[...new Set(unsupported)];
+  return [...new Set(unsupported)];
+}
+function validateProductClaims(task:string,result:any,product:any){
+  const unique=findUnsupportedProductClaims(task,result,product);
   if(unique.length)throw new Error("AI output validation failed: unsupported product claims detected: "+unique.slice(0,8).join(", "));
   return result;
+}
+
+async function repairUnsupportedClaims(key:string,task:string,result:any,product:any,issues:string[]){
+  const facts=verifiedFactCorpus(product);
+  const repairPrompt=`You are a strict factual editor for advertising production.
+Preserve the source-ad structure, pacing, hook mechanism, timestamps, footage choices, and overall concept.
+Rewrite ONLY what is needed to remove unsupported product claims.
+You may use only VERIFIED_FACTS below for factual claims about the advertised product.
+Do not replace removed claims with new wellness, biological, ingredient, testing, certification, offer, dosage, timeline, or outcome claims.
+If proof is unavailable, use neutral observable product language and put "Proof needed before use" in proof_to_show.
+Every script beat must remain complete. Return the exact same top-level JSON shape as the draft. JSON only.`;
+
+  const response=await fetch("https://openrouter.ai/api/v1/chat/completions",{
+    method:"POST",
+    headers:{"authorization":"Bearer "+key,"content-type":"application/json","HTTP-Referer":"https://ojgldkee.github.io/avonent-os/","X-Title":"Avonent OS"},
+    body:JSON.stringify({
+      model:"qwen/qwen3.7-flash",
+      temperature:0.25,
+      reasoning:{enabled:false},
+      response_format:{type:"json_object"},
+      messages:[
+        {role:"system",content:repairPrompt},
+        {role:"user",content:JSON.stringify({
+          verified_facts:facts,
+          unsupported_claims:issues,
+          draft:result
+        })}
+      ],
+      provider:{sort:"throughput",allow_fallbacks:true},
+      max_tokens:task==="script"?5200:3600
+    }),
+    signal:AbortSignal.timeout(task==="script"?45000:35000)
+  });
+  const raw=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(raw?.error?.message||("Claim repair failed with status "+response.status));
+  const message=raw?.choices?.[0]?.message?.content;
+  const text=typeof message==="string"?message:Array.isArray(message)?message.map((p:any)=>typeof p==="string"?p:(p?.text||"")).join(""):"";
+  if(!text.trim())throw new Error("Claim repair returned no text.");
+  return parseJson(text);
 }
 
 function validateResult(task:string,result:any){
@@ -339,7 +381,13 @@ Deno.serve(async(req)=>{
           lastError="The model returned an empty response.";
           continue;
         }
-        result=validateProductClaims(task,validateResult(task,parseJson(generated)),input.product);
+        let parsed=validateResult(task,parseJson(generated));
+        const claimIssues=findUnsupportedProductClaims(task,parsed,input.product);
+        if(claimIssues.length){
+          console.warn("creative-ai repairing claims",JSON.stringify({candidate,issues:claimIssues.slice(0,8)}));
+          parsed=validateResult(task,await repairUnsupportedClaims(key,task,parsed,input.product,claimIssues));
+        }
+        result=validateProductClaims(task,parsed,input.product);
         break;
       }catch(error){
         lastError=error instanceof Error?error.message:String(error);
