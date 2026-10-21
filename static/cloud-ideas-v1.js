@@ -146,7 +146,14 @@
       '<span>SAY</span><p>' + esc(beat?.say || "") + '</p>' +
       '<span>SHOW</span><p>' + esc(beat?.show || "") + '</p>' +
       '<span>ON-SCREEN</span><p>' + esc(beat?.on_screen_text || "") + '</p>' +
-      '<span>FOOTAGE</span><p><strong>' + esc(type) + '</strong> · ' + esc(provider) + '</p>' +
+      '<span>FOOTAGE</span><p><strong>' + esc(type) + '</strong> · ' + esc(provider) + (beat?.video_model ? ' · ' + esc(beat.video_model) : '') + '</p>' +
+      (beat?.visual_style ? '<span>VISUAL STYLE</span><p>' + esc(beat.visual_style) + '</p>' : '') +
+      (beat?.camera ? '<span>CAMERA</span><p>' + esc(beat.camera) + '</p>' : '') +
+      (beat?.setting ? '<span>SETTING</span><p>' + esc(beat.setting) + '</p>' : '') +
+      (beat?.actor_or_subject ? '<span>ACTOR / SUBJECT</span><p>' + esc(beat.actor_or_subject) + '</p>' : '') +
+      (beat?.action ? '<span>ACTION</span><p>' + esc(beat.action) + '</p>' : '') +
+      (beat?.transition ? '<span>TRANSITION</span><p>' + esc(beat.transition) + '</p>' : '') +
+      (beat?.animation_style ? '<span>ANIMATION STYLE</span><p>' + esc(beat.animation_style) + '</p>' : '') +
       (beat?.source_reference ? '<span>SOURCE BEAT</span><p>' + esc(beat.source_reference) + '</p>' : '') +
       (beat?.animation_prompt ? '<span>AI VIDEO PROMPT</span><p>' + esc(beat.animation_prompt) + '</p>' : '') +
     '</div>';
@@ -165,6 +172,51 @@
     '</section>';
   }
 
+  function visualRecipeHtml(strategy) {
+    const v = strategy?.visual_recipe;
+    if (!v) return "";
+    const providers = Array.isArray(v.provider_stack) ? v.provider_stack.filter(Boolean) : [];
+    return '<section class="visual-recipe-card">' +
+      '<span class="eyebrow">WHAT THE VIDEO SHOULD LOOK LIKE</span>' +
+      (v.overall_style ? '<p><strong>Overall:</strong> ' + esc(v.overall_style) + '</p>' : '') +
+      (v.adapted_visual_style ? '<p><strong>Visual style:</strong> ' + esc(v.adapted_visual_style) + '</p>' : '') +
+      (v.actor_mode ? '<p><strong>Actor:</strong> ' + esc(v.actor_mode) + '</p>' : '') +
+      (v.animation_style ? '<p><strong>Animation:</strong> ' + esc(v.animation_style) + '</p>' : '') +
+      (v.camera_language ? '<p><strong>Camera:</strong> ' + esc(v.camera_language) + '</p>' : '') +
+      (v.setting ? '<p><strong>Setting:</strong> ' + esc(v.setting) + '</p>' : '') +
+      (v.edit_rhythm ? '<p><strong>Edit rhythm:</strong> ' + esc(v.edit_rhythm) + '</p>' : '') +
+      (v.color_texture ? '<p><strong>Look:</strong> ' + esc(v.color_texture) + '</p>' : '') +
+      (providers.length ? '<p><strong>Provider stack:</strong> ' + esc(providers.join(" · ")) + '</p>' : '') +
+    '</section>';
+  }
+
+  function hookAdaptationHtml(strategy) {
+    const h = strategy?.hook_adaptation;
+    if (!h) return "";
+    const kept = Array.isArray(h.what_was_preserved) ? h.what_was_preserved : [];
+    return '<section class="hook-adaptation-card">' +
+      '<span class="eyebrow">HOOK ADAPTATION</span>' +
+      (h.source_hook_exact ? '<p><strong>Source hook:</strong> “' + esc(h.source_hook_exact) + '”</p>' : '') +
+      (h.source_hook_blueprint ? '<p><strong>Blueprint:</strong> ' + esc(h.source_hook_blueprint) + '</p>' : '') +
+      (h.adapted_hook ? '<p><strong>Our version:</strong> “' + esc(h.adapted_hook) + '”</p>' : '') +
+      (kept.length ? '<p><strong>Preserved:</strong> ' + esc(kept.join(" · ")) + '</p>' : '') +
+    '</section>';
+  }
+
+  function storyArcHtml(strategy) {
+    const s = strategy?.story_arc;
+    if (!s) return "";
+    const src = Array.isArray(s.source_story_spine) ? s.source_story_spine : [];
+    const adapted = Array.isArray(s.adapted_story_spine) ? s.adapted_story_spine : [];
+    return '<section class="story-arc-card">' +
+      '<span class="eyebrow">STORY BLUEPRINT</span>' +
+      (src.length ? '<p><strong>Source:</strong> ' + esc(src.join(" → ")) + '</p>' : '') +
+      (adapted.length ? '<p><strong>Adapted:</strong> ' + esc(adapted.join(" → ")) + '</p>' : '') +
+      (s.tension_curve ? '<p><strong>Tension:</strong> ' + esc(s.tension_curve) + '</p>' : '') +
+      (s.reveal_point ? '<p><strong>Reveal:</strong> ' + esc(s.reveal_point) + '</p>' : '') +
+    '</section>';
+  }
+
   function renderHooksWorkspace(rows) {
     $("cloud-ideas-grid").innerHTML = rows.length ? rows.map((idea) => {
       const strategy = idea.strategy || {};
@@ -177,6 +229,9 @@
           '<div class="hook-library-row"><span>' + String(index + 1).padStart(2,"0") + '</span><p>' + esc(hook) + '</p><button type="button" class="copy-inline" data-copy-library-hook="' + esc(idea.id) + '" data-hook-index="' + index + '">Copy</button></div>'
         ).join("") + '</div>' +
         '<div class="hook-library-meta"><span>' + (Array.isArray(idea.source_ad_ids) ? idea.source_ad_ids.length : 0) + ' source ads</span><span>' + esc(idea.format || "Format TBD") + '</span></div>' +
+        hookAdaptationHtml(strategy) +
+        storyArcHtml(strategy) +
+        visualRecipeHtml(strategy) +
         sourceAdaptationHtml(strategy) +
         '<details class="idea-copy-pack"><summary>Connected script and video plan</summary><p>Suggested duration: ' + esc(strategy.recommended_duration_seconds || "AI to decide") + ' seconds · ' + esc(strategy.production_style || "AI to choose footage mix") + '</p>' +
         (Array.isArray(strategy.timed_script) ? strategy.timed_script.map(timedBeatHtml).join("") : '<p>No timed script yet.</p>') +
@@ -197,7 +252,7 @@
         (strategy.first_three_seconds ? '<section class="script-opening"><span>First 3 seconds</span><div class="timed-beat"><span>SAY</span><p>' + esc(strategy.first_three_seconds.say || "") + '</p><span>SHOW</span><p>' + esc(strategy.first_three_seconds.show || "") + '</p><span>ON-SCREEN</span><p>' + esc(strategy.first_three_seconds.on_screen_text || "") + '</p></div></section>' : '') +
         (idea.ai_script
           ? '<pre class="final-script-pre">' + esc(idea.ai_script) + '</pre><div class="idea-inline-actions"><button class="button secondary mini" type="button" data-copy-script="' + esc(idea.id) + '">Copy script</button><button class="button secondary mini" type="button" data-script="' + esc(idea.id) + '">Regenerate</button></div>'
-          : sourceAdaptationHtml(strategy) + '<div class="timed-script">' + timed.map(timedBeatHtml).join("") + '</div><button class="button" type="button" data-script="' + esc(idea.id) + '">Generate final AI script</button>') +
+          : hookAdaptationHtml(strategy) + storyArcHtml(strategy) + visualRecipeHtml(strategy) + sourceAdaptationHtml(strategy) + '<div class="timed-script">' + timed.map(timedBeatHtml).join("") + '</div><button class="button" type="button" data-script="' + esc(idea.id) + '">Generate final AI script</button>') +
       '</article>';
     }).join("") : '<div class="empty wide">No scripts in this view yet. Generate concepts first, then open Scripts.</div>';
   }
@@ -252,6 +307,9 @@
         (strategy.headline ? '<h4>Headline</h4><p>' + esc(strategy.headline) + '</p>' : '') +
         (strategy.description ? '<h4>Description</h4><p>' + esc(strategy.description) + '</p>' : '') +
         (strategy.video_concept ? '<h4>Video concept</h4><p>' + esc(strategy.video_concept) + '</p>' : '') +
+        hookAdaptationHtml(strategy) +
+        storyArcHtml(strategy) +
+        visualRecipeHtml(strategy) +
         sourceAdaptationHtml(strategy) +
         (Array.isArray(strategy.shot_directions) && strategy.shot_directions.length ? '<h4>Shot directions</h4><ol class="strategy-list">' + strategy.shot_directions.map(x => '<li>' + esc(typeof x === "string" ? x : JSON.stringify(x)) + '</li>').join("") + '</ol>' : '') +
         (Array.isArray(strategy.timed_script) && strategy.timed_script.length ? '<h4>Timed script</h4><div class="timed-script">' + strategy.timed_script.map(timedBeatHtml).join("") + '</div>' : '') +
@@ -402,6 +460,10 @@
             shot_directions: Array.isArray(i.shot_directions) ? i.shot_directions : [],
             timed_script: Array.isArray(i.timed_script) ? i.timed_script : [],
             animation_prompts: Array.isArray(i.animation_prompts) ? i.animation_prompts : [],
+            hook_adaptation: i.hook_adaptation || null,
+            narrative_truth_mode: i.narrative_truth_mode || "",
+            story_arc: i.story_arc || null,
+            visual_recipe: i.visual_recipe || null,
             source_adaptation: i.source_adaptation || null,
             source_observations: Array.isArray(i.source_observations) ? i.source_observations : [],
             ai_inferences: Array.isArray(i.ai_inferences) ? i.ai_inferences : [],
@@ -503,6 +565,10 @@
         shot_directions: idea.strategy?.shot_directions || [],
         timed_script: idea.strategy?.timed_script || [],
         source_adaptation: idea.strategy?.source_adaptation || null,
+        hook_adaptation: idea.strategy?.hook_adaptation || null,
+        story_arc: idea.strategy?.story_arc || null,
+        visual_recipe: idea.strategy?.visual_recipe || null,
+        narrative_truth_mode: idea.strategy?.narrative_truth_mode || "",
         source_observations: idea.strategy?.source_observations || [],
         ai_inferences: idea.strategy?.ai_inferences || [],
         product_fact_checks: idea.strategy?.product_fact_checks || [],
