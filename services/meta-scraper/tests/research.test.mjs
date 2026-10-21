@@ -96,12 +96,12 @@ test("frontend exposes combined media, age, keyword and sort filtering", () => {
 test("prepared strategist requires source evidence and complete production fields", () => {
   const creativeAi = readFileSync(new URL("supabase/functions/creative-ai/index.ts", root), "utf8");
   const ideasUi = readFileSync(new URL("static/cloud-ideas-v1.js", root), "utf8");
-  for (const field of ["audience","first_three_seconds","video_concept","shot_directions","timed_script","source_adaptation","source_observations","product_fact_checks","unsupported_claim_checks","footage_type","provider"]) {
+  for (const field of ["audience","first_three_seconds","video_concept","shot_directions","timed_script","source_adaptation","hook_adaptation","story_arc","visual_recipe","source_observations","source_claims","footage_type","provider"]) {
     assert.match(creativeAi, new RegExp(field));
     assert.match(ideasUi, new RegExp(field));
   }
   assert.match(creativeAi, /four usable hooks/);
-  assert.match(creativeAi, /script has empty SAY\/SHOW\/ON-SCREEN fields/);
+  assert.match(creativeAi, /production script is incomplete/);
   assert.match(creativeAi, /primary_source_ad_id/);
   assert.match(ideasUi, /"SAY: " \+ \(b\.say \|\| ""\)/);
   assert.match(ideasUi, /"SHOW: " \+ \(b\.show \|\| ""\)/);
