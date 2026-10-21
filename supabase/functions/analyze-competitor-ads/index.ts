@@ -136,6 +136,7 @@ async function callOpenRouter(key:string, model:string, ad:any, exactOpening:str
       model,
       temperature:0.15,
       messages:[{role:"system",content:SYSTEM},{role:"user",content}],
+      ...(model.includes("qwen3.8")?{reasoning:{enabled:false}}:{}),
       response_format:{type:"json_object"},
       provider:{sort:"throughput",allow_fallbacks:true},
       max_tokens:2600
@@ -176,7 +177,7 @@ Deno.serve(async(req)=>{
     if(rows.error)throw rows.error;
 
     const textModel=Deno.env.get("AVONENT_ANALYSIS_MODEL")||"qwen/qwen3-30b-a3b-instruct-2507";
-    const visualModel=Deno.env.get("AVONENT_VISUAL_MODEL")||"google/gemini-3-flash-preview";
+    const visualModel=Deno.env.get("AVONENT_VISUAL_MODEL")||"qwen/qwen3.8-27b";
     const jobs=(rows.data||[]).map(async(ad:any)=>{
       const opening=exactSpokenOpening(ad.video_transcript_segments||[],ad.video_transcript||"");
       const hasTranscript=Boolean(String(ad.video_transcript||"").trim());
