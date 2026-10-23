@@ -1,8 +1,11 @@
+import { createHash } from "node:crypto";
+
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SERVICE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "");
 const SCRAPER_KEY = String(process.env.SCRAPER_API_KEY || "github-actions-local");
 const COMPETITOR_ID = String(process.env.COMPETITOR_ID || "").trim();
 const SCRAPER_URL = String(process.env.LOCAL_SCRAPER_URL || "http://127.0.0.1:8080").replace(/\/$/, "");
+const COMPETITOR_MEDIA_BUCKET = "competitor-media";
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
@@ -25,6 +28,76 @@ async function rest(path, options = {}) {
     throw new Error("Supabase " + response.status + ": " + text.slice(0, 500));
   }
   return text ? JSON.parse(text) : null;
+}
+
+
+function storagePublicUrl(path) {
+  return SUPABASE_URL + "/storage/v1/object/public/" + COMPETITOR_MEDIA_BUCKET + "/" + path;
+}
+
+function imageExtension(contentType, sourceUrl) {
+  const type = String(contentType || "").toLowerCase();
+  if (type.includes("png")) return "png";
+  if (type.includes("webp")) return "webp";
+  if (type.includes("gif")) return "gif";
+  if (type.includes("avif")) return "avif";
+  try {
+    const ext = new URL(sourceUrl).pathname.split(".").pop().toLowerCase();
+    if (["jpg","jpeg","png","webp","gif","avif"].includes(ext)) return ext === "jpeg" ? "jpg" : ext;
+  } catch {}
+  return "jpg";
+}
+
+function alreadyCachedMedia(url) {
+  return String(url || "").startsWith(storagePublicUrl(""));
+}
+
+async function cacheExternalImage(url, {userId, productId, adId, role = "creative"} = {}) {
+  const source = String(url || "").trim();
+  if (!/^https:\/\//i.test(source) || alreadyCachedMedia(source)) return source;
+
+  try {
+    const response = await fetch(source, {
+      headers: {
+        "user-agent": "Mozilla/5.0 (compatible; AvonentResearch/1.0)",
+        accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+      }
+    });
+    if (!response.ok) throw new Error("source returned " + response.status);
+
+    const contentType = String(response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    if (!contentType.startsWith("image/")) throw new Error("source was not an image");
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (!bytes.length || bytes.length > 20 * 1024 * 1024) throw new Error("image size invalid");
+
+    const digest = createHash("sha256").update(source).digest("hex").slice(0, 16);
+    const ext = imageExtension(contentType, source);
+    const safeUser = String(userId || "shared").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const safeProduct = String(productId || "unknown").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const safeAd = String(adId || digest).replace(/[^a-zA-Z0-9_-]/g, "_");
+    const safeRole = String(role || "creative").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const path = safeUser + "/" + safeProduct + "/" + safeAd + "-" + safeRole + "-" + digest + "." + ext;
+
+    const upload = await fetch(SUPABASE_URL + "/storage/v1/object/" + COMPETITOR_MEDIA_BUCKET + "/" + path, {
+      method: "POST",
+      headers: {
+        apikey: SERVICE_KEY,
+        authorization: "Bearer " + SERVICE_KEY,
+        "content-type": contentType,
+        "cache-control": "31536000",
+        "x-upsert": "true"
+      },
+      body: bytes
+    });
+    if (!upload.ok) {
+      const message = await upload.text().catch(() => "");
+      throw new Error("storage upload " + upload.status + ": " + message.slice(0, 160));
+    }
+    return storagePublicUrl(path);
+  } catch (error) {
+    console.warn("[media cache] " + String(adId || "unknown") + " " + String(error?.message || error));
+    return source;
+  }
 }
 
 async function updateBrand(id, patch) {
@@ -332,6 +405,29 @@ async function collectBrand(brand) {
       : "https://www.facebook.com/ads/library/?id=" + encodeURIComponent(id);
 
     const days = ad.started_at ? Math.max(0, Number(ad.days_running || 0)) : 0; // Legacy NOT NULL column; started_at is authoritative.
+    const mediaKind = String(ad.media_kind || "");
+    let mediaUrl = String(ad.media_url || "");
+    let mediaThumbnailUrl = String(ad.media_thumbnail_url || "");
+
+    // Meta's CDN URLs are temporary and can fail in the Research UI later.
+    // Persist image creatives (and video posters) into our public Supabase Storage bucket.
+    if (mediaKind === "image" && mediaUrl) {
+      mediaUrl = await cacheExternalImage(mediaUrl, {
+        userId: brand.user_id,
+        productId: brand.product_id,
+        adId: id,
+        role: "creative"
+      });
+      mediaThumbnailUrl = mediaUrl;
+    } else if (mediaThumbnailUrl) {
+      mediaThumbnailUrl = await cacheExternalImage(mediaThumbnailUrl, {
+        userId: brand.user_id,
+        productId: brand.product_id,
+        adId: id,
+        role: "thumbnail"
+      });
+    }
+
     const row = {
       user_id: brand.user_id,
       product_id: brand.product_id,
@@ -345,10 +441,10 @@ async function collectBrand(brand) {
       cta_text: String(ad.cta_text || ""),
       landing_url: String(ad.landing_url || ""),
       display_format: String(ad.display_format || ""),
-      media_url: String(ad.media_url || ""),
-      media_thumbnail_url: String(ad.media_thumbnail_url || ""),
+      media_url: mediaUrl,
+      media_thumbnail_url: mediaThumbnailUrl,
       advertiser_logo_url: String(ad.advertiser_logo_url || ""),
-      media_kind: String(ad.media_kind || ""),
+      media_kind: mediaKind,
       platforms: Array.isArray(ad.platforms) ? ad.platforms : [],
       started_at: ad.started_at || null,
       ended_at: ad.ended_at || null,
