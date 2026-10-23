@@ -112,12 +112,13 @@ async function upsertAds(rows) {
   for (let i = 0; i < rows.length; i += 75) {
     const chunk = rows.slice(i, i + 75);
     const ids = chunk.map(row => row.ad_archive_id).join(",");
-    const existing = await rest("competitor_ads?user_id=eq." + encodeURIComponent(chunk[0].user_id) + "&ad_archive_id=in.(" + ids + ")&select=*", {method:"GET"});
+    const existing = await rest("competitor_ads?user_id=eq." + encodeURIComponent(chunk[0].user_id) + "&product_id=eq." + encodeURIComponent(chunk[0].product_id) + "&ad_archive_id=in.(" + ids + ")&select=*", {method:"GET"});
     for (const row of chunk) {
       const old = existing.find(ad => ad.ad_archive_id === row.ad_archive_id);
       if (!old) continue;
-      if (old.product_id !== row.product_id || old.competitor_id !== row.competitor_id) {
-        throw new Error("Ad already belongs to another product/brand; shared-ad schema migration required.");
+      if (old.competitor_id !== row.competitor_id) {
+        console.warn("[" + row.ad_archive_id + "] existing ad is already linked to another competitor in this product; preserving the existing competitor link.");
+        row.competitor_id = old.competitor_id;
       }
       for (const key of ["primary_text","headline","description","cta_text","landing_url","media_url","media_thumbnail_url","advertiser_logo_url","media_kind","started_at","ended_at"]) {
         if (!row[key] && old[key]) row[key] = old[key];
@@ -129,7 +130,7 @@ async function upsertAds(rows) {
       }
       row.qualifies_long_running = Boolean(row.started_at) && row.is_active && row.days_running >= Number(row.raw.long_running_threshold || 30);
     }
-    await rest("competitor_ads?on_conflict=user_id,ad_archive_id", {
+    await rest("competitor_ads?on_conflict=user_id,product_id,ad_archive_id", {
       method: "POST",
       headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
       body: JSON.stringify(chunk)
