@@ -13,7 +13,7 @@
   let watchlist = [];
   let ads = [];
   let expandedAdId = null;
-  let visibleLimit = 24;
+  let visibleLimit = 36;
 
   let ideaProgressTimer = null;
   let ideaProgressStartedAt = 0;
@@ -459,9 +459,14 @@
     const total = rows.length;
     const unknownAge = rows.filter(a => adAge(a) === null).length;
     const unknownDuration = rows.filter(a => mediaKind(a) === "video" && videoDurationSeconds(a) === null).length;
-    if ($("ad-sample-count")) $("ad-sample-count").textContent = total + " matching sampled ads · " + unknownAge + " unknown age · " + unknownDuration + " unknown video length · up to 500 stored ads loaded";
-    rows = rows.slice(0, visibleLimit);
-    if ($("load-more-ads")) $("load-more-ads").hidden = visibleLimit >= total;
+    const shown = Math.min(visibleLimit, total);
+    if ($("ad-sample-count")) $("ad-sample-count").textContent = shown + " of " + total + " matching ads displayed · " + unknownAge + " unknown age · " + unknownDuration + " unknown video length · up to 500 stored ads loaded";
+    rows = rows.slice(0, shown);
+    if ($("load-more-ads")) {
+      const remaining = Math.max(0, total - shown);
+      $("load-more-ads").hidden = remaining === 0;
+      $("load-more-ads").textContent = remaining ? "Load " + Math.min(50, remaining) + " more (" + shown + "/" + total + " shown)" : "All " + total + " ads shown";
+    }
     if (!rows.length) {
       box.innerHTML = '<div class="empty wide">No collected ads match these filters. Clear filters or research a tracked brand.</div>';
       return;
@@ -898,20 +903,28 @@
       $("scan-now").onclick = () => runResearch();
       $("analyze-ads").onclick = analyzeResearch;
       $("generate-ideas").onclick = generateIdeas;
-      if ($("load-more-ads")) $("load-more-ads").onclick = () => { visibleLimit += 24; renderAds(); };
+      if ($("load-more-ads")) $("load-more-ads").onclick = () => {
+        const firstNewIndex = visibleLimit;
+        visibleLimit += 50;
+        renderAds();
+        requestAnimationFrame(() => {
+          const cards = document.querySelectorAll("#research-ads .source-ad-card");
+          if (cards[firstNewIndex]) cards[firstNewIndex].scrollIntoView({behavior:"smooth", block:"center"});
+        });
+      };
       ["brand-filter","media-filter","age-filter","duration-filter","sort-filter"].forEach(id => {
         if ($(id)) $(id).onchange = () => {
           if (id === "duration-filter" && $(id).value !== "all" && $("max-duration-filter")) $("max-duration-filter").value = "";
-          visibleLimit = 24;
+          visibleLimit = 36;
           renderAds();
         };
       });
       if ($("max-duration-filter")) $("max-duration-filter").oninput = () => {
         if ($("max-duration-filter").value && $("duration-filter")) $("duration-filter").value = "all";
-        visibleLimit = 24;
+        visibleLimit = 36;
         renderAds();
       };
-      if ($("keyword-filter")) $("keyword-filter").oninput = () => { visibleLimit = 24; renderAds(); };
+      if ($("keyword-filter")) $("keyword-filter").oninput = () => { visibleLimit = 36; renderAds(); };
       if ($("clear-filters")) $("clear-filters").onclick = () => {
         $("brand-filter").value = "all";
         $("media-filter").value = "all";
@@ -920,7 +933,7 @@
         $("max-duration-filter").value = "";
         $("keyword-filter").value = "";
         $("sort-filter").value = "score";
-        visibleLimit = 24;
+        visibleLimit = 36;
         renderAds();
       };
 
