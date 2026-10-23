@@ -484,9 +484,9 @@
       if (adKind === "video" && mediaUrl) {
         mediaHtml = '<div class="source-ad-media"><video controls playsinline preload="none" ' + (poster ? 'poster="' + esc(poster) + '" ' : '') + 'src="' + esc(mediaUrl) + '"></video></div>';
       } else if (adKind === "image" && mediaUrl) {
-        mediaHtml = '<div class="source-ad-media"><img loading="lazy" src="' + esc(mediaUrl) + '" alt=""></div>';
+        mediaHtml = '<div class="source-ad-media"><img loading="lazy" referrerpolicy="no-referrer" src="' + esc(mediaUrl) + '" data-fallback-src="' + esc(poster && poster !== mediaUrl ? poster : "") + '" alt="Competitor ad creative"></div>';
       } else if (adKind === "unknown" && poster) {
-        mediaHtml = '<div class="source-ad-media media-unknown"><img loading="lazy" src="' + esc(poster) + '" alt=""><span>Media type unknown</span></div>';
+        mediaHtml = '<div class="source-ad-media media-unknown"><img loading="lazy" referrerpolicy="no-referrer" src="' + esc(poster) + '" alt="Competitor ad creative"><span>Media type unknown</span></div>';
       }
 
       const cleanPrimary = usablePrimaryText(a);
@@ -550,6 +550,18 @@
         img.remove();
       }
     }));
+    box.querySelectorAll(".source-ad-media img").forEach(img => img.addEventListener("error", () => {
+      const fallback = img.getAttribute("data-fallback-src") || "";
+      if (fallback && img.src !== fallback) {
+        img.removeAttribute("data-fallback-src");
+        img.src = fallback;
+        return;
+      }
+      const message = document.createElement("div");
+      message.className = "capture-incomplete";
+      message.innerHTML = "<strong>Static preview unavailable</strong><p>The saved image URL expired. Avonent will replace it with a stable cached copy on the next research scan.</p>";
+      img.closest(".source-ad-media")?.replaceWith(message);
+    }, {once:true}));
     box.querySelectorAll("video").forEach(video => video.addEventListener("error", () => {
       const message = document.createElement("p"); message.className = "helper";
       message.textContent = "Video unavailable or expired. Open the Meta ad or refresh the brand.";
