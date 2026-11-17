@@ -1,18 +1,12 @@
 name: Avonent competitor research
 
 on:
-  push:
-    paths:
-      - '.github/workflows/competitor-research.yml'
-      - 'services/meta-scraper/src/**'
   workflow_dispatch:
     inputs:
       competitor_id:
         description: Optional competitor_watchlist UUID; blank scans all active brands
         required: false
         type: string
-  schedule:
-    - cron: "*/10 * * * *"
 
 permissions:
   contents: read
