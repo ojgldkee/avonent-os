@@ -49,7 +49,8 @@ ALLOWED_UPLOAD_EXTENSIONS = {
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    start_scheduler()
+    if settings.enable_background_research:
+        start_scheduler()
     yield
 
 
