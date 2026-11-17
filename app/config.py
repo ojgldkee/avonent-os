@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     ai_api_key: str = ""
     ai_model: str = ""
     research_interval_minutes: int = 180
+    enable_background_research: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
